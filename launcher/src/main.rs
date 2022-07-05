@@ -17,7 +17,7 @@ fn main() {
     // set containername from symlink parent
     let mut container_name = String::new();
     container_name.push_str(
-        Path::new(&program_link_path).parent().unwrap().to_str().unwrap()
+        Path::new(&program_link_path).file_name().unwrap().to_str().unwrap()
     );
 
     // allow to override containername via @CONTAINERNAME
