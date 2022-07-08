@@ -3,16 +3,20 @@ use std::process::exit;
 use std::path::Path;
 use std::env;
 use std::fs;
+use which::which;
+
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let program_path = &args[0];
-    let program_link_path = fs::read_link(program_path)
-        .expect(&format!("Not a symlink: {}", program_path));
+    let mut program_path = String::new();
+    program_path.push_str(which(&args[0]).unwrap().to_str().unwrap());
+
+    let program_link_path = fs::read_link(&program_path)
+        .expect(&format!("Not a symlink: {}", &program_path));
 
     // set programname from binary path
-    let program_name = Path::new(program_path).file_name().unwrap().to_str().unwrap();
+    let program_name = Path::new(&program_path).file_name().unwrap().to_str().unwrap();
 
     // set containername from symlink parent
     let mut container_name = String::new();
