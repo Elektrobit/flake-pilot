@@ -1,7 +1,7 @@
-Name:           pilot
+Name:           oci-pilot
 Version:        0.0.1
 Release:        0
-Summary:        pilot - launcher for container applications
+Summary:        oci-pilot - launcher for container applications
 License:        MIT
 %if "%{_vendor}" == "debbuild"
 Packager:       Marcus Schaefer <marcus.schaefer@elektrobit.com>
@@ -16,10 +16,12 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
 Run container applications using a symlink structure pointing
-to pilot which actually launches the application through podman
+to oci-pilot which actually launches the application through podman.
+Along with the launcher there are also registration tools to
+manage the symlink structure and podman registry
 
 %prep
-%setup -q -n pilot
+%setup -q -n oci-pilot
 
 %build
 cd launcher
@@ -29,10 +31,10 @@ cargo build --release
 
 %install
 mkdir -p %{buildroot}/usr/sbin
-install -m 755 launcher/target/release/pilot %{buildroot}/usr/sbin
+install -m 755 launcher/target/release/oci-pilot %{buildroot}/usr/sbin
 
 %files
 %defattr(-,root,root)
-/usr/sbin/pilot
+/usr/sbin/oci-pilot
 
 %changelog
