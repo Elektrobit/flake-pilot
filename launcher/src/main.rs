@@ -1,9 +1,9 @@
+#[cfg(test)]
+pub mod tests;
+
 pub mod app_path;
 pub mod container_link;
 pub mod podman;
-
-#[cfg(test)]
-pub mod tests;
 
 fn main() {
     let program_path = app_path::program_abs_path();
