@@ -17,3 +17,7 @@ build:
 
 clean:
 	cd launcher && cargo -v clean
+
+test:
+	cd launcher && cargo -v build
+	cd launcher && cargo -v test
