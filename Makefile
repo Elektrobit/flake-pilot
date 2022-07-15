@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := build
+
 .PHONY: package
 package:
 	rm -rf package/oci-pilot
@@ -8,3 +10,10 @@ package:
 	tar -C package -czf package/oci-pilot.tar.gz oci-pilot
 	rm -rf launcher/vendor
 	rm -rf package/oci-pilot
+
+.PHONY:build
+build:
+	cd launcher && cargo build -v --release
+
+clean:
+	cd launcher && cargo -v clean
