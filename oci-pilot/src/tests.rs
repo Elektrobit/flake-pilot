@@ -27,7 +27,7 @@ fn test_basename() {
 fn test_container_name() {
     let mut program_path = String::new();
     program_path.push_str(
-        which("../launcher_test/usr/sbin/apt-get").unwrap().to_str().unwrap()
+        which("../oci-pilot_test/usr/sbin/apt-get").unwrap().to_str().unwrap()
     );
     let container = container_name(&program_path);
     assert_eq!("ubdevtools", container)
