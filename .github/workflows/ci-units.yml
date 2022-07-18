@@ -1,0 +1,21 @@
+name: CI-Unit
+  
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  unit_tests:
+    name: Unit and Static Type tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run test target
+        run: |
+          make test
