@@ -3,6 +3,18 @@
 PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
 
+.PHONY: debian
+debian:
+	rm -rf ../oci-pilot-0.0.1
+	mkdir ../oci-pilot-0.0.1
+	cp -a . ../oci-pilot-0.0.1
+	cd ../oci-pilot-0.0.1/oci-pilot && cargo vendor
+	cd ../oci-pilot-0.0.1/oci-register && cargo vendor
+	tar -C ../ -czf ../oci-pilot-0.0.1.tar.gz oci-pilot-0.0.1
+	cp -a package/debian ../oci-pilot-0.0.1
+	cd ../oci-pilot-0.0.1 && debmake
+	cd ../oci-pilot-0.0.1 && debuild
+
 .PHONY: package
 package:
 	rm -rf package/oci-pilot
