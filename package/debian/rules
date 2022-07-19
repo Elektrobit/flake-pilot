@@ -1,0 +1,20 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+# export DH_VERBOSE = 1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	mkdir -p oci-pilot/.cargo
+	cp package/cargo_config oci-pilot/.cargo/config
+	mkdir -p oci-register/.cargo
+	cp package/cargo_config oci-register/.cargo/config
+	$(MAKE) 
+
+override_dh_auto_install:
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/oci-pilot PREFIX=/usr
+
+override_dh_auto_test:
+	$(MAKE) test
