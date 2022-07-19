@@ -7,6 +7,7 @@ use std::process::exit;
 pub mod cli;
 pub mod podman;
 pub mod app;
+pub mod defaults;
 
 fn main() {
     setup_logger();
@@ -20,7 +21,9 @@ fn main() {
         },
         // register
         cli::Commands::Register { container, app, target } => {
-            app::register(container, app, target.as_ref());
+            if app::init() {
+                app::register(container, app, target.as_ref());
+            }
         },
         // remove
         cli::Commands::Remove { container, app } => {
