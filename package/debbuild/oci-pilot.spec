@@ -31,11 +31,11 @@ cp %{SOURCE2} oci-register/.cargo/config
 make build
 
 %install
-make DESTDIR=%{buildroot}/ BINDIR=/usr/sbin/ install
+make DESTDIR=%{buildroot}/ install
 
 %files
 %defattr(-,root,root)
-/usr/sbin/oci-pilot
-/usr/sbin/oci-register
+/usr/bin/oci-pilot
+/usr/bin/oci-register
 
 %changelog
