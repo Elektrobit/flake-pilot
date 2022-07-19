@@ -24,9 +24,10 @@ manage the symlink structure and podman registry
 %setup -q -n oci-pilot
 
 %build
-cd oci-pilot
-mkdir .cargo
-cp %{SOURCE2} .cargo/config
+mkdir -p oci-pilot/.cargo
+mkdir -p oci-register/.cargo
+cp %{SOURCE2} oci-pilot/.cargo/config
+cp %{SOURCE2} oci-register/.cargo/config
 make build
 
 %install
@@ -35,5 +36,6 @@ make DESTDIR=%{buildroot}/ BINDIR=/usr/sbin/ install
 %files
 %defattr(-,root,root)
 /usr/sbin/oci-pilot
+/usr/sbin/oci-register
 
 %changelog

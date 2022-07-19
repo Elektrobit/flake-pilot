@@ -4,32 +4,32 @@ PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
 
 .PHONY: debian
-debian:
-	rm -rf ../oci-pilot-0.0.1
-	mkdir ../oci-pilot-0.0.1
-	cp -a . ../oci-pilot-0.0.1
-	cd ../oci-pilot-0.0.1/oci-pilot && cargo vendor
-	cd ../oci-pilot-0.0.1/oci-register && cargo vendor
-	tar -C ../ -czf ../oci-pilot-0.0.1.tar.gz oci-pilot-0.0.1
-	cp -a package/debian ../oci-pilot-0.0.1
-	cd ../oci-pilot-0.0.1 && debmake
-	cd ../oci-pilot-0.0.1 && debuild
+debian: clean vendor sourcetar
+	cp package/debbuild/cargo_config .
+	tar --append --file=package/oci-pilot.tar cargo_config
+	rm -f cargo_config
+	gzip package/oci-pilot.tar
+	mv package/oci-pilot.tar.gz package/debian
+	@echo "Find package data for debian at package/debian"
 
-.PHONY: package
-package:
-	rm -rf package/oci-pilot
-	rm -rf oci-pilot/target
-	rm -rf oci-register/target
+.PHONY: debbuild
+debbuild: clean vendor sourcetar
+	gzip package/oci-pilot.tar
+	mv package/oci-pilot.tar.gz package/debbuild
+	@echo "Find package data for debbuild at package/debbuild"
+
+vendor:
 	(cd oci-pilot && cargo vendor)
 	(cd oci-register && cargo vendor)
-	mkdir package/oci-pilot
-	cp -a oci-pilot package/oci-pilot/
-	cp -a oci-register package/oci-register/
-	tar -C package -czf package/oci-pilot.tar.gz oci-pilot oci-register
-	rm -rf oci-pilot/vendor
-	rm -rf oci-register/vendor
+
+sourcetar:
 	rm -rf package/oci-pilot
-	rm -rf package/oci-register
+	mkdir package/oci-pilot
+	cp Makefile package/oci-pilot
+	cp -a oci-pilot package/oci-pilot/
+	cp -a oci-register package/oci-pilot/
+	tar -C package -cf package/oci-pilot.tar oci-pilot
+	rm -rf package/oci-pilot
 
 .PHONY:build
 build:
@@ -39,6 +39,8 @@ build:
 clean:
 	cd oci-pilot && cargo -v clean
 	cd oci-register && cargo -v clean
+	rm -rf oci-pilot/vendor
+	rm -rf oci-register/vendor
 
 test:
 	cd oci-pilot && cargo -v build

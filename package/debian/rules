@@ -8,9 +8,9 @@
 
 override_dh_auto_build:
 	mkdir -p oci-pilot/.cargo
-	cp package/cargo_config oci-pilot/.cargo/config
+	cp cargo_config oci-pilot/.cargo/config
 	mkdir -p oci-register/.cargo
-	cp package/cargo_config oci-register/.cargo/config
+	cp cargo_config oci-register/.cargo/config
 	$(MAKE) 
 
 override_dh_auto_install:
