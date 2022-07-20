@@ -10,7 +10,7 @@ pub fn run(program_name: &String, container_name: &String) {
     Call podman run and execute program_name inside of container_name
     All commandline options will be passed to the program_name
     called in the container. Options to control how podman starts
-    the container can be provided as /etc/pilot/program_name.yaml
+    the container can be provided as CONTAINER_FLAKE_DIR/program_name.yaml
     like the following example shows:
 
     runtime:
