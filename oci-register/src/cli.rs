@@ -40,7 +40,7 @@ pub enum Commands {
         #[clap(long)]
         container: String,
 
-        /// An absolute path to the target inside the container.
+        /// An absolute path to the application inside the container.
         /// If not specified via the target option, the
         /// application will be registered with that path on the
         /// host.
