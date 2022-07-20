@@ -14,7 +14,7 @@ fn test_program_abs_path() {
 #[test]
 fn test_program_config_file() {
     let config_file = program_config_file(&format!("app"));
-    assert_eq!("/etc/pilot/app.yaml", config_file);
+    assert_eq!("/usr/share/flakes/app.yaml", config_file);
 }
 
 #[test]

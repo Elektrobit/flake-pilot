@@ -33,7 +33,7 @@ pub fn program_config_file(program_basename: &String) -> String {
     /*!
     Provide expected config file path for the given program_basename
     !*/
-    let config_file = &format!("/etc/pilot/{}.yaml", program_basename);
+    let config_file = &format!("/usr/share/flakes/{}.yaml", program_basename);
     config_file.to_string()
 }
 
