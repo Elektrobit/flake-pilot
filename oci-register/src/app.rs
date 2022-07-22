@@ -1,9 +1,63 @@
 use std::fs;
+use std::path::Path;
+use std::os::unix::fs::symlink;
 use crate::defaults;
 
 pub fn register(container: &String, app: &String, target: Option<&String>) {
-    // TODO: implement symlink setup for app registration
-    println!("register: {:?} {:?} {:?}", container, app, target);
+    /*!
+    Register container application as a symlink structure.
+    If target is not specified (app path the same on container and host) as:
+
+    $ app -> CONTAINER_FLAKE_DIR/container@app -> PILOT
+
+    If target is specified (app path different between host and container) as:
+
+    $ app -> CONTAINER_FLAKE_DIR/container@target -> PILOT
+
+    app and optional target has to be specified as absolute paths.
+    Because "/" is an invalid character in symlink names it will
+    be replaced by a "|" and handled correctly in PILOT when
+    reading the symlink.
+    !*/
+    let mut host_app_path = app;
+    if ! target.is_none() {
+        host_app_path = target.unwrap();
+    }
+    for path in &[app, host_app_path] {
+        if ! path.starts_with("/") {
+            error!(
+                "Application {:?} must be specified with an absolute path", path
+            );
+            return
+        }
+    }
+    // turn container app path in symlink friendly format, replace '/' with '|'
+    let container_app_path: String = app.chars().map(|c| match c {
+        '/' => '|',
+        _ => c
+    }).collect();
+
+    let flake_container = format!(
+        "{}/{}@{}", defaults::CONTAINER_FLAKE_DIR, container, container_app_path
+    );
+    info!("Registering application: {}", host_app_path);
+
+    // host_app_path -> pointing to container@container_app_path
+    symlink(&flake_container, host_app_path).unwrap_or_else(|why| {
+        error!("Error while creating symlink \"{} -> {}\": {:?}",
+            host_app_path, flake_container, why.kind()
+        );
+        return
+    });
+
+    // container@container_app_path -> pointing to pilot
+    if ! Path::new(&flake_container).exists() {
+        symlink(defaults::PILOT, &flake_container).unwrap_or_else(|why| {
+            error!("Error while creating symlink \"{} -> {}\": {:?}",
+                flake_container, defaults::PILOT, why.kind()
+            );
+        })
+    }
 }
 
 pub fn remove(app: &str) {
