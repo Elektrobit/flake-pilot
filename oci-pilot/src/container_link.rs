@@ -1,29 +1,42 @@
 use std::path::Path;
-use std::env;
 use std::fs;
 
-pub fn container_name(program_path: &String) -> String {
+pub fn read_link(program_path: &String) -> Vec<String> {
     /*!
-    Read container name from program_path symlink.
-    This function expects the symlink layout for containers
-    to be applied.
+    Read container name and app path from program_path symlink
+    registered by oci-register and return a vector
+    of the form:
 
-    There is also the magic option @CONTAINERNAME evaluated
-    from the commandline arguments which allows to override
-    the container name
+    [container_name, container_app_path]
+
+    Supported link names are:
+
+    - /usr/bin/app -> /usr/share/flakes/container@|usr|bin|app
+    - /usr/bin/app -> /usr/share/flakes/container
     !*/
-    let args: Vec<String> = env::args().collect();
     let program_link_path = fs::read_link(program_path)
         .expect(&format!("Must be a container symlink: {}", program_path));
-    let mut container_name = String::new();
-    container_name.push_str(
-        Path::new(&program_link_path).file_name().unwrap().to_str().unwrap()
+
+    let link_names: Vec<&str> = Path::new(
+        &program_link_path
+    ).file_name().unwrap().to_str().unwrap().split("@").collect();
+
+    // extract container name from link name split
+    let mut result: Vec<String> = Vec::new();
+    result.push(
+        String::from(link_names[0])
     );
-    // allow to override containername via @CONTAINERNAME
-    for arg in &args[1..] {
-        if arg.starts_with("@") {
-            container_name = String::from(&arg.replace("@", ""));
-        }
+
+    // extract container app from link name split or use program_path
+    if link_names.len() > 1 {
+        result.push(
+            String::from(link_names[1]).chars().map(|c| match c {
+                '|' => '/',
+                _ => c
+            }).collect()
+        );
+    } else {
+        result.push(program_path.to_string());
     }
-    container_name
+    result
 }

@@ -4,11 +4,12 @@ use std::path::Path;
 use std::env;
 use crate::app_path::program_config;
 use crate::app_path::program_config_file;
+use crate::app_path::basename;
 
-pub fn run(program_name: &String, container_name: &String) {
+pub fn run(program_path: &String, container_name: &String) {
     /*!
-    Call podman run and execute program_name inside of container_name
-    All commandline options will be passed to the program_name
+    Call podman run and execute program_path inside of container_name
+    All commandline options will be passed to the program
     called in the container. Options to control how podman starts
     the container can be provided as CONTAINER_FLAKE_DIR/program_name.yaml
     like the following example shows:
@@ -26,6 +27,7 @@ pub fn run(program_name: &String, container_name: &String) {
     exit code from podman or 255 in case no exit code can be
     obtained
     !*/
+    let program_name = basename(&program_path);
     let args: Vec<String> = env::args().collect();
 
     let mut app = Command::new("podman");
@@ -44,7 +46,7 @@ pub fn run(program_name: &String, container_name: &String) {
     } else {
         app.arg("--rm").arg("-ti");
     }
-    app.arg(container_name).arg(program_name);
+    app.arg(container_name).arg(program_path);
 
     // setup program arguments
     for arg in &args[1..] {
