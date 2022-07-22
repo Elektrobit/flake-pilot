@@ -3,8 +3,8 @@ use std::env;
 use crate::app_path::program_abs_path;
 use crate::app_path::basename;
 use crate::app_path::program_config_file;
-use crate::container_link::read_link_container_program_path;
-use crate::container_link::read_link_container_name;
+use crate::container_link::container_program_path;
+use crate::container_link::container_name;
 use crate::container_link::read_link_name;
 
 #[test]
@@ -31,11 +31,12 @@ fn test_app_link_no_container_app_path() {
     program_path.push_str(
         which("../oci-pilot_test/usr/sbin/apt-get").unwrap().to_str().unwrap()
     );
-    let container_program_path = read_link_container_program_path(
-        &program_path
+    let app_link = read_link_name(&program_path);
+    let container_program_path = container_program_path(
+        &app_link, &program_path
     );
-    let container_name = read_link_container_name(
-        &program_path
+    let container_name = container_name(
+        &app_link
     );
     assert_eq!("ubdevtools", container_name);
     assert_eq!(program_path, container_program_path)
@@ -47,11 +48,12 @@ fn test_app_link_with_container_app_path() {
     program_path.push_str(
         which("../oci-pilot_test/usr/sbin/lsblk").unwrap().to_str().unwrap()
     );
-    let container_program_path = read_link_container_program_path(
-        &program_path
+    let app_link = read_link_name(&program_path);
+    let container_program_path = container_program_path(
+        &app_link, &program_path
     );
-    let container_name = read_link_container_name(
-        &program_path
+    let container_name = container_name(
+        &app_link
     );
     assert_eq!("ubdevtools", container_name);
     assert_eq!("/usr/sbin/lsblk", container_program_path)

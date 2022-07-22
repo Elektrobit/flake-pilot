@@ -17,16 +17,14 @@ pub fn read_link_name(program_path: &String) -> String {
     result
 }
 
-pub fn read_link_container_program_path(program_path: &String) -> String {
+pub fn container_program_path(
+    link_name: &String, program_path: &String
+) -> String {
     /*!
     Read container program path from program_path symlink
     registered by oci-register
     !*/
-    let link_name = read_link_name(&program_path);
-    let link_names: Vec<&str> = Path::new(
-        &link_name
-    ).file_name().unwrap().to_str().unwrap().split("@").collect();
-
+    let link_names: Vec<&str> = link_name.split("@").collect();
     // extract container app from link name split or use program_path
     let container_program_path: String;
     if link_names.len() > 1 {
@@ -44,16 +42,12 @@ pub fn read_link_container_program_path(program_path: &String) -> String {
     result
 }
 
-pub fn read_link_container_name(program_path: &String) -> String {
+pub fn container_name(link_name: &String) -> String {
     /*!
     Read container name from program_path symlink
     registered by oci-register
     !*/
-    let link_name = read_link_name(&program_path);
-    let link_names: Vec<&str> = Path::new(
-        &link_name
-    ).file_name().unwrap().to_str().unwrap().split("@").collect();
-
+    let link_names: Vec<&str> = link_name.split("@").collect();
     // extract container name from link name split
     let mut result = String::new();
     result.push_str(link_names[0]);
