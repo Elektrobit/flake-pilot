@@ -5,6 +5,7 @@ use std::env;
 use crate::app_path::program_config;
 use crate::app_path::program_config_file;
 use crate::app_path::basename;
+use crate::defaults;
 
 pub fn run(program_path: &String, container_name: &String) {
     /*!
@@ -30,7 +31,7 @@ pub fn run(program_path: &String, container_name: &String) {
     let program_name = basename(&program_path);
     let args: Vec<String> = env::args().collect();
 
-    let mut app = Command::new("podman");
+    let mut app = Command::new(defaults::PODMAN);
 
     // setup podman runtime arguments
     app.arg("run");
@@ -54,7 +55,7 @@ pub fn run(program_path: &String, container_name: &String) {
     }
 
     let status = app.status()
-        .expect(&format!("Failed to execute podman"));
+        .expect(&format!("Failed to execute {}", defaults::PODMAN));
 
     match status.code() {
         Some(code) => exit(code),
