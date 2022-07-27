@@ -1,6 +1,6 @@
 use clap::{AppSettings, Parser, Subcommand, ArgGroup};
 
-/// oci-register - Load and Register OCI applications
+/// oci-ctl - Load and Register OCI applications
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 #[clap(global_setting(AppSettings::PropagateVersion))]

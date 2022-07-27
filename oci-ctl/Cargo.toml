@@ -1,5 +1,5 @@
 [package]
-name = "oci-register"
+name = "oci-ctl"
 version = "0.0.1"
 authors = ["Marcus Schäfer <marcus.schaefer@elektrobit.com>"]
 edition = "2018"
