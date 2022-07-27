@@ -47,6 +47,12 @@ pub fn run(program_name: &String) {
     }
     let container_name = runtime_config[0]["container_name"].as_str().unwrap();
 
+    // setup podman app to call
+    let mut target_app_path = program_name.as_str();
+    if ! runtime_config[0]["program_name"].as_str().is_none() {
+        target_app_path = runtime_config[0]["program_name"].as_str().unwrap();
+    }
+
     // setup podman runtime arguments
     app.arg("run");
     if Path::new(&program_config_file(&program_name)).exists() {
@@ -60,7 +66,7 @@ pub fn run(program_name: &String) {
     } else {
         app.arg("--rm").arg("-ti");
     }
-    app.arg(container_name).arg(program_name);
+    app.arg(container_name).arg(target_app_path);
 
     // setup program arguments
     for arg in &args[1..] {
