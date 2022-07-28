@@ -1,6 +1,5 @@
 use std::process::Command;
 use std::process::exit;
-use std::path::Path;
 use std::env;
 use crate::app_path::program_config;
 use crate::app_path::program_config_file;
@@ -55,8 +54,8 @@ pub fn run(program_name: &String) {
 
     // setup podman runtime arguments
     app.arg("run");
-    if Path::new(&program_config_file(&program_name)).exists() {
-        let runtime_section = &runtime_config[0]["runtime"];
+    let runtime_section = &runtime_config[0]["runtime"];
+    if ! runtime_section.as_hash().is_none() {
         for (opt, opt_value) in runtime_section.as_hash().unwrap() {
             app.arg(opt.as_str().unwrap());
             if ! opt_value.as_str().is_none() {
