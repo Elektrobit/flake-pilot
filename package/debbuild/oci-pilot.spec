@@ -12,6 +12,13 @@ Source0:        %{name}.tar.gz
 Source1:        %{name}-vendor.tar.gz
 Source2:        cargo_config
 BuildRequires:  rust-all
+%if 0%{?debian} || 0%{?ubuntu}
+Requires:       libxml2-utils
+%else
+Requires:       libxml2-tools
+%endif
+Requires:       dpkg
+Requires:       debbuild
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
@@ -35,7 +42,9 @@ make DESTDIR=%{buildroot}/ install
 
 %files
 %defattr(-,root,root)
+/usr/share/oci-pilot
 /usr/bin/oci-pilot
 /usr/bin/oci-ctl
+/usr/bin/oci-deb
 
 %changelog

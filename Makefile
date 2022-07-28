@@ -2,6 +2,7 @@
 
 PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
+SHAREDIR ?= ${PREFIX}/share/oci-pilot
 
 .PHONY: debian
 debian: clean vendor sourcetar
@@ -48,8 +49,11 @@ test:
 
 install:
 	install -d -m 755 $(DESTDIR)$(BINDIR)
+	install -d -m 755 $(DESTDIR)$(SHAREDIR)
 	install -m 755 oci-pilot/target/release/oci-pilot $(DESTDIR)$(BINDIR)/oci-pilot
 	install -m 755 oci-ctl/target/release/oci-ctl $(DESTDIR)$(BINDIR)/oci-ctl
+	install -m 755 oci-ctl/debbuild/oci-deb $(DESTDIR)$(BINDIR)/oci-deb
+	install -m 644 oci-ctl/debbuild/container.spec.in $(DESTDIR)$(SHAREDIR)/container.spec.in
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/oci-*

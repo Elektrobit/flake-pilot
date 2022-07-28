@@ -7,6 +7,7 @@ use std::process::exit;
 pub mod cli;
 pub mod podman;
 pub mod app;
+pub mod deb;
 pub mod defaults;
 
 fn main() {
@@ -33,6 +34,10 @@ fn main() {
             if ! container.is_none() {
                 app::purge(container.as_ref().map(String::as_str).unwrap());
             }
+        }
+        // build
+        cli::Commands::Build { oci, app, repo } => {
+            exit(deb::ocideb(oci, repo, app));
         }
     }
 }
