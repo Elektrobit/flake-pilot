@@ -55,7 +55,7 @@ pub enum Commands {
         target: Option<String>,
     },
     /// Build container package
-    Build {
+    BuildDeb {
         /// OCI container to load into local podman registry
         #[clap(long)]
         oci: String,

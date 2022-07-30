@@ -12,13 +12,6 @@ Source0:        %{name}.tar.gz
 Source1:        %{name}-vendor.tar.gz
 Source2:        cargo_config
 BuildRequires:  rust-all
-%if 0%{?debian} || 0%{?ubuntu}
-Requires:       libxml2-utils
-%else
-Requires:       libxml2-tools
-%endif
-Requires:       dpkg
-Requires:       debbuild
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
@@ -26,6 +19,23 @@ Run container applications using a symlink structure pointing
 to oci-pilot which actually launches the application through podman.
 Along with the launcher there are also registration tools to
 manage the symlink structure and podman registry
+
+%package -n oci-deb
+Summary:        oci-deb - build oci-pilot compliant debian package from OCI tar
+Group:          Application/Misc
+%if 0%{?debian} || 0%{?ubuntu}
+Requires:       libxml2-utils
+%else
+Requires:       libxml2-tools
+%endif
+Requires:       dpkg
+Requires:       debbuild
+
+%description -n oci-deb
+Provides oci-deb utility which uses debbuild and dpkg to create
+a debian package from a given OCI tar file. The created debian
+package hooks into the oci-pilot registration mechanism to run
+containerized applications.
 
 %prep
 %setup -q -n oci-pilot
@@ -42,9 +52,11 @@ make DESTDIR=%{buildroot}/ install
 
 %files
 %defattr(-,root,root)
-/usr/share/oci-pilot
 /usr/bin/oci-pilot
 /usr/bin/oci-ctl
+
+%files -n oci-deb
+/usr/share/oci-pilot
 /usr/bin/oci-deb
 
 %changelog

@@ -36,7 +36,7 @@ fn main() {
             }
         }
         // build
-        cli::Commands::Build { oci, app, repo } => {
+        cli::Commands::BuildDeb { oci, app, repo } => {
             exit(deb::ocideb(oci, repo, app));
         }
     }

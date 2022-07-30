@@ -10,6 +10,13 @@ pub fn ocideb(oci: &String, repo: &String, apps: &Vec<String>) -> i32 {
     !*/
     let mut status_code = 255;
 
+    if ! Path::new(defaults::OCIDEB).exists() {
+        error!("{} not found, please install the {} package",
+            defaults::OCIDEB, defaults::OCIDEB_PACKAGE
+        );
+        return 1;
+    }
+
     info!("Transforming OCI container to deb...");
 
     if Path::new(repo).exists() {
