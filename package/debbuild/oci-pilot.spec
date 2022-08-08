@@ -29,6 +29,7 @@ Requires:       libxml2-utils
 Requires:       libxml2-tools
 %endif
 Requires:       dpkg
+Requires:       dpkg-dev
 Requires:       debbuild
 
 %description -n oci-deb
