@@ -28,6 +28,7 @@ Requires:       libxml2-utils
 %else
 Requires:       libxml2-tools
 %endif
+Requires:       rsync
 Requires:       dpkg
 Requires:       dpkg-dev
 Requires:       debbuild

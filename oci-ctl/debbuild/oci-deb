@@ -138,7 +138,7 @@ if [ -z "${CONTAINER_APPS}" ] && [ -n "${argApps}" ];then
 fi
 
 # create debbuild dir structure in HOME
-for dir in BUILD DEBS SOURCES; do
+for dir in BUILD SDEBS DEBS SOURCES; do
     mkdir -p "${HOME}/debbuild/${dir}"
 done
 
@@ -157,15 +157,13 @@ sed \
 < "${SPEC_IN}" > "${HOME}/debbuild/SOURCES/container.spec"
 
 # build package
-debbuild -ba \
+debbuild -bb \
     --define "_srcdefattr (-,root,root)" -vv \
 "${HOME}/debbuild/SOURCES/container.spec"
 
 # extract packages to repo
 mkdir -p "${argRepo}"
-while read -r package; do
-    mv "${package}" "${argRepo}"
-done < <(find "${HOME}/debbuild/DEBS" -name "*.deb")
+rsync -a "${HOME}"/debbuild/DEBS/ "${argRepo}"
 rm -rf "${HOME}/debbuild"
 
 # create repo metadata
