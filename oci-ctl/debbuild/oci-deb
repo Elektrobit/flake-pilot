@@ -169,4 +169,5 @@ rm -rf "${HOME}/debbuild"
 # create repo metadata
 pushd "${argRepo}"
 dpkg-scanpackages -m . > Packages
+gzip Packages
 popd
