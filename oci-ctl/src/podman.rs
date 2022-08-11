@@ -1,5 +1,7 @@
 use std::process::Command;
 
+const PODMAN_PATH:&str = "/usr/bin/podman";
+
 pub fn load(oci: &String) -> i32 {
     /*!
     Call podman load with the provided oci tar file
@@ -8,7 +10,7 @@ pub fn load(oci: &String) -> i32 {
 
     info!("Loading OCI container...");
     info!("podman load -i {}", oci);
-    let status = Command::new("podman")
+    let status = Command::new(PODMAN_PATH)
         .arg("load")
         .arg("-i")
         .arg(oci)
@@ -33,7 +35,7 @@ pub fn purge(container: &String){
     !*/
     info!("Removing image and all running containers...");
     info!("podman load -i {}", container);
-    let status = Command::new("podman")
+    let status = Command::new(PODMAN_PATH)
         .arg("image")
         .arg("rm")
         .arg("-f")

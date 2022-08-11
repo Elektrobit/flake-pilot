@@ -92,7 +92,7 @@ pub fn remove(app: &str) {
     match fs::remove_dir_all(&&app_config_dir) {
         Ok(()) => {}
         Err(e) => { 
-            error!("Error removing the config direcotry for the application {}: {:?}",app,e);
+            error!("Error removing the config directory for the application {}: {:?}",app,e);
         }
     }
 }
