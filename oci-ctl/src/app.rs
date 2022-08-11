@@ -65,13 +65,30 @@ pub fn register(container: &String, app: &String, target: Option<&String>) {
         Err(error) => {
             error!("Error creating: {}: {:?}", &app_config_file, error);
             return
-        }
+            }
     }
 }
 
 pub fn remove(app: &str) {
-    // TODO: implement removal of symlink setup for registered app
-    println!("remove: {:?}", app);
+    // remove app link
+    match fs::remove_file(app) {
+     Ok(remove_file) => remove_file,
+     Err(error) => {
+        error!("Error removing link: {}: {:?}", app, error);
+     }   
+    }
+
+    // remove config directory
+    let app_basename = Path::new(app).file_name().unwrap().to_str().unwrap();
+    let app_config_dir = format!("{}/{}.d",
+        defaults::CONTAINER_FLAKE_DIR, &app_basename
+    );
+    match fs::remove_dir_all(&&app_config_dir) {
+        Ok(()) => {}
+        Err(e) => { 
+            error!("Error removing the config direcotry for the application {}: {:?}",app,e);
+        }
+    }
 }
 
 pub fn purge(container: &str) {
