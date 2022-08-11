@@ -26,3 +26,27 @@ pub fn load(oci: &String) -> i32 {
 
     status_code
 }
+
+pub fn purge(container: &String){
+ /*!
+    Call podman image rm with force option to remove all running containers
+    !*/
+    info!("Removing image and all running containers...");
+    info!("podman load -i {}", container);
+    let status = Command::new("podman")
+        .arg("image")
+        .arg("rm")
+        .arg("-f")
+        .arg(container)
+        .status();
+
+    match status {
+        Ok(status) => {
+            if ! status.success() {
+                error!("Failed, error message(s) reported");
+            }
+        }
+        Err(status) => { error!("Process terminated by signal: {}", status) }
+    }
+    
+}
