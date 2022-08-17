@@ -1,6 +1,5 @@
 use std::process::Command;
-
-const PODMAN_PATH:&str = "/usr/bin/podman";
+use crate::defaults;
 
 pub fn load(oci: &String) -> i32 {
     /*!
@@ -10,7 +9,7 @@ pub fn load(oci: &String) -> i32 {
 
     info!("Loading OCI container...");
     info!("podman load -i {}", oci);
-    let status = Command::new(PODMAN_PATH)
+    let status = Command::new(defaults::PODMAN_PATH)
         .arg("load")
         .arg("-i")
         .arg(oci)
@@ -29,13 +28,13 @@ pub fn load(oci: &String) -> i32 {
     status_code
 }
 
-pub fn purge(container: &String){
+pub fn rm(container: &String){
  /*!
     Call podman image rm with force option to remove all running containers
     !*/
     info!("Removing image and all running containers...");
-    info!("podman load -i {}", container);
-    let status = Command::new(PODMAN_PATH)
+    info!("podman rm -f  {}", container);
+    let status = Command::new(defaults::PODMAN_PATH)
         .arg("image")
         .arg("rm")
         .arg("-f")

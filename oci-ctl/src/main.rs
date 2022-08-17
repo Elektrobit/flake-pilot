@@ -8,6 +8,7 @@ pub mod cli;
 pub mod podman;
 pub mod app;
 pub mod deb;
+pub mod app_config;
 pub mod defaults;
 
 fn main() {

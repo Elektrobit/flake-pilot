@@ -1,13 +1,12 @@
 use std::fs;
 use std::path::Path;
 use std::os::unix::fs::symlink;
-use crate::{defaults, podman};
+use crate::{defaults, podman, app_config};
+
 
 
 use glob::glob;
 
-extern crate yaml_rust;
-use yaml_rust::{YamlLoader};
 
 pub fn register(container: &String, app: &String, target: Option<&String>) {
     /*!
@@ -71,7 +70,7 @@ pub fn register(container: &String, app: &String, target: Option<&String>) {
         Err(error) => {
             error!("Error creating: {}: {:?}", &app_config_file, error);
             return
-            }
+        }
     }
 }
 
@@ -111,38 +110,27 @@ pub fn purge(container: &str) {
             // clean conf file and links
             Ok(path) =>{
                 // purge container
-                podman::purge(&container.to_string());
+                podman::rm(&container.to_string());
                 
                 let pth = Path::new(&path);
                 let app_basename = match  &pth.file_name().unwrap().to_str().unwrap().split(".").next() {
                     Some(v) => v,
                     None => "",
                 };
-
-                let source = fs::read_to_string(&pth).unwrap();
-
-                let docs = match YamlLoader::load_from_str(&source){
-                    Ok(v) => v,
+                let app_conf = match app_config::AppConfig::new(&pth) {
+                    Ok(r) => r,
                     Err(e) => {
-                        error!("Could not parse file {}: {:?}",path.display(), e);
-                        return 
+                        error!("Could not load or parse the file {}: {:?}", pth.display(), e);
+                        continue;
                     }
                 };
-                let app_conf = &docs[0];
-                let cont_name = match app_conf["container_name"].as_str(){
-                    Some(v) => v,
-                    None => {
-                        error!("Missing container name in the configuration file: {}", path.display());
-                        return
-                    }
-                };
-
-                if container == cont_name{
+                
+                if container == app_conf.container_name {
                     let app = format!("{}/{}",defaults::CONTAINER_FLAKE_DIR, app_basename);
                     remove(&app);
                 }
             },
-            Err(e) => error!("Error while traversing configuration folder: {:?}",e),
+            Err(e) => error!("Error while traversing configuration folder: {:?}", e),
         }
        
         
