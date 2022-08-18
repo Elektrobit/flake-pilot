@@ -1,7 +1,8 @@
 use std::fs;
 use std::path::Path;
 use std::os::unix::fs::symlink;
-use crate::defaults;
+use crate::{defaults, podman, app_config};
+use glob::glob;
 
 pub fn register(container: &String, app: &String, target: Option<&String>) {
     /*!
@@ -70,8 +71,25 @@ pub fn register(container: &String, app: &String, target: Option<&String>) {
 }
 
 pub fn remove(app: &str) {
-    // TODO: implement removal of symlink setup for registered app
-    println!("remove: {:?}", app);
+    // remove app link
+    match fs::remove_file(app) {
+     Ok(remove_file) => remove_file,
+     Err(error) => {
+        error!("Error removing link: {}: {:?}", app, error);
+     }   
+    }
+
+    // remove config directory
+    let app_basename = Path::new(app).file_name().unwrap().to_str().unwrap();
+    let app_config_dir = format!("{}/{}.d",
+        defaults::CONTAINER_FLAKE_DIR, &app_basename
+    );
+    match fs::remove_dir_all(&&app_config_dir) {
+        Ok(()) => {}
+        Err(e) => { 
+            error!("Error removing the config directory for the application {}: {:?}",app,e);
+        }
+    }
 }
 
 pub fn purge(container: &str) {
@@ -79,6 +97,40 @@ pub fn purge(container: &str) {
     // the given container and also purge the container from
     // the local registry
     println!("purge: {:?}", container);
+
+    // iterate over all yaml config files and find those connected to the container
+    let glob_pattern = format!("{}/*.yaml", defaults::CONTAINER_FLAKE_DIR);
+    for conf_file in glob( &glob_pattern ).unwrap(){
+        // load yaml config and get container name and extract app name from path
+        match conf_file {
+            // clean conf file and links
+            Ok(path) =>{
+                // purge container
+                podman::rm(&container.to_string());
+                
+                let pth = Path::new(&path);
+                let app_basename = match  &pth.file_name().unwrap().to_str().unwrap().split(".").next() {
+                    Some(v) => v,
+                    None => "",
+                };
+                let app_conf = match app_config::AppConfig::new(&pth) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        error!("Could not load or parse the file {}: {:?}", pth.display(), e);
+                        continue;
+                    }
+                };
+                
+                if container == app_conf.container_name {
+                    let app = format!("{}/{}",defaults::CONTAINER_FLAKE_DIR, app_basename);
+                    remove(&app);
+                }
+            },
+            Err(e) => error!("Error while traversing configuration folder: {:?}", e),
+        }
+       
+        
+    }
 }
 
 pub fn init() -> bool {
