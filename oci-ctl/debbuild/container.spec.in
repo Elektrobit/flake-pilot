@@ -1,0 +1,53 @@
+Url:            https://github.com/OSInside/kiwi
+Name:           __NAME__
+Summary:        Package with __CONTAINER_NAME__:__TAG_VERSION__ OCI image
+Version:        __VERSION__
+Release:        0
+Group:          System/Management
+License:        MIT
+Source0:        __SOURCE0__
+Requires:       podman
+Requires:       oci-pilot
+BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+%if "%{_vendor}" == "debbuild"
+Packager:       NautilOS Team <nautilos@elektrobit.com>
+%endif
+
+%description
+This package contains __CONTAINER_NAME__ __TAG_VERSION__ OCI image.
+
+%prep
+
+%build
+
+%install
+install -d -m 755 $RPM_BUILD_ROOT%{_datadir}/kiwi-images/native
+install -p -D -m 644 %{SOURCE0} $RPM_BUILD_ROOT%{_datadir}/kiwi-images/native/
+ln -s ./$(basename %{SOURCE0}) $RPM_BUILD_ROOT%{_datadir}/kiwi-images/native/__NAME__
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post
+#!/bin/sh
+if [ -f "/usr/bin/oci-ctl" ]; then
+    /usr/bin/oci-ctl load --oci /usr/share/kiwi-images/native/__SOURCE0_BASENAME__
+    for app in $(echo "__CONTAINER_APPS__" | tr "," " ");do
+        /usr/bin/oci-ctl register --app $app --container __CONTAINER_NAME__
+    done
+fi
+
+%preun
+#!/bin/sh
+if [ -f "/usr/bin/oci-ctl" ]; then
+    /usr/bin/oci-ctl remove --container __CONTAINER_NAME__
+    for app in $(echo "__CONTAINER_APPS__" | tr "," " ");do
+        /usr/bin/oci-ctl remove --app $app
+    done
+fi
+
+%files
+%defattr(-, root, root)
+%{_datadir}/kiwi-images/native
+
+%changelog

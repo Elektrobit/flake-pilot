@@ -1,0 +1,173 @@
+#!/bin/bash
+
+set -e
+
+SPEC_IN=/usr/share/oci-pilot/container.spec.in
+PKG_VERSION=0.0.1
+CONTAINER_TAG=latest
+CONTAINER_APPS=""
+
+ARGUMENT_LIST=(
+    "description:"
+    "apps:"
+    "oci:"
+    "repo:"
+)
+
+# read arguments
+if ! opts=$(getopt \
+    --longoptions "$(printf "%s," "${ARGUMENT_LIST[@]}")" \
+    --name "$(basename "$0")" \
+    --options "" \
+    -- "$@"
+); then
+    echo "oci-deb"
+    echo "  --oci <filepath>"
+    echo "      path to OCI container tar file"
+    echo
+    echo "  --repo <dir>"
+    echo "      output directory to store package(s)"
+    echo "      as local repository"
+    echo
+    echo "  --description <filepath>"
+    echo "      path to KIWI XML description file. If not"
+    echo "      specified default values will apply to the"
+    echo "      following settings:"
+    echo
+    echo "      - version = ${PKG_VERSION}"
+    echo "      - tag = ${CONTAINER_TAG}"
+    echo "      - name = (basename from OCI tar filename)"
+    echo
+    echo "  --apps <filepath,filepath,...>"
+    echo "      register provided app paths. In case the app"
+    echo "      registration is provided with the KIWI XML"
+    echo "      description, this option has no meaning"
+    exit 1
+fi
+
+eval set --"${opts}"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --description)
+            argDescription=$2
+            shift 2
+            ;;
+
+        --oci)
+            argSource=$2
+            shift 2
+            ;;
+
+        --apps)
+            argApps=$2
+            shift 2
+            ;;
+
+        --repo)
+            argRepo=$2
+            shift 2
+            ;;
+
+        *)
+            break
+            ;;
+    esac
+done
+
+# validate arguments
+if [ -z "${argSource}" ];then
+    echo "No OCI tar file specified, use --oci"
+    exit 1
+fi
+
+if [ ! -f "${argSource}" ];then
+    echo "No OCI tar file found, expected: ${argSource}"
+    exit 1
+fi
+
+if [ -z "${argRepo}" ];then
+    echo "No output repo path specified, use --repo"
+    exit 1
+fi
+
+if [ -e "${argRepo}" ];then
+    echo "Warning: Specified output repo path ${argRepo} already exists"
+fi
+
+if [ ! -f "${SPEC_IN}" ];then
+    echo "No spec template found, expected: ${SPEC_IN}"
+    exit 1
+fi
+
+# setup data variables to replace placeholders in spec file
+CONTAINER_BASE=$(basename "${argSource}")
+CONTAINER_NAME=$(
+    tar -axf "${argSource}" manifest.json -O \
+    | sed -e s"@.*RepoTags\":\[\"\(.*\):.*@\1@" | cut -f1 -d:
+)
+test -n "${CONTAINER_NAME}"
+
+if [ -n "${argDescription}" ];then
+    if [ ! -f "${argDescription}" ];then
+        echo "No image description found, expected: ${argDescription}"
+        exit 1
+    fi
+    PKG_VERSION=$(
+        xmllint --xpath "string(//image/preferences/version)" \
+        "${argDescription}"
+    )
+    CONTAINER_RAW=$(
+        xmllint --xpath "string(//image/preferences/type/containerconfig/@name)" \
+        "${argDescription}"
+    )
+    CONTAINER_TAG=$(
+        xmllint --xpath "string(//image/preferences/type/containerconfig/@tag)" \
+        "${argDescription}"
+    )
+    CONTAINER_APP_REG=$(
+        xmllint --xpath "string(//image/description/specification)" \
+        "${argDescription}"
+    )
+    CONTAINER_APPS=$(echo "${CONTAINER_APP_REG}" | cut -f3 -d:)
+    CONTAINER_NAME=$(echo "${CONTAINER_RAW}" | sed 's/\//-/' )
+fi
+
+if [ -z "${CONTAINER_APPS}" ] && [ -n "${argApps}" ];then
+    CONTAINER_APPS=${argApps}
+fi
+
+# create debbuild dir structure in HOME
+for dir in BUILD SDEBS DEBS SOURCES; do
+    mkdir -p "${HOME}/debbuild/${dir}"
+done
+
+# copy OCI source
+cp "${argSource}" "${HOME}/debbuild/SOURCES"
+
+# create specfile from template
+sed \
+    -e "s/__NAME__/oci-$CONTAINER_NAME/g" \
+    -e "s/__VERSION__/$PKG_VERSION/g" \
+    -e "s/__SOURCE0__/$CONTAINER_BASE/g" \
+    -e "s/__TAG_VERSION__/$CONTAINER_TAG/g" \
+    -e "s/__CONTAINER_NAME__/$CONTAINER_NAME/g" \
+    -e "s@__CONTAINER_APPS__@$CONTAINER_APPS@g" \
+    -e "s/__SOURCE0_BASENAME__/$CONTAINER_BASE/g" \
+< "${SPEC_IN}" > "${HOME}/debbuild/SOURCES/container.spec"
+
+# build package
+debbuild -bb \
+    --define "_srcdefattr (-,root,root)" -vv \
+"${HOME}/debbuild/SOURCES/container.spec"
+
+# extract packages to repo
+mkdir -p "${argRepo}"
+rsync -a "${HOME}"/debbuild/DEBS/ "${argRepo}"
+rm -rf "${HOME}/debbuild"
+
+# create repo metadata
+pushd "${argRepo}"
+dpkg-scanpackages -m . > Packages
+gzip --force --keep Packages
+popd

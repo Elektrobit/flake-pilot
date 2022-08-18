@@ -54,6 +54,22 @@ pub enum Commands {
         #[clap(long)]
         target: Option<String>,
     },
+    /// Build container package
+    BuildDeb {
+        /// OCI container to load into local podman registry
+        #[clap(long)]
+        oci: String,
+
+        /// An absolute path to the application for registration
+        /// at install time of the package.
+        #[clap(long, multiple = true)]
+        app: Vec<String>,
+
+        /// Output directory to store package(s) as
+        /// local debian repository
+        #[clap(long)]
+        repo: String,
+    }
 }
 
 pub fn parse_args() -> Cli {
