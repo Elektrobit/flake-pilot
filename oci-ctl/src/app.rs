@@ -71,15 +71,18 @@ pub fn register(container: &String, app: &String, target: Option<&String>) {
 }
 
 pub fn remove(app: &str) {
+    /*!
+    Delete application link and config files
+    !*/
     // remove app link
     match fs::remove_file(app) {
-     Ok(remove_file) => remove_file,
-     Err(error) => {
-        error!("Error removing link: {}: {:?}", app, error);
-     }   
+        Ok(remove_file) => remove_file,
+        Err(error) => {
+            error!("Error removing link: {}: {:?}", app, error);
+        }
     }
 
-    // remove config directory
+    // remove config file and config directory
     let app_basename = Path::new(app).file_name().unwrap().to_str().unwrap();
     let app_config_dir = format!("{}/{}.d",
         defaults::CONTAINER_FLAKE_DIR, &app_basename
@@ -93,21 +96,21 @@ pub fn remove(app: &str) {
 }
 
 pub fn purge(container: &str) {
-    // TODO: implement removal of all app registered against
-    // the given container and also purge the container from
-    // the local registry
-    println!("purge: {:?}", container);
-
-    // iterate over all yaml config files and find those connected to the container
+    /*!
+    Iterate over all yaml config files and find those connected
+    to the container. Delete all app registrations for this
+    container and also delete the container from the local
+    registry
+    !*/
     let glob_pattern = format!("{}/*.yaml", defaults::CONTAINER_FLAKE_DIR);
     for conf_file in glob( &glob_pattern ).unwrap(){
         // load yaml config and get container name and extract app name from path
         match conf_file {
             // clean conf file and links
-            Ok(path) =>{
+            Ok(path) => {
                 // purge container
                 podman::rm(&container.to_string());
-                
+
                 let pth = Path::new(&path);
                 let app_basename = match  &pth.file_name().unwrap().to_str().unwrap().split(".").next() {
                     Some(v) => v,
@@ -128,8 +131,6 @@ pub fn purge(container: &str) {
             },
             Err(e) => error!("Error while traversing configuration folder: {:?}", e),
         }
-       
-        
     }
 }
 
