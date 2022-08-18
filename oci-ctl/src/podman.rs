@@ -29,7 +29,7 @@ pub fn load(oci: &String) -> i32 {
 }
 
 pub fn rm(container: &String){
- /*!
+    /*!
     Call podman image rm with force option to remove all running containers
     !*/
     info!("Removing image and all running containers...");
@@ -49,5 +49,4 @@ pub fn rm(container: &String){
         }
         Err(status) => { error!("Process terminated by signal: {}", status) }
     }
-    
 }

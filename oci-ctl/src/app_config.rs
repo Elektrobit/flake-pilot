@@ -4,23 +4,22 @@ extern crate yaml_rust;
 
 use yaml_rust::{YamlLoader, Yaml};
 
-/* constants related to field names in configuration */
+// constants related to field names in configuration 
 const CONTAINER_NAME:&str = "container_name";
 const PROGRAM_NAME:&str   = "program_name";
 
 type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-    /*
-     * AppConfig represents application yaml configuration
-     * and storing container name and program name 
-     */
-pub struct AppConfig{
+/*
+* AppConfig represents application yaml configuration
+* and storing container name and program name 
+*/
+pub struct AppConfig {
     pub container_name: String,
     pub program_name: String,
 }
 
 impl AppConfig {
-
     pub fn new( conf_name: &Path ) -> Result< AppConfig, GenericError> {
         /*!
          * new creates the new AppConfig class by reading and deserializing the data

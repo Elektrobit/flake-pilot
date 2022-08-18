@@ -2,11 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::os::unix::fs::symlink;
 use crate::{defaults, podman, app_config};
-
-
-
 use glob::glob;
-
 
 pub fn register(container: &String, app: &String, target: Option<&String>) {
     /*!
