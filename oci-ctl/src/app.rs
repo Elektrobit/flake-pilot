@@ -74,23 +74,61 @@ pub fn remove(app: &str) {
     /*!
     Delete application link and config files
     !*/
-    // remove app link
-    match fs::remove_file(app) {
-        Ok(remove_file) => remove_file,
+    if ! app.starts_with("/") {
+        error!(
+            "Application {:?} must be specified with an absolute path", app
+        );
+        return
+    }
+    // remove pilot link if valid
+    match fs::read_link(app) {
+        Ok(link_name) => {
+            if link_name.into_os_string() == defaults::PILOT {
+                match fs::remove_file(app) {
+                    Ok(_) => {},
+                    Err(error) => {
+                        error!("Error removing pilot link: {}: {:?}", app, error);
+                        return
+                    }
+                }
+            } else {
+                error!("Symlink not pointing to oci-pilot: {}", app);
+                return
+            }
+        },
         Err(error) => {
-            error!("Error removing link: {}: {:?}", app, error);
+            error!("Failed to read as symlink: {}: {:?}", app, error);
+            return
         }
     }
-
     // remove config file and config directory
-    let app_basename = Path::new(app).file_name().unwrap().to_str().unwrap();
-    let app_config_dir = format!("{}/{}.d",
-        defaults::CONTAINER_FLAKE_DIR, &app_basename
+    let app_basename = basename(&format!("{}",app));
+    let config_file = format!(
+        "{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, &app_basename
     );
-    match fs::remove_dir_all(&&app_config_dir) {
-        Ok(()) => {}
-        Err(e) => { 
-            error!("Error removing the config directory for the application {}: {:?}",app,e);
+    let app_config_dir = format!(
+        "{}/{}.d", defaults::CONTAINER_FLAKE_DIR, &app_basename
+    );
+    if Path::new(&config_file).exists() {
+        match fs::remove_file(&config_file) {
+            Ok(_) => {},
+            Err(error) => {
+                error!(
+                    "Error removing config file: {}: {:?}",
+                    config_file, error
+                )
+            }
+        }
+    }
+    if Path::new(&app_config_dir).exists() {
+        match fs::remove_dir_all(&app_config_dir) {
+            Ok(_) => {},
+            Err(error) => {
+                error!(
+                    "Error removing config directory: {}: {:?}",
+                    app_config_dir , error
+                )
+            }
         }
     }
 }
