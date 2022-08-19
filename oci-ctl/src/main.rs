@@ -21,6 +21,18 @@ fn main() {
         cli::Commands::Load { oci } => {
             exit(podman::load(oci));
         },
+        // list
+        cli::Commands::List { } => {
+            info!("Registered applications:");
+            let app_names = app::app_names();
+            if app_names.is_empty() {
+                println!("No application(s) registered");
+            } else {
+                for app in app_names {
+                    println!("- {}", app);
+                }
+            }
+        },
         // register
         cli::Commands::Register { container, app, target } => {
             if app::init() {

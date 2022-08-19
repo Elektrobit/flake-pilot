@@ -95,6 +95,49 @@ pub fn remove(app: &str) {
     }
 }
 
+pub fn basename(program_path: &String) -> String {
+    /*!
+    Get basename from given program path
+    !*/
+    let mut program_name = String::new();
+    program_name.push_str(
+        Path::new(program_path).file_name().unwrap().to_str().unwrap()
+    );
+    program_name
+}
+
+pub fn app_names() -> Vec<String> {
+    /*!
+    Read all flake config files
+    !*/
+    let mut flakes: Vec<String> = Vec::new();
+    let glob_pattern = format!("{}/*.yaml", defaults::CONTAINER_FLAKE_DIR);
+    for config_file in glob(&glob_pattern).unwrap() {
+        match config_file {
+            Ok(filepath) => {
+                let base_config_file = basename(
+                    &filepath.into_os_string().into_string().unwrap()
+                );
+                match base_config_file.split(".").next() {
+                    Some(value) => {
+                        let mut app_name = String::new();
+                        app_name.push_str(value);
+                        flakes.push(app_name);
+                    },
+                    None => error!(
+                        "Ignoring invalid config_file format: {}",
+                        base_config_file
+                    )
+                }
+            },
+            Err(error) => error!(
+                "Error while traversing flakes folder: {:?}", error
+            )
+        }
+    }
+    flakes
+}
+
 pub fn purge(container: &str) {
     /*!
     Iterate over all yaml config files and find those connected
@@ -102,36 +145,25 @@ pub fn purge(container: &str) {
     container and also delete the container from the local
     registry
     !*/
-    let glob_pattern = format!("{}/*.yaml", defaults::CONTAINER_FLAKE_DIR);
-    for conf_file in glob( &glob_pattern ).unwrap(){
-        // load yaml config and get container name and extract app name from path
-        match conf_file {
-            // clean conf file and links
-            Ok(path) => {
-                // purge container
-                podman::rm(&container.to_string());
-
-                let pth = Path::new(&path);
-                let app_basename = match  &pth.file_name().unwrap().to_str().unwrap().split(".").next() {
-                    Some(v) => v,
-                    None => "",
-                };
-                let app_conf = match app_config::AppConfig::new(&pth) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        error!("Could not load or parse the file {}: {:?}", pth.display(), e);
-                        continue;
-                    }
-                };
-                
+    for app_name in app_names() {
+        let config_file = format!(
+            "{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, app_name
+        );
+        match app_config::AppConfig::new(Path::new(&config_file)) {
+            Ok(app_conf) => {
                 if container == app_conf.container_name {
-                    let app = format!("{}/{}",defaults::CONTAINER_FLAKE_DIR, app_basename);
-                    remove(&app);
+                    remove(&config_file);
                 }
             },
-            Err(e) => error!("Error while traversing configuration folder: {:?}", e),
-        }
+            Err(error) => {
+                error!(
+                    "Ignoring error on load or parse flake config {}: {:?}",
+                    config_file, error
+                );
+            }
+        };
     }
+    podman::rm(&container.to_string());
 }
 
 pub fn init() -> bool {
