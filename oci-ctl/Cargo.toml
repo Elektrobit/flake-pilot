@@ -10,4 +10,4 @@ claim = { version = "0.3.1" }
 log = { version = "0.4" }
 env_logger = { version = "0.9.0" }
 yaml-rust = { version = "0.4" }
-glob = { verion = "0.3" }
+glob = { version = "0.3" }
