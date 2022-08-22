@@ -14,8 +14,13 @@ pub fn register(container: &String, app: &String, target: Option<&String>) {
     the required information to launch the application inside of
     the container as follows:
 
-    container_name: container
-    program_name: target | app
+    container: container
+    target_app_path: path/to/program/in/container
+    host_app_path: path/to/program/on/host
+
+    runtime:
+      podman:
+        - option: [value]
     !*/
     let host_app_path = app;
     let mut target_app_path = host_app_path;
@@ -51,9 +56,6 @@ pub fn register(container: &String, app: &String, target: Option<&String>) {
     let app_config_dir = format!("{}/{}.d",
         defaults::CONTAINER_FLAKE_DIR, &app_basename
     );
-    let app_config = format!(
-        "container_name: {}\nprogram_name: {}\n", &container, &target_app_path
-    );
     match fs::create_dir_all(&app_config_dir) {
         Ok(dir) => dir,
         Err(error) => {
@@ -61,11 +63,15 @@ pub fn register(container: &String, app: &String, target: Option<&String>) {
             return
         }
     };
-    match fs::write(&app_config_file, app_config) {
-        Ok(write) => write,
+    match app_config::AppConfig::save(
+        Path::new(&app_config_file),
+        &container, &target_app_path, &host_app_path
+    ) {
+        Ok(_) => { },
         Err(error) => {
-            error!("Error creating: {}: {:?}", &app_config_file, error);
-            return
+            error!("Failed to create AppConfig {}: {:?}",
+                app_config_file, error
+            );
         }
     }
 }
@@ -187,10 +193,10 @@ pub fn purge(container: &str) {
         let config_file = format!(
             "{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, app_name
         );
-        match app_config::AppConfig::new(Path::new(&config_file)) {
+        match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
             Ok(app_conf) => {
-                if container == app_conf.container_name {
-                    remove(&config_file);
+                if container == app_conf.container {
+                    remove(&app_conf.host_app_path);
                 }
             },
             Err(error) => {
