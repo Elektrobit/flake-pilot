@@ -2,55 +2,75 @@ use std::fs;
 use std::path::Path;
 extern crate yaml_rust;
 
-use yaml_rust::{YamlLoader, Yaml};
+use yaml_rust::YamlLoader;
 
 // constants related to field names in configuration 
-const CONTAINER_NAME:&str = "container_name";
-const PROGRAM_NAME:&str   = "program_name";
+const CONTAINER:&str = "container";
+const TARGET_APP_PATH:&str = "target_app_path";
+const HOST_APP_PATH:&str = "host_app_path";
 
 type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 /*
 AppConfig represents application yaml configuration
-and storing container name and program name
 */
 pub struct AppConfig {
-    pub container_name: String,
-    pub program_name: String,
+    pub container: String,
+    pub target_app_path: String,
+    pub host_app_path: String,
+    pub config_file: String
 }
 
 impl AppConfig {
-    pub fn new(conf_name: &Path) -> Result<AppConfig, GenericError> {
+    pub fn save(
+        config_file: &Path, container: &String, target_app_path: &String,
+        host_app_path: &String
+    ) -> Result<(), GenericError> {
         /*!
-        new creates the new AppConfig class by reading and
-        deserializing the datafrom a given yaml configuration
+        save stores an AppConfig to the given file
         !*/
-        let mut rs = AppConfig{container_name: "".to_string() ,program_name: "".to_string()};
-        let source = fs::read_to_string(&conf_name)?;
-        let doc = YamlLoader::load_from_str(&source)?;
-
-        rs.container_name = match doc[0][CONTAINER_NAME].as_str(){
-            Some(v) => v.to_string(),
-            None => "".to_string()
-        };
-        
-        rs.program_name = match doc[0][PROGRAM_NAME].as_str() {
-            Some(v) => v.to_string(),
-            None => "".to_string()
-        };
-        
-        Ok(rs)
+        // TODO: handling yaml string can be done better here...
+        let app_config = format!(
+            "container: {}\ntarget_app_path: {}\nhost_app_path: {}\n",
+            &container,
+            &target_app_path,
+            &host_app_path
+        );
+        fs::write(&config_file, app_config)?;
+        Ok(())
     }
 
-    pub fn save(&mut self, conf_name: &Path) -> Result<(), GenericError> {
+    pub fn init_from_file(config_file: &Path) -> Result<AppConfig, GenericError> {
         /*!
-        save stores the AppConfig object to the given file
+        new creates the new AppConfig class by reading and
+        deserializing the data from a given yaml configuration
         !*/
-        let content = match Yaml::Array(vec!(Yaml::from_str(&self.container_name),Yaml::from_str(&self.program_name))).into_string() {
-            Some(v) => v,
-            None => return Err(GenericError::from("Wrong content stored in yaml configuration")),
+        let mut rs = AppConfig{
+            container: "".to_string(),
+            target_app_path: "".to_string(),
+            host_app_path: "".to_string(),
+            config_file: config_file.display().to_string()
         };
-        fs::write(conf_name, content)?;
-        Ok(())
+
+        if Path::new(&config_file).exists() {
+            let source = fs::read_to_string(&config_file)?;
+            let doc = YamlLoader::load_from_str(&source)?;
+
+            rs.container = match doc[0][CONTAINER].as_str() {
+                Some(v) => v.to_string(),
+                None => "".to_string()
+            };
+
+            rs.target_app_path = match doc[0][TARGET_APP_PATH].as_str() {
+                Some(v) => v.to_string(),
+                None => "".to_string()
+            };
+
+            rs.host_app_path = match doc[0][HOST_APP_PATH].as_str() {
+                Some(v) => v.to_string(),
+                None => "".to_string()
+            };
+        }
+        Ok(rs)
     }
 }
