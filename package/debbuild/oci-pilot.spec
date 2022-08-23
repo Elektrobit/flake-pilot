@@ -12,6 +12,7 @@ Source0:        %{name}.tar.gz
 Source1:        %{name}-vendor.tar.gz
 Source2:        cargo_config
 BuildRequires:  rust-all
+BuildRequires:  pandoc
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
@@ -56,6 +57,7 @@ make DESTDIR=%{buildroot}/ install
 %defattr(-,root,root)
 /usr/bin/oci-pilot
 /usr/bin/oci-ctl
+%doc /usr/share/man/man8/*
 
 %files -n oci-deb
 /usr/share/oci-pilot
