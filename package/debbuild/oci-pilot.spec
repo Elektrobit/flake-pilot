@@ -13,6 +13,7 @@ Source1:        %{name}-vendor.tar.gz
 Source2:        cargo_config
 BuildRequires:  rust-all
 BuildRequires:  pandoc
+BuildRequires:  upx-ucl
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description

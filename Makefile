@@ -35,8 +35,8 @@ sourcetar:
 
 .PHONY:build
 build: man
-	cd oci-pilot && cargo build -v --release
-	cd oci-ctl && cargo build -v --release
+	cd oci-pilot && cargo build -v --release && upx --best --lzma target/release/oci-pilot
+	cd oci-ctl && cargo build -v --release && upx --best --lzma target/release/oci-ctl
 
 clean:
 	cd oci-pilot && cargo -v clean
