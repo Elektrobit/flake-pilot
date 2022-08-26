@@ -1,2 +1,2 @@
 # pilot
-snapless snap using OCI containers, podman and pilot to control them
+snapless snap using OCI images, podman and pilot to control them

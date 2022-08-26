@@ -23,7 +23,7 @@ if ! opts=$(getopt \
 ); then
     echo "oci-deb"
     echo "  --oci <filepath>"
-    echo "      path to OCI container tar file"
+    echo "      path to OCI image tar file"
     echo
     echo "  --repo <dir>"
     echo "      output directory to store package(s)"

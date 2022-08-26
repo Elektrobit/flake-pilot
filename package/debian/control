@@ -13,4 +13,4 @@ Package: oci-pilot
 Architecture: any
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: snapless snap using OCI containers, podman and pilot to control them
+Description: snapless snap using OCI images, podman and pilot to control them

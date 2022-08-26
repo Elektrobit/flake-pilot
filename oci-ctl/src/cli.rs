@@ -14,7 +14,7 @@ pub struct Cli {
 pub enum Commands {
     /// Load container
     Load {
-        /// OCI container to load into local podman registry
+        /// OCI image to load into local podman registry
         #[clap(long)]
         oci: String,
     },
@@ -59,7 +59,7 @@ pub enum Commands {
     },
     /// Build container package
     BuildDeb {
-        /// OCI container to load into local podman registry
+        /// OCI image to load into local podman registry
         #[clap(long)]
         oci: String,
 

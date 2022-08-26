@@ -17,7 +17,7 @@ pub fn ocideb(oci: &String, repo: &String, apps: &Vec<String>) -> i32 {
         return 1;
     }
 
-    info!("Transforming OCI container to deb...");
+    info!("Transforming OCI image to deb...");
 
     if Path::new(repo).exists() {
         warn!("Repo {} already exists, data gets overwritten or added", repo);

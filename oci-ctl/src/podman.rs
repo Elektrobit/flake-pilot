@@ -7,7 +7,7 @@ pub fn load(oci: &String) -> i32 {
     !*/
     let mut status_code = 255;
 
-    info!("Loading OCI container...");
+    info!("Loading OCI image...");
     info!("podman load -i {}", oci);
     let status = Command::new(defaults::PODMAN_PATH)
         .arg("load")

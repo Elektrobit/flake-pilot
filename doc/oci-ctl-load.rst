@@ -16,14 +16,14 @@ SYNOPSIS
 
    OPTIONS:
        -h, --help         Print help information
-           --oci <OCI>    OCI container to load into local podman registry
+           --oci <OCI>    OCI image to load into local podman registry
        -V, --version      Print version information
 
 
 DESCRIPTION
 -----------
 
-Load the given OCI container into the local registry.
+Load the given OCI image into the local registry.
 The command is based on **podman load**. After completion
 the container can be listed via:
 
@@ -36,7 +36,7 @@ OPTIONS
 
 --oci <OCI>
 
-  OCI container to load into local podman registry. The given
+  OCI image to load into local podman registry. The given
   container must be in the OCI tar format like it is produced
   when exporting containers from registries via **podman export**
 

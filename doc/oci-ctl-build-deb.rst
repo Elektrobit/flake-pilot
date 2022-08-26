@@ -4,7 +4,7 @@ OCI-CTL-BUILD-DEB(8)
 NAME
 ----
 
-**oci-ctl build-deb** - Build debian package from OCI container
+**oci-ctl build-deb** - Build debian package from OCI image
 
 SYNOPSIS
 --------
@@ -18,7 +18,7 @@ SYNOPSIS
         --app <APP>...    An absolute path to the application for registration at install time of
                           the package
     -h, --help            Print help information
-        --oci <OCI>       OCI container to load into local podman registry
+        --oci <OCI>       OCI image to load into local podman registry
         --repo <REPO>     Output directory to store package(s) as local debian repository
     -V, --version         Print version information
 
@@ -41,7 +41,7 @@ OPTIONS
 
 --oci <OCI>
 
-  OCI container to load into local podman registry
+  OCI image to load into local podman registry
 
 --repo <REPO>
 

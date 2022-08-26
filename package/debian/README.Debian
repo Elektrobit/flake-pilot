@@ -1,5 +1,5 @@
 pilot for Debian
 
-snapless snap using OCI containers, podman and pilot to control them
+snapless snap using OCI images, podman and pilot to control them
 
  -- Nader Hariri <nader.hariri@elektrobit.com>  Tue, 12 Jul 2022 12:04:46 +0000
