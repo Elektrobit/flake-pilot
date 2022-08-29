@@ -3,7 +3,9 @@ use std::path::Path;
 use std::fs;
 use crate::defaults;
 
-pub fn ocideb(oci: &String, repo: &String, apps: &Vec<String>) -> i32 {
+pub fn ocideb(
+    oci: &String, repo: &String, apps: &Vec<String>, arch: Option<&String>
+) -> i32 {
     /*!
     Call oci-deb to create a debian package from the given OCI
     container tar including oci-pilot app registration hooks
@@ -30,15 +32,20 @@ pub fn ocideb(oci: &String, repo: &String, apps: &Vec<String>) -> i32 {
         .arg("--repo")
         .arg(repo);
 
-    if apps.is_empty() {
-        info!("oci-deb --oci {} --repo {}", oci, repo);
-    } else {
+    if ! apps.is_empty() {
         let apps_string = apps.join(",");
         oci_deb
             .arg("--apps")
             .arg(&apps_string);
-        info!("oci-deb --oci {} --apps {} --repo {}", oci, &apps_string, repo);
     }
+
+    if ! arch.is_none() {
+        oci_deb
+            .arg("--arch")
+            .arg(&arch.unwrap());
+    }
+
+    info!("oci-deb {:?}", oci_deb);
 
     match oci_deb.output() {
         Ok(output) => {

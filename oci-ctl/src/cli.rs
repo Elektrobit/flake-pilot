@@ -72,6 +72,11 @@ pub enum Commands {
         /// local debian repository
         #[clap(long)]
         repo: String,
+
+        /// Package BuildArch architecture
+        /// If not specified it will be taken from uname -m
+        #[clap(long)]
+        arch: Option<String>,
     }
 }
 

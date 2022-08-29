@@ -12,6 +12,7 @@ ARGUMENT_LIST=(
     "apps:"
     "oci:"
     "repo:"
+    "arch:"
 )
 
 # read arguments
@@ -21,9 +22,12 @@ if ! opts=$(getopt \
     --options "" \
     -- "$@"
 ); then
-    echo "oci-deb"
+    echo "makespec-kiwi"
     echo "  --oci <filepath>"
-    echo "      path to OCI image tar file"
+    echo "      path to OCI container tar file"
+    echo
+    echo "  --arch <arch>"
+    echo "      package architecture"
     echo
     echo "  --repo <dir>"
     echo "      output directory to store package(s)"
@@ -69,6 +73,11 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
 
+	--arch)
+            argArch=$2
+	    shift 2
+	    ;;
+
         *)
             break
             ;;
@@ -79,6 +88,10 @@ done
 if [ -z "${argSource}" ];then
     echo "No OCI tar file specified, use --oci"
     exit 1
+fi
+
+if [ -z "${argArch}" ];then
+    argArch="$(uname -m)"
 fi
 
 if [ ! -f "${argSource}" ];then
@@ -138,7 +151,7 @@ if [ -z "${CONTAINER_APPS}" ] && [ -n "${argApps}" ];then
 fi
 
 # create debbuild dir structure in HOME
-for dir in BUILD SDEBS DEBS SOURCES; do
+for dir in BUILD DEBS SOURCES; do
     mkdir -p "${HOME}/debbuild/${dir}"
 done
 
@@ -154,10 +167,11 @@ sed \
     -e "s/__CONTAINER_NAME__/$CONTAINER_NAME/g" \
     -e "s@__CONTAINER_APPS__@$CONTAINER_APPS@g" \
     -e "s/__SOURCE0_BASENAME__/$CONTAINER_BASE/g" \
+    -e "s/__ARCH__/$argArch/g" \
 < "${SPEC_IN}" > "${HOME}/debbuild/SOURCES/container.spec"
 
 # build package
-debbuild -bb \
+debbuild -ba \
     --define "_srcdefattr (-,root,root)" -vv \
 "${HOME}/debbuild/SOURCES/container.spec"
 

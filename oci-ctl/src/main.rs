@@ -49,8 +49,8 @@ fn main() {
             }
         }
         // build
-        cli::Commands::BuildDeb { oci, app, repo } => {
-            exit(deb::ocideb(oci, repo, app));
+        cli::Commands::BuildDeb { oci, app, repo, arch } => {
+            exit(deb::ocideb(oci, repo, app, arch.as_ref()));
         }
     }
 }

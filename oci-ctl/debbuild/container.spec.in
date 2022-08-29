@@ -12,6 +12,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if "%{_vendor}" == "debbuild"
 Packager:       NautilOS Team <nautilos@elektrobit.com>
 %endif
+BuildArch:      __ARCH__
 
 %description
 This package contains __CONTAINER_NAME__ __TAG_VERSION__ OCI image.
