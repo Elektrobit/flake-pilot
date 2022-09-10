@@ -169,7 +169,7 @@ sed \
 < "${SPEC_IN}" > "${HOME}/debbuild/SOURCES/container.spec"
 
 # build package
-debbuild -ba \
+debbuild -bb \
     --define "_srcdefattr (-,root,root)" -vv \
 "${HOME}/debbuild/SOURCES/container.spec"
 
