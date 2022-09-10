@@ -15,15 +15,17 @@ SYNOPSIS
        oci-ctl register [OPTIONS] --container <CONTAINER> --app <APP>
 
    OPTIONS:
-       --app <APP>                An absolute path to the application inside the container. If not
+       --app <APP>                An absolute path to the application on the host. If not
                                   specified via the target option, the application will be
-                                  registered with that path on the host
+                                  called with that path inside of the container
        --container <CONTAINER>    A container name. The name must match with a name in the local
                                   podman registry
    -h, --help                     Print help information
-       --target <TARGET>          An absolute path to the application on the host. Use this option
+       --target <TARGET>          An absolute path to the application in the container. Use this option
                                   if the application path on the host should be different to the
-                                  application path inside of the container
+                                  application path inside of the container. Set this option to an empty string
+                                  if the default entrypoint of the container should
+                                  be called.
    -V, --version                  Print version information
 
 DESCRIPTION
@@ -47,9 +49,9 @@ OPTIONS
 
 --app <APP>
 
-  An absolute path to the application inside the container. If not
+  An absolute path to the application on the host. If not
   specified via the target option, the application will be
-  registered with that path on the host
+  called with that path inside of the container
 
 --container <CONTAINER>
 
@@ -58,9 +60,11 @@ OPTIONS
 
 --target <TARGET>
 
-  An absolute path to the application on the host. Use this option
+  An absolute path to the application in the container. Use this option
   if the application path on the host should be different to the
-  application path inside of the container
+  application path inside of the container. Set this option to an empty string
+  if the default entrypoint of the container should
+  be called.
 
 FILES
 -----

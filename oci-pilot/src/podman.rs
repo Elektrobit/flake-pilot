@@ -75,7 +75,11 @@ pub fn run(program_name: &String) {
         app.arg("--rm").arg("-ti");
     }
 
-    app.arg(container_name).arg(target_app_path);
+    app.arg(container_name);
+
+    if target_app_path != "/" {
+        app.arg(target_app_path);
+    }
 
     // setup program arguments
     for arg in &args[1..] {

@@ -40,17 +40,19 @@ pub enum Commands {
         #[clap(long)]
         container: String,
 
-        /// An absolute path to the application inside the container.
+        /// An absolute path to the application on the host.
         /// If not specified via the target option, the
-        /// application will be registered with that path on the
-        /// host.
+        /// application will be called with that path inside
+        /// of the container.
         #[clap(long)]
         app: String,
 
-        /// An absolute path to the application on the host.
+        /// An absolute path to the application in the container.
         /// Use this option if the application path on the host
         /// should be different to the application path inside
-        /// of the container.
+        /// of the container. Set this option to just "/"
+        /// if the default entrypoint of the container should
+        /// be called.
         #[clap(long)]
         target: Option<String>,
     },
@@ -63,8 +65,10 @@ pub enum Commands {
         #[clap(long)]
         oci: String,
 
-        /// An absolute path to the application for registration
-        /// at install time of the package.
+        /// An absolute path to the application on the host
+        /// and optional absolute path to the application in the
+        /// container. The path spec is separated by a semicolon.
+        /// This option can be specified multiple times.
         #[clap(long, multiple = true)]
         app: Vec<String>,
 

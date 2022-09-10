@@ -48,7 +48,7 @@ fn main() {
                 app::purge(container.as_ref().map(String::as_str).unwrap());
             }
         }
-        // build
+        // build deb
         cli::Commands::BuildDeb { oci, app, repo, arch } => {
             exit(deb::ocideb(oci, repo, app, arch.as_ref()));
         }

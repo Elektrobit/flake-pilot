@@ -42,7 +42,7 @@ if ! opts=$(getopt \
     echo "      - tag = ${CONTAINER_TAG}"
     echo "      - name = (basename from OCI tar filename)"
     echo
-    echo "  --apps <filepath,filepath,...>"
+    echo "  --apps <filepath:targetpath,filepath:targetpath,...>"
     echo "      register provided app paths. In case the app"
     echo "      registration is provided with the KIWI XML"
     echo "      description, this option has no meaning"
@@ -117,9 +117,12 @@ fi
 CONTAINER_BASE=$(basename "${argSource}")
 CONTAINER_NAME=$(
     tar -axf "${argSource}" manifest.json -O \
-    | sed -e s"@.*RepoTags\":\[\"\(.*\):.*@\1@" | cut -f1 -d: | tr / _
+    | sed -e s"@.*RepoTags\":\[\"\(.*\):.*@\1@" | cut -f1 -d:
 )
+# exit if CONTAINER_NAME was not found
 test -n "${CONTAINER_NAME}"
+
+CONTAINER_FILE_FRIENDLY_NAME=$(echo "${CONTAINER_NAME}" | tr / _)
 
 if [ -n "${argDescription}" ];then
     if [ ! -f "${argDescription}" ];then
@@ -128,10 +131,6 @@ if [ -n "${argDescription}" ];then
     fi
     PKG_VERSION=$(
         xmllint --xpath "string(//image/preferences/version)" \
-        "${argDescription}"
-    )
-    CONTAINER_RAW=$(
-        xmllint --xpath "string(//image/preferences/type/containerconfig/@name)" \
         "${argDescription}"
     )
     CONTAINER_TAG=$(
@@ -143,7 +142,6 @@ if [ -n "${argDescription}" ];then
         "${argDescription}"
     )
     CONTAINER_APPS=$(echo "${CONTAINER_APP_REG}" | cut -f3 -d:)
-    CONTAINER_NAME=$(echo "${CONTAINER_RAW}" | sed 's/\//-/' )
 fi
 
 if [ -z "${CONTAINER_APPS}" ] && [ -n "${argApps}" ];then
@@ -160,11 +158,11 @@ cp "${argSource}" "${HOME}/debbuild/SOURCES"
 
 # create specfile from template
 sed \
-    -e "s/__NAME__/oci-$CONTAINER_NAME/g" \
+    -e "s/__NAME__/oci-$CONTAINER_FILE_FRIENDLY_NAME/g" \
     -e "s/__VERSION__/$PKG_VERSION/g" \
     -e "s/__SOURCE0__/$CONTAINER_BASE/g" \
     -e "s/__TAG_VERSION__/$CONTAINER_TAG/g" \
-    -e "s/__CONTAINER_NAME__/$CONTAINER_NAME/g" \
+    -e "s@__CONTAINER_NAME__@$CONTAINER_NAME@g" \
     -e "s@__CONTAINER_APPS__@$CONTAINER_APPS@g" \
     -e "s/__SOURCE0_BASENAME__/$CONTAINER_BASE/g" \
     -e "s/__ARCH__/$argArch/g" \

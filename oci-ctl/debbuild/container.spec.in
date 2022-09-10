@@ -33,8 +33,11 @@ rm -rf $RPM_BUILD_ROOT
 #!/bin/sh
 if [ -f "/usr/bin/oci-ctl" ]; then
     /usr/bin/oci-ctl load --oci /usr/share/kiwi-images/native/__SOURCE0_BASENAME__
-    for app in $(echo "__CONTAINER_APPS__" | tr "," " ");do
-        /usr/bin/oci-ctl register --app $app --container __CONTAINER_NAME__
+    for entry in $(echo "__CONTAINER_APPS__" | tr "," " ");do
+        app=$(echo $entry | cut -f1 -d\;)
+        target=$(echo $entry | cut -f2 -d\;)
+        test -z "$target" && target=$app
+        /usr/bin/oci-ctl register --app $app --target $target --container __CONTAINER_NAME__
     done
 fi
 
@@ -42,7 +45,8 @@ fi
 #!/bin/sh
 if [ -f "/usr/bin/oci-ctl" ]; then
     /usr/bin/oci-ctl remove --container __CONTAINER_NAME__
-    for app in $(echo "__CONTAINER_APPS__" | tr "," " ");do
+    for entry in $(echo "__CONTAINER_APPS__" | tr "," " ");do
+        app=$(echo $entry | cut -f1 -d\;)
         /usr/bin/oci-ctl remove --app $app
     done
 fi
