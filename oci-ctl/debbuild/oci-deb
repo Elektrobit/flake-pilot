@@ -117,7 +117,7 @@ fi
 CONTAINER_BASE=$(basename "${argSource}")
 CONTAINER_NAME=$(
     tar -axf "${argSource}" manifest.json -O \
-    | sed -e s"@.*RepoTags\":\[\"\(.*\):.*@\1@" | cut -f1 -d:
+    | sed -e s"@.*RepoTags\":\[\"\(.*\):.*@\1@" | cut -f1 -d: | tr / _
 )
 test -n "${CONTAINER_NAME}"
 
