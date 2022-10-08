@@ -11,6 +11,8 @@ Url:            https://github.com/schaefi/pilot
 Source0:        %{name}.tar.gz
 Source1:        %{name}-vendor.tar.gz
 Source2:        cargo_config
+Requires:       golang-github-containers-common
+Requires:       podman
 BuildRequires:  rust-all
 BuildRequires:  pandoc
 BuildRequires:  upx-ucl
