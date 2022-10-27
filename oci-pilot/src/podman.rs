@@ -25,9 +25,9 @@ pub fn run(program_name: &String) {
 
     runtime:
       podman:
-        --storage-opt: size=10G
-        --rm:
-        -ti:
+        - --storage-opt size=10G
+        - --rm:
+        - -ti:
 
     Calling this method will exit the calling program with the
     exit code from podman or 255 in case no exit code can be
@@ -61,12 +61,15 @@ pub fn run(program_name: &String) {
     let runtime_section = &runtime_config[0]["runtime"];
     if ! runtime_section.as_hash().is_none() {
         let podman_section = &runtime_section["podman"];
-        if ! podman_section.as_hash().is_none() {
+        if ! podman_section.as_vec().is_none() {
             has_runtime_arguments = true;
-            for (opt, opt_value) in podman_section.as_hash().unwrap() {
-                app.arg(opt.as_str().unwrap());
-                if ! opt_value.as_str().is_none() {
-                    app.arg(opt_value.as_str().unwrap());
+            for opt in podman_section.as_vec().unwrap() {
+                let mut split_opt = opt.as_str().unwrap().splitn(2, ' ');
+                let opt_name = split_opt.next();
+                let opt_value = split_opt.next();
+                app.arg(opt_name.unwrap());
+                if ! opt_value.is_none() {
+                    app.arg(opt_value.unwrap());
                 }
             }
         }
@@ -85,6 +88,8 @@ pub fn run(program_name: &String) {
     for arg in &args[1..] {
         app.arg(arg);
     }
+
+    // debug!("{:?}", app.get_args());
 
     match app.status() {
         Ok(status) => {

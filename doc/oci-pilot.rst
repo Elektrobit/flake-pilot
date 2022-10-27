@@ -63,14 +63,14 @@ can be set:
    # Container runtime parameters
    runtime:
      # Caller arguments for the podman engine in the format:
-     # PODMAN_OPTION_NAME: [OPTION_VALUE]
+     # - PODMAN_OPTION_NAME_AND_OPTIONAL_VALUE
      # For details on podman options please consult the
      # podman documentation.
      # Example:
      podman:
-       --storage-opt: size=10G
-       --rm:
-       -ti:
+       - --storage-opt size=10G
+       - --rm
+       - -ti
 
 After reading of the app configuration information the container
 will be called using the configured engine. If no runtime
