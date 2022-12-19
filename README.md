@@ -29,7 +29,7 @@ pushd oci-ctl
 cargo build --release
 popd
 sudo install -m 755 oci-pilot/target/release/oci-pilot /usr/bin
-sudo install -m 755 oci-ctl/target/release/oci-pilot /usr/bin
+sudo install -m 755 oci-ctl/target/release/oci-ctl /usr/bin
 ```
 
 ## Quick Start
@@ -73,7 +73,7 @@ After the registration of an application they can be listed via
 oci-ctl list
 ```
 
-Each application provides a configuration below ```/usr/share/flakes/```
+Each application provides a configuration below ```/usr/share/flakes/```.
 The term ```flake``` is a short name that we came up with to simplify
 the conversations when talking about *container application registrations*
 :-) For our above registered ```aws``` flake the config file structure
@@ -85,8 +85,8 @@ looks like the following:
 └── aws.yaml
 ```
 
-Please consult the manual pages for detailed information about the
-contents of the flake setup.
+Please consult the manual pages of oci-* tools for detailed information 
+about the contents of the flake setup.
 
 oci-pilot is a project in its early stages and the result of
 a fun conversation over beer on a conference. Feedback
