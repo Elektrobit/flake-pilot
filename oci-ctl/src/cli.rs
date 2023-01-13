@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-use clap::{AppSettings, Parser, Subcommand, ArgGroup};
+use clap::{AppSettings, Parser, Subcommand, ArgGroup, ArgAction};
 
 /// oci-ctl - Load and Register OCI applications
 #[derive(Parser)]
@@ -40,6 +40,10 @@ pub enum Commands {
         /// OCI image to load into local podman registry
         #[clap(long)]
         oci: String,
+
+        /// Remove given OCI image after loading to local registry
+        #[clap(long, action=ArgAction::SetFalse)]
+        remove: bool,
     },
     /// Remove application registration or entire container
     #[clap(group(

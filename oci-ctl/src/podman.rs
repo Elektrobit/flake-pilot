@@ -23,8 +23,9 @@
 //
 use std::process::Command;
 use crate::defaults;
+use std::fs;
 
-pub fn load(oci: &String) -> i32 {
+pub fn load(oci: &String, remove: bool) -> i32 {
     /*!
     Call podman load with the provided oci tar file
     !*/
@@ -43,6 +44,15 @@ pub fn load(oci: &String) -> i32 {
             status_code = status.code().unwrap();
             if ! status.success() {
                 error!("Failed, error message(s) reported");
+            } else if remove {
+                info!("Removing OCI image {}", oci);
+                match fs::remove_file(oci) {
+                    Ok(_) => {},
+                    Err(error) => {
+                        error!("Removing {} failed with: {:?}", oci, error);
+                        status_code = 1;
+                    }
+                }
             }
         }
         Err(status) => { error!("Process terminated by signal: {}", status) }

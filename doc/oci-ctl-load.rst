@@ -17,6 +17,7 @@ SYNOPSIS
    OPTIONS:
        -h, --help         Print help information
            --oci <OCI>    OCI image to load into local podman registry
+           --remove       Remove given OCI image after loading to local registry
        -V, --version      Print version information
 
 
@@ -40,12 +41,17 @@ OPTIONS
   container must be in the OCI tar format like it is produced
   when exporting containers from registries via **podman export**
 
+--remove
+
+  Remove given OCI image file, after successful loading into the
+  local registry.
+
 EXAMPLE
 -------
 
 .. code:: bash
 
-   $ oci-ctl load --oci SOME.docker.tar
+   $ oci-ctl load --oci SOME.docker.tar --remove
 
 AUTHOR
 ------

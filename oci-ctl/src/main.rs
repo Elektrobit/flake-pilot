@@ -41,8 +41,8 @@ fn main() {
 
     match &args.command {
         // load
-        cli::Commands::Load { oci } => {
-            exit(podman::load(oci));
+        cli::Commands::Load { oci, remove } => {
+            exit(podman::load(oci, *remove));
         },
         // list
         cli::Commands::List { } => {
