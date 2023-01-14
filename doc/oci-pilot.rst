@@ -62,6 +62,25 @@ can be set:
    # Optional registration setup
    # Container runtime parameters
    runtime:
+     # Try to resume container from previous execution.
+     # If the container is still running, the call will attach to it
+     # If the container is not running, the call will restart the
+     # container and attach to it.
+     #
+     # NOTE: If processing the call inside of the container finishes
+     # faster than attaching to it, the call will run a new container
+     # which is attached immediately. If this is unwanted set:
+     # respawn: false
+     #
+     # Default: false
+     resume: true|false
+
+     # Run a new container if attaching to resumed container failed
+     # This setting is only effective if 'resume: true' is set
+     #
+     # Default: true
+     respawn: true|false
+
      # Caller arguments for the podman engine in the format:
      # - PODMAN_OPTION_NAME_AND_OPTIONAL_VALUE
      # For details on podman options please consult the
@@ -79,6 +98,14 @@ defaults will apply:
 
 - The container will be removed after the call
 - The container allows for interactive shell sessions
+
+All caller arguments will be passed to the program call inside
+of the container except for arguments that starts with the '@'
+sign. Caller arguments of this type are only used in the container
+ID file name but will not be passed to the program call inside of
+the container. This allows users to differentiate the same
+program call between different container instances when using
+a resume based flake setup.
 
 FILES
 -----
