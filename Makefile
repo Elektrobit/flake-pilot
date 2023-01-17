@@ -4,15 +4,6 @@ PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
 SHAREDIR ?= ${PREFIX}/share/oci-pilot
 
-.PHONY: debian
-debian: clean vendor sourcetar
-	cp package/debbuild/cargo_config .
-	tar --append --file=package/oci-pilot.tar cargo_config
-	rm -f cargo_config
-	gzip package/oci-pilot.tar
-	mv package/oci-pilot.tar.gz package/debian
-	@echo "Find package data for debian at package/debian"
-
 .PHONY: debbuild
 debbuild: clean vendor sourcetar
 	gzip package/oci-pilot.tar
