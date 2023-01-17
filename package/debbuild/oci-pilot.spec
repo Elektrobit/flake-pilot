@@ -22,7 +22,7 @@
 # SOFTWARE.
 #
 Name:           oci-pilot
-Version:        0.0.1
+Version:        1.2.1
 Release:        0
 Summary:        oci-pilot - launcher for container applications
 License:        MIT

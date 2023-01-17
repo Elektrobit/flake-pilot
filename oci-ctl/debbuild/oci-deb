@@ -24,7 +24,7 @@
 set -e
 
 SPEC_IN=/usr/share/oci-pilot/container.spec.in
-PKG_VERSION=0.0.1
+PKG_VERSION=1.2.1
 CONTAINER_TAG=latest
 CONTAINER_APPS=""
 
