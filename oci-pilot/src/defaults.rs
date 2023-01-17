@@ -22,3 +22,5 @@
 // SOFTWARE.
 //
 pub const CONTAINER_FLAKE_DIR: &str = "/usr/share/flakes";
+pub const CONTAINER_CID_DIR: &str = "/tmp/flakes";
+pub const GC_THRESHOLD: i32 = 20;
