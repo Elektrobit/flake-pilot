@@ -23,6 +23,7 @@
 //
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::os::unix::fs::PermissionsExt;
 use std::process::exit;
 use std::env;
 use std::fs;
@@ -51,6 +52,15 @@ pub fn run(program_name: &String) {
     host_app_path: path/to/program/on/host
 
     runtime:
+      # Run the container engine as a user other than the
+      # default target user root. The user may be either
+      # a user name or a numeric user-ID (UID) prefixed
+      # with the ‘#’ character (e.g. #0 for UID 0). The call
+      # of the container engine is performed by sudo.
+      # The behavior of sudo can be controlled via the
+      # file /etc/sudoers
+      runas: root
+
       # Try to resume container from previous execution.
       # If the container is still running, the call will attach to it
       # If the container is not running, the call will restart the
@@ -91,8 +101,6 @@ pub fn run(program_name: &String) {
     }
     container_cid_file = format!("{}.cid", container_cid_file);
 
-    let mut app = Command::new("podman");
-
     // setup podman container to use
     if runtime_config[0]["container"].as_str().is_none() {
         error!(
@@ -115,6 +123,7 @@ pub fn run(program_name: &String) {
     // setup container operation mode
     let mut resume: bool = false;
     let mut respawn: bool = true;
+    let mut runas = String::new();
 
     if ! runtime_section.as_hash().is_none() {
         if ! &runtime_section["resume"].as_bool().is_none() {
@@ -123,7 +132,16 @@ pub fn run(program_name: &String) {
         if ! &runtime_section["respawn"].as_bool().is_none() {
             respawn = runtime_section["respawn"].as_bool().unwrap();
         }
+        if ! &runtime_section["runas"].as_str().is_none() {
+            runas.push_str(&runtime_section["runas"].as_str().unwrap());
+        }
     }
+
+    let mut app = Command::new("sudo");
+    if ! runas.is_empty() {
+        app.arg("--user").arg(&runas);
+    }
+    app.arg("podman");
 
     if resume {
         // Make sure CID dir exists
@@ -131,10 +149,22 @@ pub fn run(program_name: &String) {
             fs::create_dir(defaults::CONTAINER_CID_DIR).unwrap_or_else(|why| {
                 panic!("Failed to create CID dir: {:?}", why.kind());
             });
+            let attr = fs::metadata(
+                defaults::CONTAINER_CID_DIR
+            ).unwrap_or_else(|why| {
+                panic!("Failed to fetch CID attributes: {:?}", why.kind());
+            });
+            let mut permissions = attr.permissions();
+            permissions.set_mode(0o777);
+            fs::set_permissions(
+                defaults::CONTAINER_CID_DIR, permissions
+            ).unwrap_or_else(|why| {
+                panic!("Failed to set CID permissions: {:?}", why.kind());
+            });
         }
 
         // Garbage collect occasionally
-        gc();
+        gc(&runas);
 
         if ! Path::new(&container_cid_file).exists() {
             // resume mode is active and container doesn't exist
@@ -149,12 +179,12 @@ pub fn run(program_name: &String) {
                 Ok(cid) => {
                     // debug!("{:?}", cid);
                     // 1. try to attach to the container
-                    if resume_instance("attach", &cid) == 0 {
+                    if resume_instance("attach", &cid, &runas) == 0 {
                         exit(0)
                     }
                     // 2. try to restart/attach to the container
-                    if resume_instance("restart", &cid) == 0 {
-                        if resume_instance("attach", &cid) == 0 {
+                    if resume_instance("restart", &cid, &runas) == 0 {
+                        if resume_instance("attach", &cid, &runas) == 0 {
                             exit(0)
                         } else if ! respawn {
                             // attach failed, mostly because the process
@@ -166,7 +196,7 @@ pub fn run(program_name: &String) {
                         }
                     }
                     // 3. resume failed, delete instance and CID and re-init
-                    resume_instance("rm", &cid);
+                    resume_instance("rm", &cid, &runas);
                     match fs::remove_file(&container_cid_file) {
                         Ok(_) => { },
                         Err(error) => {
@@ -236,16 +266,19 @@ pub fn run(program_name: &String) {
     exit(255)
 }
 
-pub fn resume_instance(action: &str, cid: &String) -> i32 {
+pub fn resume_instance(action: &str, cid: &String, user: &String) -> i32 {
     /*!
     Call container ID based podman commands
     !*/
-    let mut resume = Command::new("podman");
+    let mut resume = Command::new("sudo");
     resume.stderr(Stdio::null());
     if action == "restart" || action == "rm" {
         resume.stdout(Stdio::null());
     }
-    resume.arg(action).arg(&cid);
+    if ! user.is_empty() {
+        resume.arg("--user").arg(user);
+    }
+    resume.arg("podman").arg(action).arg(&cid);
     let mut status_code = 255;
     match resume.status() {
         Ok(status) => {
@@ -258,7 +291,7 @@ pub fn resume_instance(action: &str, cid: &String) -> i32 {
     status_code
 }
 
-pub fn gc() {
+pub fn gc(user: &String) {
     /*!
     Garbage collect CID files for which no container exists anymore
     !*/
@@ -275,8 +308,11 @@ pub fn gc() {
     for container_cid_file in cid_file_names {
         match fs::read_to_string(&container_cid_file) {
             Ok(cid) => {
-                let mut exists = Command::new("podman");
-                exists.arg("container").arg("exists").arg(&cid);
+                let mut exists = Command::new("sudo");
+                if ! user.is_empty() {
+                    exists.arg("--user").arg(&user);
+                }
+                exists.arg("podman").arg("container").arg("exists").arg(&cid);
                 match exists.status() {
                     Ok(status) => {
                         if status.code().unwrap() != 0 {

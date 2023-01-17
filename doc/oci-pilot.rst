@@ -62,6 +62,15 @@ can be set:
    # Optional registration setup
    # Container runtime parameters
    runtime:
+     # Run the container engine as a user other than the
+     # default target user root. The user may be either
+     # a user name or a numeric user-ID (UID) prefixed
+     # with the ‘#’ character (e.g. #0 for UID 0). The call
+     # of the container engine is performed by sudo.
+     # The behavior of sudo can be controlled via the
+     # file /etc/sudoers
+     runas: root
+
      # Try to resume container from previous execution.
      # If the container is still running, the call will attach to it
      # If the container is not running, the call will restart the
