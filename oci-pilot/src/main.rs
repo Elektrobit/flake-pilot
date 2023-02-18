@@ -38,8 +38,15 @@ fn main() {
 
     let program_path = app_path::program_abs_path();
     let program_name = app_path::basename(&program_path);
+    let runtime_config = app_path::program_config(&program_name);
 
-    podman::run(&program_name);
+    let container = podman::create(&program_name, &runtime_config);
+    podman::start(
+        &program_name,
+        &runtime_config,
+        &container[0], // ID name
+        &container[1]  // ID file
+    );
 }
 
 fn setup_logger() {

@@ -71,21 +71,17 @@ can be set:
      # file /etc/sudoers
      runas: root
 
-     # Try to resume container from previous execution.
+     # Resume the container from previous execution.
      # If the container is still running, the call will attach to it
-     # If the container is not running, the call will restart the
-     # container and attach to it.
-     #
-     # NOTE: If processing the call inside of the container finishes
-     # faster than attaching to it, the call will run a new container
-     # which is attached immediately. If this is unwanted set:
-     # respawn: false
+     # If attaching is not possible, the container gets started again
+     # and immediately attached.
      #
      # Default: false
      resume: true|false
 
-     # Run a new container if attaching to resumed container failed
-     # This setting is only effective if 'resume: true' is set
+     # Create and start a new container if attaching or startup of
+     # resumed container failed. This setting is only effective
+     # if 'resume: true' is set.
      #
      # Default: true
      respawn: true|false

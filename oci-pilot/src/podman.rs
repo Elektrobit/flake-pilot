@@ -21,20 +21,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
+use yaml_rust::Yaml;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::os::unix::fs::PermissionsExt;
 use std::process::exit;
 use std::env;
 use std::fs;
-use crate::app_path::program_config;
 use crate::app_path::program_config_file;
 
 use crate::defaults;
 
-pub fn run(program_name: &String) {
+pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> {
     /*!
-    Call podman run and execute program_name inside of a container.
+    Create container for later execution of program_name.
     The container name and all other settings to run the program
     inside of the container are taken from the config file(s)
 
@@ -61,21 +61,17 @@ pub fn run(program_name: &String) {
       # file /etc/sudoers
       runas: root
 
-      # Try to resume container from previous execution.
+      # Resume the container from previous execution.
       # If the container is still running, the call will attach to it
-      # If the container is not running, the call will restart the
-      # container and attach to it.
-      #
-      # NOTE: If processing the call inside of the container finishes
-      # faster than attaching to it, the call will run a new container
-      # which is attached immediately. If this is unwanted set:
-      # respawn: false
+      # If attaching is not possible, the container gets started again
+      # and immediately attached.
       #
       # Default: false
       resume: true|false
 
-      # Run a new container if attaching to resumed container failed
-      # This setting is only effective if 'resume: true' is set
+      # Create and start a new container if attaching or startup of
+      # resumed container failed. This setting is only effective
+      # if 'resume: true' is set.
       #
       # Default: true
       respawn: true|false
@@ -85,13 +81,14 @@ pub fn run(program_name: &String) {
         - --rm:
         - -ti:
 
-    Calling this method will exit the calling program with the
-    exit code from podman or 255 in case no exit code can be
-    obtained
+    Calling this method returns a vector including the
+    container ID and and the name of the container ID
+    file. It depends on the flake configuration if the
+    container ID file is being created or not.
     !*/
     let args: Vec<String> = env::args().collect();
+    let mut result: Vec<String> = Vec::new();
 
-    let runtime_config = program_config(&program_name);
     let mut container_cid_file = format!(
         "{}/{}", defaults::CONTAINER_CID_DIR, program_name
     );
@@ -122,15 +119,11 @@ pub fn run(program_name: &String) {
 
     // setup container operation mode
     let mut resume: bool = false;
-    let mut respawn: bool = true;
     let mut runas = String::new();
 
     if ! runtime_section.as_hash().is_none() {
         if ! &runtime_section["resume"].as_bool().is_none() {
             resume = runtime_section["resume"].as_bool().unwrap();
-        }
-        if ! &runtime_section["respawn"].as_bool().is_none() {
-            respawn = runtime_section["respawn"].as_bool().unwrap();
         }
         if ! &runtime_section["runas"].as_str().is_none() {
             runas.push_str(&runtime_section["runas"].as_str().unwrap());
@@ -145,81 +138,29 @@ pub fn run(program_name: &String) {
 
     if resume {
         // Make sure CID dir exists
-        if ! Path::new(defaults::CONTAINER_CID_DIR).is_dir() {
-            fs::create_dir(defaults::CONTAINER_CID_DIR).unwrap_or_else(|why| {
-                panic!("Failed to create CID dir: {:?}", why.kind());
-            });
-            let attr = fs::metadata(
-                defaults::CONTAINER_CID_DIR
-            ).unwrap_or_else(|why| {
-                panic!("Failed to fetch CID attributes: {:?}", why.kind());
-            });
-            let mut permissions = attr.permissions();
-            permissions.set_mode(0o777);
-            fs::set_permissions(
-                defaults::CONTAINER_CID_DIR, permissions
-            ).unwrap_or_else(|why| {
-                panic!("Failed to set CID permissions: {:?}", why.kind());
-            });
-        }
+        init_cid_dir();
 
         // Garbage collect occasionally
         gc(&runas);
 
         if ! Path::new(&container_cid_file).exists() {
             // resume mode is active and container doesn't exist
-            // run the container and init a new ID file
-            app.arg("run");
+            // create the container and init a new ID file
+            app.arg("create");
             app.arg("--cidfile");
-            app.arg(container_cid_file);
+            app.arg(&container_cid_file);
         } else {
             // resume mode is active and container exists
-            // either attach or restart to it
-            match fs::read_to_string(&container_cid_file) {
-                Ok(cid) => {
-                    // debug!("{:?}", cid);
-                    // 1. try to attach to the container
-                    if resume_instance("attach", &cid, &runas) == 0 {
-                        exit(0)
-                    }
-                    // 2. try to restart/attach to the container
-                    if resume_instance("restart", &cid, &runas) == 0 {
-                        if resume_instance("attach", &cid, &runas) == 0 {
-                            exit(0)
-                        } else if ! respawn {
-                            // attach failed, mostly because the process
-                            // started already finished. By default we
-                            // run a new container that is attached immediately
-                            // but no respawn indicates this is unwanted.
-                            // So we are leaving...
-                            exit(0)
-                        }
-                    }
-                    // 3. resume failed, delete instance and CID and re-init
-                    resume_instance("rm", &cid, &runas);
-                    match fs::remove_file(&container_cid_file) {
-                        Ok(_) => { },
-                        Err(error) => {
-                            error!("Failed to remove CID: {:?}", error)
-                        }
-                    }
-                    app.arg("run");
-                    app.arg("--cidfile");
-                    app.arg(container_cid_file);
-                },
-                Err(error) => {
-                    // cid file exists but could not be read
-                    // fallback to start a new container without CID
-                    error!("Error reading CID: {:?}", error);
-                    app.arg("run");
-                }
-            }
+            // report ID=exists and its ID file name
+            result.push(format!("exists"));
+            result.push(container_cid_file);
+            return result;
         }
     } else {
-        app.arg("run");
+        app.arg("create");
     }
 
-    // run the container and application
+    // create the container with configured runtime arguments
     let mut has_runtime_arguments: bool = false;
     if ! runtime_section.as_hash().is_none() {
         let podman_section = &runtime_section["podman"];
@@ -236,12 +177,16 @@ pub fn run(program_name: &String) {
             }
         }
     }
+
+    // setup default runtime arguments if not configured
     if ! has_runtime_arguments {
         app.arg("--rm").arg("-ti");
     }
 
+    // setup container name to use
     app.arg(container_name);
 
+    // setup entry point
     if target_app_path != "/" {
         app.arg(target_app_path);
     }
@@ -254,33 +199,122 @@ pub fn run(program_name: &String) {
     }
 
     // debug!("{:?}", app.get_args());
-    match app.status() {
-        Ok(status) => {
-            match status.code() {
-                Some(code) => exit(code),
-                None => panic!("Process terminated by signal")
+    match app.output() {
+        Ok(output) => {
+            if output.status.success() {
+                result.push(
+                    String::from_utf8_lossy(&output.stdout)
+                        .strip_suffix("\n").unwrap().to_string()
+                );
+                result.push(container_cid_file);
+                return result;
             }
+            panic!(
+                "Failed to create container: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         },
-        Err(error) => error!("Failed to execute podman: {:?}", error)
+        Err(error) => {
+            panic!("Failed to execute podman: {:?}", error)
+        }
     }
-    exit(255)
 }
 
-pub fn resume_instance(action: &str, cid: &String, user: &String) -> i32 {
+pub fn start(
+    program_name: &String, runtime_config: &Vec<Yaml>,
+    cid: &String, container_cid_file: &String
+) {
+    /*!
+    Start container with given container ID
+
+    Calling this method will exit the calling program with the
+    exit code from podman or 255 in case no exit code can be
+    obtained
+    !*/
+    let runtime_section = &runtime_config[0]["runtime"];
+    let mut container_id = String::new();
+
+    let mut status_code;
+    let error_boundary_for_podman = 125;
+    let mut resume: bool = false;
+    let mut respawn: bool = true;
+    let mut attach: bool = false;
+    let mut runas = String::new();
+
+    if ! runtime_section.as_hash().is_none() {
+        if ! &runtime_section["resume"].as_bool().is_none() {
+            resume = runtime_section["resume"].as_bool().unwrap();
+        }
+        if ! &runtime_section["respawn"].as_bool().is_none() {
+            respawn = runtime_section["respawn"].as_bool().unwrap();
+        }
+        if ! &runtime_section["runas"].as_str().is_none() {
+            runas.push_str(&runtime_section["runas"].as_str().unwrap());
+        }
+    }
+
+    if resume {
+        if Path::new(&container_cid_file).exists() && cid == "exists" {
+            // resume mode is active and container exists, read ID file
+            match fs::read_to_string(&container_cid_file) {
+                Ok(cid) => {
+                    container_id = format!("{}", cid);
+                    attach = true;
+                },
+                Err(error) => {
+                    // cid file exists but could not be read
+                    panic!("Error reading CID: {:?}", error);
+                }
+            }
+        }
+    } else {
+        container_id = format!("{}", cid);
+    }
+
+    // 1. try to attach if existing
+    if attach {
+        status_code = call_instance("attach", &container_id, &runas);
+        if status_code < error_boundary_for_podman {
+            exit(status_code)
+        }
+    }
+
+    // 2. normal startup of the container
+    status_code = call_instance("start", &container_id, &runas);
+
+    // 3. attach or start has failed, re-init and call if respawn
+    if respawn && status_code >= error_boundary_for_podman {
+        call_instance("rm", &cid, &runas);
+        match fs::remove_file(&container_cid_file) {
+            Ok(_) => { },
+            Err(error) => {
+                error!("Failed to remove CID: {:?}", error)
+            }
+        }
+        let container = create(&program_name, &runtime_config);
+        status_code = call_instance("start", &container[0], &runas)
+    }
+    exit(status_code)
+}
+
+pub fn call_instance(action: &str, cid: &String, user: &String) -> i32 {
     /*!
     Call container ID based podman commands
     !*/
-    let mut resume = Command::new("sudo");
-    resume.stderr(Stdio::null());
-    if action == "restart" || action == "rm" {
-        resume.stdout(Stdio::null());
+    let mut call = Command::new("sudo");
+    call.stderr(Stdio::null());
+    if action == "create" || action == "rm" {
+        call.stdout(Stdio::null());
     }
     if ! user.is_empty() {
-        resume.arg("--user").arg(user);
+        call.arg("--user").arg(user);
     }
-    resume.arg("podman").arg(action).arg(&cid);
+    call.arg("podman").arg(action).arg(&cid);
+    if action == "start" {
+        call.arg("--attach");
+    }
     let mut status_code = 255;
-    match resume.status() {
+    match call.status() {
         Ok(status) => {
             status_code = status.code().unwrap();
         },
@@ -289,6 +323,26 @@ pub fn resume_instance(action: &str, cid: &String, user: &String) -> i32 {
         }
     }
     status_code
+}
+
+pub fn init_cid_dir() {
+    if ! Path::new(defaults::CONTAINER_CID_DIR).is_dir() {
+        fs::create_dir(defaults::CONTAINER_CID_DIR).unwrap_or_else(|why| {
+            panic!("Failed to create CID dir: {:?}", why.kind());
+        });
+        let attr = fs::metadata(
+            defaults::CONTAINER_CID_DIR
+        ).unwrap_or_else(|why| {
+            panic!("Failed to fetch CID attributes: {:?}", why.kind());
+        });
+        let mut permissions = attr.permissions();
+        permissions.set_mode(0o777);
+        fs::set_permissions(
+            defaults::CONTAINER_CID_DIR, permissions
+        ).unwrap_or_else(|why| {
+            panic!("Failed to set CID permissions: {:?}", why.kind());
+        });
+    }
 }
 
 pub fn gc(user: &String) {
