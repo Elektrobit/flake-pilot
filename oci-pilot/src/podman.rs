@@ -51,6 +51,15 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
     target_app_path: path/to/program/in/container
     host_app_path: path/to/program/on/host
 
+    # Optional base container to use with a delta 'container: name'
+    # If specified the given 'container: name' is expected to be
+    # an overlay for the specified base_container. oci-pilot
+    # combines the 'container: name' with the base_container into
+    # one overlay and starts the result as a container instance
+    #
+    # Default: not_specified
+    base_container: name
+
     runtime:
       # Run the container engine as a user other than the
       # default target user root. The user may be either
@@ -78,8 +87,8 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
 
       podman:
         - --storage-opt size=10G
-        - --rm:
-        - -ti:
+        - --rm
+        - -ti
 
     Calling this method returns a vector including the
     container ID and and the name of the container ID
@@ -108,10 +117,23 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
     }
     let container_name = runtime_config[0]["container"].as_str().unwrap();
 
+    // setup base container if specified
+    let container_base_name;
+    let delta_container;
+    if ! runtime_config[0]["base_container"].as_str().is_none() {
+        container_base_name = runtime_config[0]["base_container"]
+            .as_str().unwrap();
+        delta_container = true;
+    } else {
+        container_base_name = "";
+        delta_container = false;
+    }
+
     // setup podman app to call
     let mut target_app_path = program_name.as_str();
     if ! runtime_config[0]["target_app_path"].as_str().is_none() {
-        target_app_path = runtime_config[0]["target_app_path"].as_str().unwrap();
+        target_app_path = runtime_config[0]["target_app_path"]
+            .as_str().unwrap();
     }
 
     // get runtime section
@@ -184,7 +206,11 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
     }
 
     // setup container name to use
-    app.arg(container_name);
+    if delta_container {
+        app.arg(container_base_name);
+    } else {
+        app.arg(container_name);
+    }
 
     // setup entry point
     if target_app_path != "/" {
@@ -198,15 +224,30 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
         }
     }
 
-    // debug!("{:?}", app.get_args());
+    info!("{:?}", app.get_args());
     match app.output() {
         Ok(output) => {
             if output.status.success() {
-                result.push(
-                    String::from_utf8_lossy(&output.stdout)
-                        .strip_suffix("\n").unwrap().to_string()
-                );
+                let cid = String::from_utf8_lossy(&output.stdout)
+                    .strip_suffix("\n").unwrap().to_string();
+                result.push(cid);
                 result.push(container_cid_file);
+                if delta_container {
+                    let app_mount_point = mount_container(
+                        &container_name, &runas, true
+                    );
+                    let instance_mount_point = mount_container(
+                        &result[0], &runas, false
+                    );
+                    let sync_ok = sync_delta(
+                        &app_mount_point, &instance_mount_point, &runas
+                    );
+                    umount_container(&container_name, &runas, true);
+                    umount_container(&result[0], &runas, false);
+                    if sync_ok > 0 {
+                        panic!("Failed to sync delta to base")
+                    }
+                }
                 return result;
             }
             panic!(
@@ -232,7 +273,6 @@ pub fn start(
     obtained
     !*/
     let runtime_section = &runtime_config[0]["runtime"];
-    let mut container_id = String::new();
 
     let mut status_code;
     let error_boundary_for_podman = 125;
@@ -253,18 +293,17 @@ pub fn start(
         }
     }
 
-    if resume {
-        if Path::new(&container_cid_file).exists() && cid == "exists" {
-            // resume mode is active and container exists, read ID file
-            match fs::read_to_string(&container_cid_file) {
-                Ok(cid) => {
-                    container_id = format!("{}", cid);
-                    attach = true;
-                },
-                Err(error) => {
-                    // cid file exists but could not be read
-                    panic!("Error reading CID: {:?}", error);
-                }
+    let container_id;
+    if resume && Path::new(&container_cid_file).exists() && cid == "exists" {
+        // resume mode is active and container exists, read ID file
+        match fs::read_to_string(&container_cid_file) {
+            Ok(cid) => {
+                container_id = format!("{}", cid);
+                attach = true;
+            },
+            Err(error) => {
+                // cid file exists but could not be read
+                panic!("Error reading CID: {:?}", error);
             }
         }
     } else {
@@ -320,6 +359,93 @@ pub fn call_instance(action: &str, cid: &String, user: &String) -> i32 {
         },
         Err(error) => {
             error!("Failed to execute podman {}: {:?}", action, error)
+        }
+    }
+    status_code
+}
+
+pub fn mount_container(
+    container_name: &str, user: &String, as_image: bool
+) -> String {
+    /*!
+    Mount container and return mount point
+    !*/
+    let mut call = Command::new("sudo");
+    call.stderr(Stdio::null());
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    if as_image {
+        call.arg("podman").arg("image").arg("mount").arg(&container_name);
+    } else {
+        call.arg("podman").arg("mount").arg(&container_name);
+    }
+    match call.output() {
+        Ok(output) => {
+            if output.status.success() {
+                return String::from_utf8_lossy(&output.stdout)
+                    .strip_suffix("\n").unwrap().to_string()
+            }
+            panic!(
+                "Failed to mount container image: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        },
+        Err(error) => {
+            panic!("Failed to execute podman: {:?}", error)
+        }
+    }
+}
+
+pub fn umount_container(
+    mount_point: &str, user: &String, as_image: bool
+) -> i32 {
+    /*!
+    Umount container image
+    !*/
+    let mut call = Command::new("sudo");
+    call.stderr(Stdio::null());
+    call.stdout(Stdio::null());
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    if as_image {
+        call.arg("podman").arg("image").arg("umount").arg(&mount_point);
+    } else {
+        call.arg("podman").arg("umount").arg(&mount_point);
+    }
+    let mut status_code = 255;
+    match call.status() {
+        Ok(status) => {
+            status_code = status.code().unwrap();
+        },
+        Err(error) => {
+            error!("Failed to execute podman image umount: {:?}", error)
+        }
+    }
+    status_code
+}
+
+pub fn sync_delta(
+    source: &String, target: &String, user: &String
+) -> i32 {
+    /*!
+    Sync data from source path to target path
+    !*/
+    let mut call = Command::new("sudo");
+    // call.stderr(Stdio::null());
+    // call.stdout(Stdio::null());
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("rsync").arg("-a").arg(format!("{}/", &source)).arg(format!("{}/", &target));
+    let mut status_code = 255;
+    match call.status() {
+        Ok(status) => {
+            status_code = status.code().unwrap();
+        },
+        Err(error) => {
+            error!("Failed to execute rsync: {:?}", error)
         }
     }
     status_code

@@ -22,7 +22,7 @@
 # SOFTWARE.
 #
 Name:           oci-pilot
-Version:        1.2.1
+Version:        1.2.2
 Release:        0
 Summary:        oci-pilot - launcher for container applications
 License:        MIT
@@ -32,13 +32,22 @@ Packager:       Marcus Schaefer <marcus.schaefer@elektrobit.com>
 Group:          Application/Misc
 Url:            https://github.com/schaefi/pilot
 Source0:        %{name}.tar.gz
-Source1:        %{name}-vendor.tar.gz
-Source2:        cargo_config
+Source1:        cargo_config
+%if 0%{?debian} || 0%{?ubuntu}
 Requires:       golang-github-containers-common
+%endif
 Requires:       podman
-BuildRequires:  rust-all
+Requires:       sudo
 BuildRequires:  pandoc
+%if 0%{?fedora} || 0%{?suse_version}
+BuildRequires:  rust
+BuildRequires:  cargo
+BuildRequires:  upx
+%endif
+%if 0%{?debian} || 0%{?ubuntu}
+BuildRequires:  rust-all
 BuildRequires:  upx-ucl
+%endif
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
@@ -72,8 +81,8 @@ containerized applications.
 %build
 mkdir -p oci-pilot/.cargo
 mkdir -p oci-ctl/.cargo
-cp %{SOURCE2} oci-pilot/.cargo/config
-cp %{SOURCE2} oci-ctl/.cargo/config
+cp %{SOURCE1} oci-pilot/.cargo/config
+cp %{SOURCE1} oci-ctl/.cargo/config
 make build
 
 %install

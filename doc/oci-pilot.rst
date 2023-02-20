@@ -59,6 +59,15 @@ can be set:
    # Path of the program to register on the host
    host_app_path: path/to/program/on/host
 
+   # Optional base container to use with a delta 'container: name'
+   # If specified the given 'container: name' is expected to be
+   # an overlay for the specified base_container. oci-pilot
+   # combines the 'container: name' with the base_container into
+   # one overlay and starts the result as a container instance
+   #
+   # Default: not_specified
+   base_container: name
+
    # Optional registration setup
    # Container runtime parameters
    runtime:
