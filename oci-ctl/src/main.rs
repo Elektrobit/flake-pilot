@@ -40,6 +40,10 @@ fn main() {
     let args = cli::parse_args();
 
     match &args.command {
+        // pull
+        cli::Commands::Pull { uri } => {
+            exit(podman::pull(uri));
+        },
         // load
         cli::Commands::Load { oci } => {
             exit(podman::load(oci));

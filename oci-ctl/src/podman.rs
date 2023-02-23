@@ -24,6 +24,33 @@
 use std::process::Command;
 use crate::defaults;
 
+pub fn pull(uri: &String) -> i32 {
+    /*!
+    Call podman pull with the provided uri
+    !*/
+    let mut status_code = 255;
+
+    info!("Fetching from registry...");
+    info!("podman pull {}", uri);
+    let status = Command::new(defaults::PODMAN_PATH)
+        .arg("pull")
+        .arg(uri)
+        .status();
+
+    match status {
+        Ok(status) => {
+            status_code = status.code().unwrap();
+            if ! status.success() {
+                error!("Failed, error message(s) reported");
+            }
+        }
+        Err(status) => { error!("Process terminated by signal: {}", status) }
+    }
+
+    status_code
+}
+
+
 pub fn load(oci: &String) -> i32 {
     /*!
     Call podman load with the provided oci tar file

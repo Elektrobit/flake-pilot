@@ -35,6 +35,12 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Pull container
+    Pull {
+        /// OCI image to pull from remote registry into local podman registry
+        #[clap(long)]
+        uri: String,
+    },
     /// Load container
     Load {
         /// OCI image to load into local podman registry
