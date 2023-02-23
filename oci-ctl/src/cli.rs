@@ -84,6 +84,11 @@ pub enum Commands {
         /// be called.
         #[clap(long)]
         target: Option<String>,
+
+        /// Name of the base container. The name must match with a
+        /// name in the local podman registry
+        #[clap(long)]
+        base: Option<String>,
     },
     /// List registered container applications
     List {

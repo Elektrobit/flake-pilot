@@ -47,18 +47,23 @@ pub struct AppConfig {
 impl AppConfig {
     pub fn save(
         config_file: &Path, container: &String, target_app_path: &String,
-        host_app_path: &String
+        host_app_path: &String, base: Option<&String>
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
         !*/
         // TODO: handling yaml string can be done better here...
-        let app_config = format!(
+        let mut app_config = format!(
             "container: {}\ntarget_app_path: {}\nhost_app_path: {}\n",
             &container,
             &target_app_path,
             &host_app_path
         );
+        if ! base.is_none() {
+            app_config = format!(
+                "{}base_container: {}\n", app_config, base.unwrap()
+            );
+        }
         fs::write(&config_file, app_config)?;
         Ok(())
     }

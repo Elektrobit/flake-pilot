@@ -27,7 +27,10 @@ use std::os::unix::fs::symlink;
 use crate::{defaults, podman, app_config};
 use glob::glob;
 
-pub fn register(container: &String, app: &String, target: Option<&String>) {
+pub fn register(
+    container: &String, app: &String,
+    target: Option<&String>, base: Option<&String>
+) {
     /*!
     Register container application.
 
@@ -40,6 +43,7 @@ pub fn register(container: &String, app: &String, target: Option<&String>) {
     container: container
     target_app_path: path/to/program/in/container
     host_app_path: path/to/program/on/host
+    base_container: base_container_name
 
     runtime:
       podman:
@@ -88,7 +92,7 @@ pub fn register(container: &String, app: &String, target: Option<&String>) {
     };
     match app_config::AppConfig::save(
         Path::new(&app_config_file),
-        &container, &target_app_path, &host_app_path
+        &container, &target_app_path, &host_app_path, base
     ) {
         Ok(_) => { },
         Err(error) => {
