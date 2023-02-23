@@ -18,6 +18,8 @@ SYNOPSIS
        --app <APP>                An absolute path to the application on the host. If not
                                   specified via the target option, the application will be
                                   called with that path inside of the container
+       --base <BASE>              Name of the base container. The name must match with a name in
+                                  the local podman registry
        --container <CONTAINER>    A container name. The name must match with a name in the local
                                   podman registry
    -h, --help                     Print help information
@@ -52,6 +54,16 @@ OPTIONS
   An absolute path to the application on the host. If not
   specified via the target option, the application will be
   called with that path inside of the container
+
+--base <BASE>
+
+  Name of the base container. The name must match with a name in
+  the local podman registry. Applications registered with a base
+  container are merged into one prior creating the container
+  instance. Using of this option is only useful if the specified
+  container name references a delta container which was built
+  against the specified base container. Such delta containers
+  can be created with KIWI.
 
 --container <CONTAINER>
 
