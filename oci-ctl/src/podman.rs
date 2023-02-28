@@ -26,7 +26,7 @@ use crate::defaults;
 
 pub fn pull(uri: &String) -> i32 {
     /*!
-    Call podman pull with the provided uri
+    Call podman pull and prune with the provided uri
     !*/
     let mut status_code = 255;
 
@@ -42,6 +42,17 @@ pub fn pull(uri: &String) -> i32 {
             status_code = status.code().unwrap();
             if ! status.success() {
                 error!("Failed, error message(s) reported");
+            } else {
+                info!("podman prune");
+                let status = Command::new(defaults::PODMAN_PATH)
+                    .arg("image")
+                    .arg("prune")
+                    .arg("--force")
+                    .status();
+                match status {
+                    Ok(_) => { },
+                    Err(_) => { }
+                }
             }
         }
         Err(status) => { error!("Process terminated by signal: {}", status) }
