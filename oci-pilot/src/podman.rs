@@ -239,13 +239,18 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
                     let instance_mount_point = mount_container(
                         &result[0], &runas, false
                     );
-                    let sync_ok = sync_delta(
+                    let mut provision_ok = sync_delta(
                         &app_mount_point, &instance_mount_point, &runas
                     );
+                    if provision_ok == 0 {
+                        provision_ok = sync_host(
+                            &instance_mount_point, &runas
+                        )
+                    }
                     umount_container(&container_name, &runas, true);
                     umount_container(&result[0], &runas, false);
-                    if sync_ok > 0 {
-                        panic!("Failed to sync delta to base")
+                    if provision_ok > 0 {
+                        panic!("Failed to provision delta container")
                     }
                 }
                 return result;
@@ -433,19 +438,54 @@ pub fn sync_delta(
     Sync data from source path to target path
     !*/
     let mut call = Command::new("sudo");
-    // call.stderr(Stdio::null());
-    // call.stdout(Stdio::null());
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("rsync").arg("-a").arg(format!("{}/", &source)).arg(format!("{}/", &target));
+    call.arg("rsync")
+        .arg("-a")
+        .arg(format!("{}/", &source))
+        .arg(format!("{}/", &target));
     let mut status_code = 255;
     match call.status() {
         Ok(status) => {
             status_code = status.code().unwrap();
         },
         Err(error) => {
-            error!("Failed to execute rsync: {:?}", error)
+            error!("sync_delta: Failed to execute rsync: {:?}", error)
+        }
+    }
+    status_code
+}
+
+pub fn sync_host(
+    target: &String, user: &String
+) -> i32 {
+    /*!
+    Sync files/dirs specified in target/vanished from the
+    running host to the target path
+    !*/
+    let host_deps = format!("{}/vanished", &target);
+    if ! Path::new(&host_deps).exists() {
+        // There are no host dependencies to resolve
+        return 0
+    }
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("rsync")
+        .arg("-a")
+        .arg("--ignore-missing-args")
+        .arg("--files-from").arg(&host_deps)
+        .arg("/")
+        .arg(format!("{}/", &target));
+    let mut status_code = 255;
+    match call.status() {
+        Ok(status) => {
+            status_code = status.code().unwrap();
+        },
+        Err(error) => {
+            error!("sync_host: Failed to execute rsync: {:?}", error)
         }
     }
     status_code
