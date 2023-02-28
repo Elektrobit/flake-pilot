@@ -341,8 +341,8 @@ pub fn call_instance(action: &str, cid: &String, user: &String) -> i32 {
     Call container ID based podman commands
     !*/
     let mut call = Command::new("sudo");
-    call.stderr(Stdio::null());
     if action == "create" || action == "rm" {
+        call.stderr(Stdio::null());
         call.stdout(Stdio::null());
     }
     if ! user.is_empty() {
