@@ -4,11 +4,20 @@ PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
 SHAREDIR ?= ${PREFIX}/share/oci-pilot
 
-.PHONY: debbuild
-debbuild: clean vendor sourcetar
+.PHONY: package
+package: clean vendor sourcetar
+	rm -rf package/build
+	mkdir -p package/build
 	gzip package/oci-pilot.tar
-	mv package/oci-pilot.tar.gz package/debbuild
-	@echo "Find package data for debbuild at package/debbuild"
+	mv package/oci-pilot.tar.gz package/build
+	cp package/oci-pilot.spec package/build
+	cp package/cargo_config package/build
+	# update changelog using reference file
+	helper/update_changelog.py --since package/oci-pilot.changes.ref > \
+		package/build/oci-pilot.changes
+	helper/update_changelog.py --file package/oci-pilot.changes.ref >> \
+		package/build/oci-pilot.changes
+	@echo "Find package data for debbuild at package/build"
 
 vendor:
 	(cd oci-pilot && cargo vendor)
