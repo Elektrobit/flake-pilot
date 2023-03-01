@@ -114,6 +114,16 @@ the container. This allows users to differentiate the same
 program call between different container instances when using
 a resume based flake setup.
 
+DEBUGGING
+---------
+
+oci-pilot provides more inner works details if the following
+environment variable is set:
+
+.. code:: bash
+
+   export PILOT_DEBUG=1
+
 FILES
 -----
 
