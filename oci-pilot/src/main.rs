@@ -42,7 +42,6 @@ fn main() {
 
     let container = podman::create(&program_name, &runtime_config);
     podman::start(
-        &program_name,
         &runtime_config,
         &container[0], // ID name
         &container[1]  // ID file

@@ -88,13 +88,6 @@ can be set:
      # Default: false
      resume: true|false
 
-     # Create and start a new container if attaching or startup of
-     # resumed container failed. This setting is only effective
-     # if 'resume: true' is set.
-     #
-     # Default: true
-     respawn: true|false
-
      # Caller arguments for the podman engine in the format:
      # - PODMAN_OPTION_NAME_AND_OPTIONAL_VALUE
      # For details on podman options please consult the

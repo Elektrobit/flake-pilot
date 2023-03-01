@@ -78,13 +78,6 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
       # Default: false
       resume: true|false
 
-      # Create and start a new container if attaching or startup of
-      # resumed container failed. This setting is only effective
-      # if 'resume: true' is set.
-      #
-      # Default: true
-      respawn: true|false
-
       podman:
         - --storage-opt size=10G
         - --rm
@@ -165,7 +158,7 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
         // Garbage collect occasionally
         gc(&runas);
 
-        if ! Path::new(&container_cid_file).exists() {
+        if ! gc_cid_file(&container_cid_file, &runas) {
             // resume mode is active and container doesn't exist
             // create the container and init a new ID file
             app.arg("create");
@@ -267,8 +260,7 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
 }
 
 pub fn start(
-    program_name: &String, runtime_config: &Vec<Yaml>,
-    cid: &String, container_cid_file: &String
+    runtime_config: &Vec<Yaml>, cid: &String, container_cid_file: &String
 ) {
     /*!
     Start container with given container ID
@@ -282,16 +274,12 @@ pub fn start(
     let mut status_code;
     let error_boundary_for_podman = 125;
     let mut resume: bool = false;
-    let mut respawn: bool = true;
     let mut attach: bool = false;
     let mut runas = String::new();
 
     if ! runtime_section.as_hash().is_none() {
         if ! &runtime_section["resume"].as_bool().is_none() {
             resume = runtime_section["resume"].as_bool().unwrap();
-        }
-        if ! &runtime_section["respawn"].as_bool().is_none() {
-            respawn = runtime_section["respawn"].as_bool().unwrap();
         }
         if ! &runtime_section["runas"].as_str().is_none() {
             runas.push_str(&runtime_section["runas"].as_str().unwrap());
@@ -326,18 +314,6 @@ pub fn start(
     // 2. normal startup of the container
     status_code = call_instance("start", &container_id, &runas);
 
-    // 3. attach or start has failed, re-init and call if respawn
-    if respawn && status_code >= error_boundary_for_podman {
-        call_instance("rm", &cid, &runas);
-        match fs::remove_file(&container_cid_file) {
-            Ok(_) => { },
-            Err(error) => {
-                error!("Failed to remove CID: {:?}", error)
-            }
-        }
-        let container = create(&program_name, &runtime_config);
-        status_code = call_instance("start", &container[0], &runas)
-    }
     exit(status_code)
 }
 
@@ -511,6 +487,50 @@ pub fn init_cid_dir() {
     }
 }
 
+pub fn gc_cid_file(container_cid_file: &String, user: &String) -> bool {
+    /*!
+    Check if container exists according to the specified
+    container_cid_file. Garbage cleanup the container_cid_file
+    if no longer present. Return a true value if the container
+    exists, in any other case return false.
+    !*/
+    let mut cid_status = false;
+    match fs::read_to_string(&container_cid_file) {
+        Ok(cid) => {
+            let mut exists = Command::new("sudo");
+            if ! user.is_empty() {
+                exists.arg("--user").arg(&user);
+            }
+            exists.arg("podman")
+                .arg("container").arg("exists").arg(&cid);
+            match exists.status() {
+                Ok(status) => {
+                    if status.code().unwrap() != 0 {
+                        match fs::remove_file(&container_cid_file) {
+                            Ok(_) => { },
+                            Err(error) => {
+                                error!("Failed to remove CID: {:?}", error)
+                            }
+                        }
+                    } else {
+                        cid_status = true
+                    }
+                },
+                Err(error) => {
+                    error!(
+                        "Failed to execute podman container exists: {:?}",
+                        error
+                    )
+                }
+            }
+        },
+        Err(error) => {
+            error!("Error reading CID: {:?}", error);
+        }
+    }
+    cid_status
+}
+
 pub fn gc(user: &String) {
     /*!
     Garbage collect CID files for which no container exists anymore
@@ -526,35 +546,6 @@ pub fn gc(user: &String) {
         return
     }
     for container_cid_file in cid_file_names {
-        match fs::read_to_string(&container_cid_file) {
-            Ok(cid) => {
-                let mut exists = Command::new("sudo");
-                if ! user.is_empty() {
-                    exists.arg("--user").arg(&user);
-                }
-                exists.arg("podman").arg("container").arg("exists").arg(&cid);
-                match exists.status() {
-                    Ok(status) => {
-                        if status.code().unwrap() != 0 {
-                            match fs::remove_file(&container_cid_file) {
-                                Ok(_) => { },
-                                Err(error) => {
-                                    error!("Failed to remove CID: {:?}", error)
-                                }
-                            }
-                        }
-                    },
-                    Err(error) => {
-                        error!(
-                            "Failed to execute podman container exists: {:?}",
-                            error
-                        )
-                    }
-                }
-            },
-            Err(error) => {
-                error!("Error reading CID: {:?}", error);
-            }
-        }
+        gc_cid_file(&container_cid_file, &user);
     }
 }
