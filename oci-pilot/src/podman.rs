@@ -29,10 +29,13 @@ use std::process::exit;
 use std::env;
 use std::fs;
 use crate::app_path::program_config_file;
+use crate::defaults::{debug};
 
 use crate::defaults;
 
-pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> {
+pub fn create(
+    program_name: &String, runtime_config: &Vec<Yaml>
+) -> Vec<String> {
     /*!
     Create container for later execution of program_name.
     The container name and all other settings to run the program
@@ -217,7 +220,7 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
         }
     }
 
-    info!("{:?}", app.get_args());
+    debug(&format!("{:?}", app.get_args()));
     match app.output() {
         Ok(output) => {
             if output.status.success() {
@@ -226,16 +229,19 @@ pub fn create(program_name: &String, runtime_config: &Vec<Yaml>) -> Vec<String> 
                 result.push(cid);
                 result.push(container_cid_file);
                 if delta_container {
+                    debug("Provisioning delta container...");
                     let app_mount_point = mount_container(
                         &container_name, &runas, true
                     );
                     let instance_mount_point = mount_container(
                         &result[0], &runas, false
                     );
+                    debug("Syncing delta dependencies...");
                     let mut provision_ok = sync_delta(
                         &app_mount_point, &instance_mount_point, &runas
                     );
                     if provision_ok == 0 {
+                        debug("Syncing host dependencies...");
                         provision_ok = sync_host(
                             &instance_mount_point, &runas
                         )
@@ -334,6 +340,7 @@ pub fn call_instance(action: &str, cid: &String, user: &String) -> i32 {
         call.arg("--attach");
     }
     let mut status_code = 255;
+    debug(&format!("{:?}", call.get_args()));
     match call.status() {
         Ok(status) => {
             status_code = status.code().unwrap();
@@ -361,6 +368,7 @@ pub fn mount_container(
     } else {
         call.arg("podman").arg("mount").arg(&container_name);
     }
+    debug(&format!("{:?}", call.get_args()));
     match call.output() {
         Ok(output) => {
             if output.status.success() {
@@ -396,6 +404,7 @@ pub fn umount_container(
         call.arg("podman").arg("umount").arg(&mount_point);
     }
     let mut status_code = 255;
+    debug(&format!("{:?}", call.get_args()));
     match call.status() {
         Ok(status) => {
             status_code = status.code().unwrap();
@@ -418,16 +427,18 @@ pub fn sync_delta(
         call.arg("--user").arg(user);
     }
     call.arg("rsync")
-        .arg("-a")
+        .arg("-av")
         .arg(format!("{}/", &source))
         .arg(format!("{}/", &target));
-    let mut status_code = 255;
-    match call.status() {
-        Ok(status) => {
-            status_code = status.code().unwrap();
+    let status_code;
+    debug(&format!("{:?}", call.get_args()));
+    match call.output() {
+        Ok(output) => {
+            debug(&String::from_utf8_lossy(&output.stdout).to_string());
+            status_code = output.status.code().unwrap();
         },
         Err(error) => {
-            error!("sync_delta: Failed to execute rsync: {:?}", error)
+            panic!("Failed to execute rsync: {:?}", error)
         }
     }
     status_code
@@ -450,18 +461,20 @@ pub fn sync_host(
         call.arg("--user").arg(user);
     }
     call.arg("rsync")
-        .arg("-a")
+        .arg("-av")
         .arg("--ignore-missing-args")
         .arg("--files-from").arg(&host_deps)
         .arg("/")
         .arg(format!("{}/", &target));
-    let mut status_code = 255;
-    match call.status() {
-        Ok(status) => {
-            status_code = status.code().unwrap();
+    let status_code;
+    debug(&format!("{:?}", call.get_args()));
+    match call.output() {
+        Ok(output) => {
+            debug(&String::from_utf8_lossy(&output.stdout).to_string());
+            status_code = output.status.code().unwrap();
         },
         Err(error) => {
-            error!("sync_host: Failed to execute rsync: {:?}", error)
+            panic!("Failed to execute rsync: {:?}", error)
         }
     }
     status_code

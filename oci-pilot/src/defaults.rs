@@ -21,7 +21,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
+use std::env;
+
 pub const CONTAINER_FLAKE_DIR: &str = "/usr/share/flakes";
 pub const CONTAINER_CID_DIR: &str = "/tmp/flakes";
 pub const GC_THRESHOLD: i32 = 20;
 pub const HOST_DEPENDENCIES: &str = "vanished";
+
+pub fn debug(message: &str) {
+    match env::var("PILOT_DEBUG") {
+        Ok(_) => { debug!("{}", message) },
+        Err(_) => { }
+    };
+}
