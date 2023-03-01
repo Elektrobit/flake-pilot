@@ -437,10 +437,10 @@ pub fn sync_host(
     target: &String, user: &String
 ) -> i32 {
     /*!
-    Sync files/dirs specified in target/vanished from the
-    running host to the target path
+    Sync files/dirs specified in target/defaults::HOST_DEPENDENCIES
+    from the running host to the target path
     !*/
-    let host_deps = format!("{}/vanished", &target);
+    let host_deps = format!("{}/{}", &target, defaults::HOST_DEPENDENCIES);
     if ! Path::new(&host_deps).exists() {
         // There are no host dependencies to resolve
         return 0
