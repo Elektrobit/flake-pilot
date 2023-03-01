@@ -161,7 +161,8 @@ pub fn create(
         // Garbage collect occasionally
         gc(&runas);
 
-        if ! gc_cid_file(&container_cid_file, &runas) {
+        if ! Path::new(&container_cid_file).exists() ||
+           ! gc_cid_file(&container_cid_file, &runas) {
             // resume mode is active and container doesn't exist
             // create the container and init a new ID file
             app.arg("create");
@@ -298,7 +299,9 @@ pub fn start(
         match fs::read_to_string(&container_cid_file) {
             Ok(cid) => {
                 container_id = format!("{}", cid);
-                attach = true;
+                if container_running(&container_id, &runas) {
+                    attach = true;
+                }
             },
             Err(error) => {
                 // cid file exists but could not be read
@@ -498,6 +501,38 @@ pub fn init_cid_dir() {
             panic!("Failed to set CID permissions: {:?}", why.kind());
         });
     }
+}
+
+pub fn container_running(cid: &String, user: &String) -> bool {
+    /*!
+    Check if container with specified cid is running
+    !*/
+    let mut running_status = false;
+    let mut running = Command::new("sudo");
+    if ! user.is_empty() {
+        running.arg("--user").arg(&user);
+    }
+    running.arg("podman")
+        .arg("ps").arg("--format").arg("{{.ID}}");
+    debug(&format!("{:?}", running.get_args()));
+    match running.output() {
+        Ok(output) => {
+            let mut running_cids = String::new();
+            running_cids.push_str(
+                &String::from_utf8_lossy(&output.stdout).to_string()
+            );
+            for running_cid in running_cids.lines() {
+                if cid.starts_with(running_cid) {
+                    running_status = true;
+                    break
+                }
+            }
+        },
+        Err(error) => {
+            panic!("Failed to execute podman ps: {:?}", error)
+        }
+    }
+    running_status
 }
 
 pub fn gc_cid_file(container_cid_file: &String, user: &String) -> bool {
