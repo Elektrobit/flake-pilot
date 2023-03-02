@@ -113,6 +113,7 @@ pub fn remove(app: &str) {
         );
         return
     }
+    info!("Removing application: {}", app);
     // remove pilot link if valid
     match fs::read_link(app) {
         Ok(link_name) => {
