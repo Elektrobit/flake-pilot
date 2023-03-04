@@ -38,6 +38,7 @@ Requires:       golang-github-containers-common
 %endif
 Requires:       podman
 Requires:       sudo
+Requires:       rsync
 BuildRequires:  pandoc
 %if 0%{?fedora} || 0%{?suse_version}
 BuildRequires:  rust
