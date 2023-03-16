@@ -29,7 +29,8 @@ use glob::glob;
 
 pub fn register(
     container: &String, app: &String,
-    target: Option<&String>, base: Option<&String>
+    target: Option<&String>, base: Option<&String>,
+    layers: Option<Vec<String>>
 ) {
     /*!
     Register container application.
@@ -44,6 +45,10 @@ pub fn register(
     target_app_path: path/to/program/in/container
     host_app_path: path/to/program/on/host
     base_container: base_container_name
+
+    layer:
+      - name_A
+      - name_B
 
     runtime:
       podman:
@@ -61,6 +66,10 @@ pub fn register(
             );
             return
         }
+    }
+    if base.is_none() && ! layers.is_none() {
+        error!("Container layer(s) specified without a base container");
+        return
     }
     info!("Registering application: {}", host_app_path);
 
@@ -92,7 +101,7 @@ pub fn register(
     };
     match app_config::AppConfig::save(
         Path::new(&app_config_file),
-        &container, &target_app_path, &host_app_path, base
+        &container, &target_app_path, &host_app_path, base, layers
     ) {
         Ok(_) => { },
         Err(error) => {

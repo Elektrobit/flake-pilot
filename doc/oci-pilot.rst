@@ -68,6 +68,12 @@ can be set:
    # Default: not_specified
    base_container: name
 
+   # Optional additional container layers on top of the
+   # specified base container
+   layer:
+     - name_A
+     - name_B
+
    # Optional registration setup
    # Container runtime parameters
    runtime:

@@ -47,7 +47,8 @@ pub struct AppConfig {
 impl AppConfig {
     pub fn save(
         config_file: &Path, container: &String, target_app_path: &String,
-        host_app_path: &String, base: Option<&String>
+        host_app_path: &String, base: Option<&String>,
+        layers: Option<Vec<String>>
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
@@ -63,6 +64,13 @@ impl AppConfig {
             app_config = format!(
                 "{}base_container: {}\n", app_config, base.unwrap()
             );
+        }
+        if ! layers.is_none() {
+            app_config = format!("{}layer:\n", app_config);
+            for layer in layers.unwrap() {
+                app_config = format!("{}  - {}\n", app_config, layer)
+            }
+            app_config = format!("{}\n", app_config);
         }
         fs::write(&config_file, app_config)?;
         Ok(())

@@ -89,6 +89,14 @@ pub enum Commands {
         /// name in the local podman registry
         #[clap(long)]
         base: Option<String>,
+
+        /// Name of an additional container layer on top of
+        /// the specified base container. This option can be
+        /// specified multiple times. The resulting layer list
+        /// is evaluated in the order of the arguments as they
+        /// were provided on the command line.
+        #[clap(long, multiple = true)]
+        layer: Option<Vec<String>>,
     },
     /// List registered container applications
     List {

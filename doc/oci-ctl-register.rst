@@ -23,6 +23,10 @@ SYNOPSIS
        --container <CONTAINER>    A container name. The name must match with a name in the local
                                   podman registry
    -h, --help                     Print help information
+       --layer <LAYER>...         Name of an additional container layer on top of the specified
+                                  base container. This option can be specified multiple times. The
+                                  resulting layer list is evaluated in the order of the arguments
+                                  as they were provided on the command line
        --target <TARGET>          An absolute path to the application in the container. Use this option
                                   if the application path on the host should be different to the
                                   application path inside of the container. Set this option to an empty string
@@ -64,6 +68,13 @@ OPTIONS
   container name references a delta container which was built
   against the specified base container. Such delta containers
   can be created with KIWI.
+
+--layer <LAYER>...
+
+  Name of an additional container layer on top of the specified
+  base container. This option can be specified multiple times. The
+  resulting layer list is evaluated in the order of the arguments
+  as they were provided on the command line
 
 --container <CONTAINER>
 

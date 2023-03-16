@@ -63,6 +63,12 @@ pub fn create(
     # Default: not_specified
     base_container: name
 
+    # Optional additional container layers on top of the
+    # specified base container
+    layer:
+      - name_A
+      - name_B
+
     runtime:
       # Run the container engine as a user other than the
       # default target user root. The user may be either
@@ -93,6 +99,7 @@ pub fn create(
     !*/
     let args: Vec<String> = env::args().collect();
     let mut result: Vec<String> = Vec::new();
+    let mut layers: Vec<String> = Vec::new();
 
     let mut container_cid_file = format!(
         "{}/{}", defaults::CONTAINER_CID_DIR, program_name
@@ -117,8 +124,17 @@ pub fn create(
     let container_base_name;
     let delta_container;
     if ! runtime_config[0]["base_container"].as_str().is_none() {
+        // get base container name
         container_base_name = runtime_config[0]["base_container"]
             .as_str().unwrap();
+        // get additional container layers
+        let layer_section = &runtime_config[0]["layers"];
+        if ! layer_section.as_vec().is_none() {
+            for layer in layer_section.as_vec().unwrap() {
+                debug(&format!("Adding layer: [{}]", layer.as_str().unwrap()));
+                layers.push(layer.as_str().unwrap().to_string());
+            }
+        }
         delta_container = true;
     } else {
         container_base_name = "";
@@ -231,23 +247,35 @@ pub fn create(
                 result.push(container_cid_file);
                 if delta_container {
                     debug("Provisioning delta container...");
-                    let app_mount_point = mount_container(
-                        &container_name, &runas, true
-                    );
                     let instance_mount_point = mount_container(
                         &result[0], &runas, false
                     );
-                    debug("Syncing delta dependencies...");
-                    let mut provision_ok = sync_delta(
-                        &app_mount_point, &instance_mount_point, &runas
-                    );
+                    let mut provision_ok = 1;
+                    debug(&format!(
+                        "Adding main app [{}] to layer list", container_name
+                    ));
+                    layers.push(container_name.to_string());
+                    for layer in layers {
+                        debug(&format!(
+                            "Syncing delta dependencies [{}]...", layer
+                        ));
+                        let app_mount_point = mount_container(
+                            &layer, &runas, true
+                        );
+                        provision_ok = sync_delta(
+                            &app_mount_point, &instance_mount_point, &runas
+                        );
+                        umount_container(&layer, &runas, true);
+                        if provision_ok != 0 {
+                            break
+                        }
+                    }
                     if provision_ok == 0 {
                         debug("Syncing host dependencies...");
                         provision_ok = sync_host(
                             &instance_mount_point, &runas
                         )
                     }
-                    umount_container(&container_name, &runas, true);
                     umount_container(&result[0], &runas, false);
                     if provision_ok > 0 {
                         panic!("Failed to provision delta container")

@@ -61,9 +61,12 @@ fn main() {
             }
         },
         // register
-        cli::Commands::Register { container, app, target, base } => {
+        cli::Commands::Register { container, app, target, base, layer } => {
             if app::init() {
-                app::register(container, app, target.as_ref(), base.as_ref());
+                app::register(
+                    container, app, target.as_ref(), base.as_ref(),
+                    layer.as_ref().cloned()
+                );
             }
         },
         // remove
