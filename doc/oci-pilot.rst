@@ -70,7 +70,7 @@ can be set:
 
    # Optional additional container layers on top of the
    # specified base container
-   layer:
+   layers:
      - name_A
      - name_B
 

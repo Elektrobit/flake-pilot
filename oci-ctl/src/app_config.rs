@@ -66,7 +66,7 @@ impl AppConfig {
             );
         }
         if ! layers.is_none() {
-            app_config = format!("{}layer:\n", app_config);
+            app_config = format!("{}layers:\n", app_config);
             for layer in layers.unwrap() {
                 app_config = format!("{}  - {}\n", app_config, layer)
             }
