@@ -33,6 +33,8 @@ use crate::defaults::{debug};
 use tempfile::tempfile;
 use std::io::{Write, Read};
 use std::fs::File;
+use std::io::Seek;
+use std::io::SeekFrom;
 
 use crate::defaults;
 
@@ -503,10 +505,11 @@ pub fn sync_host(
     !*/
     let mut removed_files_contents = String::new();
     let host_deps = format!("{}/{}", &target, defaults::HOST_DEPENDENCIES);
+    removed_files.seek(SeekFrom::Start(0)).unwrap();
     match removed_files.read_to_string(&mut removed_files_contents) {
         Ok(_) => {
             if removed_files_contents.is_empty() {
-                // There are no host dependencies to resolve
+                debug("There are no host dependencies to resolve");
                 return 0
             }
             match File::create(&host_deps) {
@@ -611,9 +614,12 @@ pub fn update_removed_files(
     to the accumulated_file
     !*/
     let host_deps = format!("{}/{}", &target, defaults::HOST_DEPENDENCIES);
+    debug(&format!("Looking up host deps from {}", host_deps));
     if Path::new(&host_deps).exists() {
         match fs::read_to_string(&host_deps) {
             Ok(data) => {
+                debug("Adding host deps...");
+                debug(&String::from_utf8_lossy(data.as_bytes()).to_string());
                 match accumulated_file.write_all(data.as_bytes()) {
                     Ok(_) => { },
                     Err(error) => {
