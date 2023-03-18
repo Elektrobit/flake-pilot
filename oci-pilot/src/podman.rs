@@ -30,6 +30,9 @@ use std::env;
 use std::fs;
 use crate::app_path::program_config_file;
 use crate::defaults::{debug};
+use tempfile::tempfile;
+use std::io::{Write, Read};
+use std::fs::File;
 
 use crate::defaults;
 
@@ -246,9 +249,22 @@ pub fn create(
                 result.push(cid);
                 result.push(container_cid_file);
                 if delta_container {
+                    // Create tmpfile to hold accumulated removed data
+                    let removed_files: File;
+                    match tempfile() {
+                        Ok(file) => {
+                            removed_files = file
+                        },
+                        Err(error) => {
+                            panic!("Failed to create tempfile: {}", error)
+                        }
+                    }
                     debug("Provisioning delta container...");
                     let instance_mount_point = mount_container(
                         &result[0], &runas, false
+                    );
+                    update_removed_files(
+                        &instance_mount_point, &removed_files
                     );
                     let mut provision_ok = 1;
                     debug(&format!(
@@ -262,6 +278,9 @@ pub fn create(
                         let app_mount_point = mount_container(
                             &layer, &runas, true
                         );
+                        update_removed_files(
+                            &app_mount_point, &removed_files
+                        );
                         provision_ok = sync_delta(
                             &app_mount_point, &instance_mount_point, &runas
                         );
@@ -273,7 +292,7 @@ pub fn create(
                     if provision_ok == 0 {
                         debug("Syncing host dependencies...");
                         provision_ok = sync_host(
-                            &instance_mount_point, &runas
+                            &instance_mount_point, &removed_files, &runas
                         )
                     }
                     umount_container(&result[0], &runas, false);
@@ -476,16 +495,37 @@ pub fn sync_delta(
 }
 
 pub fn sync_host(
-    target: &String, user: &String
+    target: &String, mut removed_files: &File, user: &String
 ) -> i32 {
     /*!
     Sync files/dirs specified in target/defaults::HOST_DEPENDENCIES
     from the running host to the target path
     !*/
+    let mut removed_files_contents = String::new();
     let host_deps = format!("{}/{}", &target, defaults::HOST_DEPENDENCIES);
-    if ! Path::new(&host_deps).exists() {
-        // There are no host dependencies to resolve
-        return 0
+    match removed_files.read_to_string(&mut removed_files_contents) {
+        Ok(_) => {
+            if removed_files_contents.is_empty() {
+                // There are no host dependencies to resolve
+                return 0
+            }
+            match File::create(&host_deps) {
+                Ok(mut removed) => {
+                    match removed.write_all(removed_files_contents.as_bytes()) {
+                        Ok(_) => { },
+                        Err(error) => {
+                            panic!("Write failed {}: {:?}", host_deps, error);
+                        }
+                    }
+                },
+                Err(error) => {
+                    panic!("Error creating {}: {:?}", host_deps, error);
+                }
+            }
+        },
+        Err(error) => {
+            panic!("Error reading from file descriptor: {:?}", error);
+        }
     }
     let mut call = Command::new("sudo");
     if ! user.is_empty() {
@@ -561,6 +601,32 @@ pub fn container_running(cid: &String, user: &String) -> bool {
         }
     }
     running_status
+}
+
+pub fn update_removed_files(
+    target: &String, mut accumulated_file: &File
+) {
+    /*!
+    Take the contents of the given removed_file and append it
+    to the accumulated_file
+    !*/
+    let host_deps = format!("{}/{}", &target, defaults::HOST_DEPENDENCIES);
+    if Path::new(&host_deps).exists() {
+        match fs::read_to_string(&host_deps) {
+            Ok(data) => {
+                match accumulated_file.write_all(data.as_bytes()) {
+                    Ok(_) => { },
+                    Err(error) => {
+                        panic!("Writing to descriptor failed: {:?}", error);
+                    }
+                }
+            },
+            Err(error) => {
+                // host_deps file exists but could not be read
+                panic!("Error reading {}: {:?}", host_deps, error);
+            }
+        }
+    }
 }
 
 pub fn gc_cid_file(container_cid_file: &String, user: &String) -> bool {
