@@ -26,7 +26,7 @@ use std::env;
 pub const CONTAINER_FLAKE_DIR: &str = "/usr/share/flakes";
 pub const CONTAINER_CID_DIR: &str = "/tmp/flakes";
 pub const GC_THRESHOLD: i32 = 20;
-pub const HOST_DEPENDENCIES: &str = "vanished";
+pub const HOST_DEPENDENCIES: &str = "removed";
 
 pub fn debug(message: &str) {
     match env::var("PILOT_DEBUG") {
