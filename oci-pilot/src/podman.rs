@@ -85,12 +85,18 @@ pub fn create(
       runas: root
 
       # Resume the container from previous execution.
-      # If the container is still running, the call will attach to it
-      # If attaching is not possible, the container gets started again
-      # and immediately attached.
+      # If the container is still running, the app will be
+      # executed inside of this container instance.
       #
       # Default: false
       resume: true|false
+
+      # Attach to the container if still running, rather than
+      # executing the app again. Only makes sense for interactive
+      # sessions like a shell running as app in the container.
+      #
+      # Default: false
+      attach: true|false
 
       podman:
         - --storage-opt size=10G
@@ -99,19 +105,23 @@ pub fn create(
 
     Calling this method returns a vector including the
     container ID and and the name of the container ID
-    file. It depends on the flake configuration if the
-    container ID file is being created or not.
+    file.
     !*/
     let args: Vec<String> = env::args().collect();
     let mut result: Vec<String> = Vec::new();
     let mut layers: Vec<String> = Vec::new();
 
+    // setup container ID file name
     let mut container_cid_file = format!(
         "{}/{}", defaults::CONTAINER_CID_DIR, program_name
     );
     for arg in &args[1..] {
-        // build container ID file specific to the caller arguments
-        container_cid_file = format!("{}{}", container_cid_file, arg);
+        if arg.starts_with("@") {
+            // The special @NAME argument is not passed to the
+            // actual call and can be used to run different container
+            // instances for the same application
+            container_cid_file = format!("{}{}", container_cid_file, arg);
+        }
     }
     container_cid_file = format!("{}.cid", container_cid_file);
 
@@ -146,23 +156,23 @@ pub fn create(
         delta_container = false;
     }
 
-    // setup podman app to call
-    let mut target_app_path = program_name.as_str();
-    if ! runtime_config[0]["target_app_path"].as_str().is_none() {
-        target_app_path = runtime_config[0]["target_app_path"]
-            .as_str().unwrap();
-    }
+    // setup app command path name to call
+    let target_app_path = get_target_app_path(&program_name, &runtime_config);
 
     // get runtime section
     let runtime_section = &runtime_config[0]["runtime"];
 
     // setup container operation mode
     let mut resume: bool = false;
+    let mut attach: bool = false;
     let mut runas = String::new();
 
     if ! runtime_section.as_hash().is_none() {
         if ! &runtime_section["resume"].as_bool().is_none() {
             resume = runtime_section["resume"].as_bool().unwrap();
+        }
+        if ! &runtime_section["attach"].as_bool().is_none() {
+            attach = runtime_section["attach"].as_bool().unwrap();
         }
         if ! &runtime_section["runas"].as_str().is_none() {
             runas.push_str(&runtime_section["runas"].as_str().unwrap());
@@ -173,31 +183,46 @@ pub fn create(
     if ! runas.is_empty() {
         app.arg("--user").arg(&runas);
     }
-    app.arg("podman");
+    app.arg("podman").arg("create")
+        .arg("--cidfile").arg(&container_cid_file);
 
-    if resume {
-        // Make sure CID dir exists
-        init_cid_dir();
+    // Make sure CID dir exists
+    init_cid_dir();
 
-        // Garbage collect occasionally
-        gc(&runas);
-
-        if ! Path::new(&container_cid_file).exists() ||
-           ! gc_cid_file(&container_cid_file, &runas) {
-            // resume mode is active and container doesn't exist
-            // create the container and init a new ID file
-            app.arg("create");
-            app.arg("--cidfile");
-            app.arg(&container_cid_file);
-        } else {
-            // resume mode is active and container exists
-            // report ID=exists and its ID file name
-            result.push(format!("exists"));
+    // Check early return condition in resume mode
+    if Path::new(&container_cid_file).exists() &&
+        gc_cid_file(&container_cid_file, &runas)
+    {
+        if resume || attach {
+            // resume or attach mode is active and container exists
+            // report ID value and its ID file name
+            match fs::read_to_string(&container_cid_file) {
+                Ok(cid) => {
+                    result.push(cid);
+                },
+                Err(error) => {
+                    // cid file exists but could not be read
+                    panic!("Error reading CID: {:?}", error);
+                }
+            }
             result.push(container_cid_file);
             return result;
         }
-    } else {
-        app.arg("create");
+    }
+
+    // Garbage collect occasionally
+    gc(&runas);
+
+    // Sanity check
+    if Path::new(&container_cid_file).exists() {
+        // we are about to create a container for which a
+        // cid file already exists. podman create will fail with
+        // an error but will also create the container which is
+        // unwanted. Thus we check this condition here
+        error!(
+            "Container id in use by another instance, consider @NAME argument"
+        );
+        exit(1)
     }
 
     // create the container with configured runtime arguments
@@ -220,7 +245,11 @@ pub fn create(
 
     // setup default runtime arguments if not configured
     if ! has_runtime_arguments {
-        app.arg("--rm").arg("-ti");
+        if resume {
+            app.arg("-ti");
+        } else {
+            app.arg("--rm").arg("-ti");
+        }
     }
 
     // setup container name to use
@@ -231,17 +260,31 @@ pub fn create(
     }
 
     // setup entry point
-    if target_app_path != "/" {
-        app.arg(target_app_path);
-    }
-
-    // setup program arguments
-    for arg in &args[1..] {
-        if ! arg.starts_with("@") {
-            app.arg(arg);
+    if resume {
+        // create the container with a sleep entry point
+        // to keep it in running state
+        app.arg("sleep");
+    } else {
+        if target_app_path != "/" {
+            app.arg(target_app_path);
         }
     }
 
+    // setup program arguments
+    if resume {
+        // sleep "forever" ... I will be dead by the time this sleep ends ;)
+        // keeps the container in running state to accept podman exec for
+        // running the app multiple times with different arguments
+        app.arg("4294967295d");
+    } else {
+        for arg in &args[1..] {
+            if ! arg.starts_with("@") {
+                app.arg(arg);
+            }
+        }
+    }
+
+    // create container
     debug(&format!("{:?}", app.get_args()));
     match app.output() {
         Ok(output) => {
@@ -316,69 +359,103 @@ pub fn create(
 }
 
 pub fn start(
-    runtime_config: &Vec<Yaml>, cid: &String, container_cid_file: &String
+    program_name: &String, runtime_config: &Vec<Yaml>, cid: &String
 ) {
     /*!
-    Start container with given container ID
+    Start container with the given container ID
 
-    Calling this method will exit the calling program with the
-    exit code from podman or 255 in case no exit code can be
-    obtained
+    oci-pilot exits with the return code from podman after this function
     !*/
     let runtime_section = &runtime_config[0]["runtime"];
 
     let mut status_code;
-    let error_boundary_for_podman = 125;
     let mut resume: bool = false;
     let mut attach: bool = false;
+    let mut is_running: bool = false;
     let mut runas = String::new();
 
     if ! runtime_section.as_hash().is_none() {
         if ! &runtime_section["resume"].as_bool().is_none() {
             resume = runtime_section["resume"].as_bool().unwrap();
         }
+        if ! &runtime_section["attach"].as_bool().is_none() {
+            attach = runtime_section["attach"].as_bool().unwrap();
+        }
         if ! &runtime_section["runas"].as_str().is_none() {
             runas.push_str(&runtime_section["runas"].as_str().unwrap());
         }
     }
 
-    let container_id;
-    if resume && Path::new(&container_cid_file).exists() && cid == "exists" {
-        // resume mode is active and container exists, read ID file
-        match fs::read_to_string(&container_cid_file) {
-            Ok(cid) => {
-                container_id = format!("{}", cid);
-                if container_running(&container_id, &runas) {
-                    attach = true;
-                }
-            },
-            Err(error) => {
-                // cid file exists but could not be read
-                panic!("Error reading CID: {:?}", error);
-            }
+    if container_running(&cid, &runas) {
+        is_running = true;
+    }
+
+    if is_running && attach {
+        // 1. Attach to running container
+        status_code = call_instance(
+            "attach", &cid, &program_name, &runtime_config, &runas
+        );
+    } else if is_running {
+        // 2. Execute app in running container
+        status_code = call_instance(
+            "exec", &cid, &program_name, &runtime_config, &runas
+        );
+    } else if resume {
+        // 3. Startup resume type container and execute app
+        status_code = call_instance(
+            "start", &cid, &program_name, &runtime_config, &runas
+        );
+        if status_code == 0 {
+            status_code = call_instance(
+                "exec", &cid, &program_name, &runtime_config, &runas
+            );
         }
     } else {
-        container_id = format!("{}", cid);
+        // 4. Startup container
+        status_code = call_instance(
+            "start", &cid, &program_name, &runtime_config, &runas
+        );
     }
-
-    // 1. try to attach if existing
-    if attach {
-        status_code = call_instance("attach", &container_id, &runas);
-        if status_code < error_boundary_for_podman {
-            exit(status_code)
-        }
-    }
-
-    // 2. normal startup of the container
-    status_code = call_instance("start", &container_id, &runas);
 
     exit(status_code)
 }
 
-pub fn call_instance(action: &str, cid: &String, user: &String) -> i32 {
+pub fn get_target_app_path(
+    program_name: &String, runtime_config: &Vec<Yaml>
+) -> String {
+    /*!
+    setup application command path name
+
+    This is either the program name specified at registration
+    time or the configured target application from the flake
+    configuration file
+    !*/
+    let mut target_app_path = String::new();
+    if ! runtime_config[0]["target_app_path"].as_str().is_none() {
+        target_app_path.push_str(
+            runtime_config[0]["target_app_path"].as_str().unwrap()
+        )
+    } else {
+        target_app_path.push_str(program_name.as_str())
+    }
+    return target_app_path
+}
+
+pub fn call_instance(
+    action: &str, cid: &String, program_name: &String,
+    runtime_config: &Vec<Yaml>, user: &String
+) -> i32 {
     /*!
     Call container ID based podman commands
     !*/
+    let args: Vec<String> = env::args().collect();
+    let runtime_section = &runtime_config[0]["runtime"];
+    let mut resume: bool = false;
+    if ! runtime_section.as_hash().is_none() {
+        if ! &runtime_section["resume"].as_bool().is_none() {
+            resume = runtime_section["resume"].as_bool().unwrap();
+        }
+    }
     let mut call = Command::new("sudo");
     if action == "create" || action == "rm" {
         call.stderr(Stdio::null());
@@ -387,9 +464,24 @@ pub fn call_instance(action: &str, cid: &String, user: &String) -> i32 {
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("podman").arg(action).arg(&cid);
-    if action == "start" {
+    call.arg("podman").arg(action);
+    if action == "exec" {
+        call.arg("--interactive");
+        call.arg("--tty");
+    }
+    if action == "start" && ! resume {
         call.arg("--attach");
+    }
+    call.arg(&cid);
+    if action == "exec" {
+        call.arg(
+            get_target_app_path(&program_name, &runtime_config)
+        );
+        for arg in &args[1..] {
+            if ! arg.starts_with("@") {
+                call.arg(arg);
+            }
+        }
     }
     let mut status_code = 255;
     debug(&format!("{:?}", call.get_args()));
@@ -411,7 +503,6 @@ pub fn mount_container(
     Mount container and return mount point
     !*/
     let mut call = Command::new("sudo");
-    call.stderr(Stdio::null());
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }

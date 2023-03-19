@@ -41,10 +41,11 @@ fn main() {
     let runtime_config = app_path::program_config(&program_name);
 
     let container = podman::create(&program_name, &runtime_config);
+    let cid = &container[0];
     podman::start(
+        &program_name,
         &runtime_config,
-        &container[0], // ID name
-        &container[1]  // ID file
+        &cid
     );
 }
 
