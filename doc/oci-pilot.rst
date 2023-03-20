@@ -87,12 +87,18 @@ can be set:
      runas: root
 
      # Resume the container from previous execution.
-     # If the container is still running, the call will attach to it
-     # If attaching is not possible, the container gets started again
-     # and immediately attached.
+     # If the container is still running, the app will be
+     # executed inside of this container instance.
      #
      # Default: false
      resume: true|false
+
+     # Attach to the container if still running, rather than
+     # executing the app again. Only makes sense for interactive
+     # sessions like a shell running as app in the container.
+     #
+     # Default: false
+     attach: true|false
 
      # Caller arguments for the podman engine in the format:
      # - PODMAN_OPTION_NAME_AND_OPTIONAL_VALUE
