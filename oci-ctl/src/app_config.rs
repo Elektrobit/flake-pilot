@@ -21,27 +21,29 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-use std::fs;
 use std::path::Path;
-extern crate yaml_rust;
-
-use yaml_rust::YamlLoader;
-
-// constants related to field names in configuration 
-const CONTAINER:&str = "container";
-const TARGET_APP_PATH:&str = "target_app_path";
-const HOST_APP_PATH:&str = "host_app_path";
+use serde::{Serialize, Deserialize};
+use serde_yaml::{self};
+use crate::defaults;
 
 type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-/*
-AppConfig represents application yaml configuration
-*/
+// AppConfig represents application yaml configuration
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AppConfig {
     pub container: String,
     pub target_app_path: String,
     pub host_app_path: String,
-    pub config_file: String
+    pub base_container: Option<String>,
+    pub layers: Option<Vec<String>>,
+    pub runtime: Option<AppRuntime>
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppRuntime {
+    pub runas: Option<String>,
+    pub resume: Option<bool>,
+    pub attach: Option<bool>,
+    pub podman: Option<Vec<String>>
 }
 
 impl AppConfig {
@@ -53,60 +55,43 @@ impl AppConfig {
         /*!
         save stores an AppConfig to the given file
         !*/
-        // TODO: handling yaml string can be done better here...
-        let mut app_config = format!(
-            "container: {}\ntarget_app_path: {}\nhost_app_path: {}\n",
-            &container,
-            &target_app_path,
-            &host_app_path
-        );
+        let template = std::fs::File::open(defaults::FLAKE_TEMPLATE)
+            .expect(&format!("Failed to open {}", defaults::FLAKE_TEMPLATE));
+        let mut yaml_config: AppConfig = serde_yaml::from_reader(template)
+            .expect("Failed to import config template");
+        yaml_config.container = container.to_string();
+        yaml_config.target_app_path = target_app_path.to_string();
+        yaml_config.host_app_path = host_app_path.to_string();
         if ! base.is_none() {
-            app_config = format!(
-                "{}base_container: {}\n", app_config, base.unwrap()
-            );
+            yaml_config.base_container
+                .as_mut().unwrap().push_str(base.unwrap());
         }
         if ! layers.is_none() {
-            app_config = format!("{}layers:\n", app_config);
-            for layer in layers.unwrap() {
-                app_config = format!("{}  - {}\n", app_config, layer)
+            for layer in layers.as_ref().unwrap() {
+                yaml_config.layers
+                    .as_mut().unwrap().push(layer.to_string());
             }
-            app_config = format!("{}\n", app_config);
         }
-        fs::write(&config_file, app_config)?;
+        let config = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&config_file)
+            .expect(&format!("Failed to open {:?}", config_file));
+        serde_yaml::to_writer(config, &yaml_config).unwrap();
         Ok(())
     }
 
-    pub fn init_from_file(config_file: &Path) -> Result<AppConfig, GenericError> {
+    pub fn init_from_file(
+        config_file: &Path
+    ) -> Result<AppConfig, GenericError> {
         /*!
         new creates the new AppConfig class by reading and
         deserializing the data from a given yaml configuration
         !*/
-        let mut rs = AppConfig{
-            container: "".to_string(),
-            target_app_path: "".to_string(),
-            host_app_path: "".to_string(),
-            config_file: config_file.display().to_string()
-        };
-
-        if Path::new(&config_file).exists() {
-            let source = fs::read_to_string(&config_file)?;
-            let doc = YamlLoader::load_from_str(&source)?;
-
-            rs.container = match doc[0][CONTAINER].as_str() {
-                Some(v) => v.to_string(),
-                None => "".to_string()
-            };
-
-            rs.target_app_path = match doc[0][TARGET_APP_PATH].as_str() {
-                Some(v) => v.to_string(),
-                None => "".to_string()
-            };
-
-            rs.host_app_path = match doc[0][HOST_APP_PATH].as_str() {
-                Some(v) => v.to_string(),
-                None => "".to_string()
-            };
-        }
-        Ok(rs)
+        let config = std::fs::File::open(&config_file)
+            .expect(&format!("Failed to open {:?}", config_file));
+        let yaml_config: AppConfig = serde_yaml::from_reader(config)
+            .expect("Failed to import config file");
+        Ok(yaml_config)
     }
 }
