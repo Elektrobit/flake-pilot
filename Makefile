@@ -3,6 +3,7 @@
 PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
 SHAREDIR ?= ${PREFIX}/share/oci-pilot
+TEMPLATEDIR ?= ${PREFIX}/share/flakes/template
 
 .PHONY: package
 package: clean vendor sourcetar
@@ -17,7 +18,7 @@ package: clean vendor sourcetar
 		package/build/oci-pilot.changes
 	helper/update_changelog.py --file package/oci-pilot.changes.ref >> \
 		package/build/oci-pilot.changes
-	@echo "Find package data for debbuild at package/build"
+	@echo "Find package data at package/build"
 
 vendor:
 	(cd oci-pilot && cargo vendor)
@@ -52,11 +53,18 @@ test:
 install:
 	install -d -m 755 $(DESTDIR)$(BINDIR)
 	install -d -m 755 $(DESTDIR)$(SHAREDIR)
+	install -d -m 755 $(DESTDIR)$(TEMPLATEDIR)
 	install -d -m 755 ${DESTDIR}usr/share/man/man8
-	install -m 755 oci-pilot/target/release/oci-pilot $(DESTDIR)$(BINDIR)/oci-pilot
-	install -m 755 oci-ctl/target/release/oci-ctl $(DESTDIR)$(BINDIR)/oci-ctl
-	install -m 755 oci-ctl/debbuild/oci-deb $(DESTDIR)$(BINDIR)/oci-deb
-	install -m 644 oci-ctl/debbuild/container.spec.in $(DESTDIR)$(SHAREDIR)/container.spec.in
+	install -m 755 oci-pilot/target/release/oci-pilot \
+		$(DESTDIR)$(BINDIR)/oci-pilot
+	install -m 755 oci-ctl/target/release/oci-ctl \
+		$(DESTDIR)$(BINDIR)/oci-ctl
+	install -m 755 oci-ctl/debbuild/oci-deb \
+		$(DESTDIR)$(BINDIR)/oci-deb
+	install -m 644 oci-ctl/debbuild/container.spec.in \
+		$(DESTDIR)$(SHAREDIR)/container.spec.in
+	install -m 644 oci-ctl/template/flake.yaml \
+		$(DESTDIR)$(TEMPLATEDIR)/flake.yaml
 	install -m 644 doc/*.8 ${DESTDIR}usr/share/man/man8
 
 uninstall:

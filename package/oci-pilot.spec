@@ -88,12 +88,14 @@ make build
 
 %install
 make DESTDIR=%{buildroot}/ install
-mkdir -p -m 777 %{buildroot}/usr/share/flakes
+chmod 777 %{buildroot}/usr/share/flakes
 
 
 %files
 %defattr(-,root,root)
 %dir /usr/share/flakes
+%dir /usr/share/flakes/template
+/usr/share/flakes/template/flake.yaml
 /usr/bin/oci-pilot
 /usr/bin/oci-ctl
 %doc /usr/share/man/man8/*
