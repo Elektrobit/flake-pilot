@@ -63,14 +63,10 @@ impl AppConfig {
         yaml_config.target_app_path = target_app_path.to_string();
         yaml_config.host_app_path = host_app_path.to_string();
         if ! base.is_none() {
-            yaml_config.base_container
-                .as_mut().unwrap().push_str(base.unwrap());
+            yaml_config.base_container = Some(base.unwrap().to_string());
         }
         if ! layers.is_none() {
-            for layer in layers.as_ref().unwrap() {
-                yaml_config.layers
-                    .as_mut().unwrap().push(layer.to_string());
-            }
+            yaml_config.layers = Some(layers.as_ref().unwrap().to_vec());
         }
         let config = std::fs::OpenOptions::new()
             .write(true)
