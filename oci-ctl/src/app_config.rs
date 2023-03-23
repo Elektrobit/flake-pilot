@@ -50,7 +50,8 @@ impl AppConfig {
     pub fn save(
         config_file: &Path, container: &String, target_app_path: &String,
         host_app_path: &String, base: Option<&String>,
-        layers: Option<Vec<String>>
+        layers: Option<Vec<String>>, resume: Option<&bool>,
+        attach: Option<&bool>
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
@@ -68,6 +69,18 @@ impl AppConfig {
         if ! layers.is_none() {
             yaml_config.layers = Some(layers.as_ref().unwrap().to_vec());
         }
+        if ! resume.is_none() && *resume.unwrap() == true {
+            yaml_config.runtime.as_mut().unwrap()
+                .resume = Some(*resume.unwrap());
+        } else if ! attach.is_none() && *attach.unwrap() == true {
+            yaml_config.runtime.as_mut().unwrap()
+                .attach = Some(*attach.unwrap());
+        } else {
+            // default: remove the container if no resume/attach is set
+            yaml_config.runtime.as_mut().unwrap()
+                .podman.as_mut().unwrap().push(format!("--rm"));
+        }
+
         let config = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
