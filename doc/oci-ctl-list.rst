@@ -4,7 +4,7 @@ OCI-CTL-LIST(8)
 NAME
 ----
 
-**oci-ctl list** - List registered container applications
+**oci-ctl list** - List registered flake applications
 
 SYNOPSIS
 --------
@@ -22,7 +22,7 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-List registered container applications.
+List registered flake applications.
 
 FILES
 -----

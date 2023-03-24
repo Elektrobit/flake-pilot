@@ -23,7 +23,7 @@
 //
 use clap::{AppSettings, Parser, Subcommand, ArgGroup};
 
-/// oci-ctl - Load and Register OCI applications
+/// oci-ctl - Manage Flake Applications
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 #[clap(global_setting(AppSettings::PropagateVersion))]
@@ -35,6 +35,18 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Load and register OCI applications
+    Podman {
+        #[clap(subcommand)]
+        command: Podman,
+    },
+    /// List registered flake applications
+    List {
+    }
+}
+
+#[derive(Subcommand)]
+pub enum Podman {
     /// Pull container
     Pull {
         /// OCI image to pull from remote registry into local podman registry
@@ -112,9 +124,6 @@ pub enum Commands {
         /// sessions like a shell application.
         #[clap(long)]
         attach: Option<bool>,
-    },
-    /// List registered container applications
-    List {
     },
     /// Build container package
     BuildDeb {

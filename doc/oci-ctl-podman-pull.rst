@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl pull --uri <URI>
+       oci-ctl podman pull --uri <URI>
 
    OPTIONS:
        -h, --help         Print help information
@@ -43,7 +43,7 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl pull --uri opensuse/tumbleweed
+   $ oci-ctl podman pull --uri opensuse/tumbleweed
 
 AUTHOR
 ------

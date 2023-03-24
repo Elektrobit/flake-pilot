@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl load --oci <OCI>
+       oci-ctl podman load --oci <OCI>
 
    OPTIONS:
        -h, --help         Print help information
@@ -45,7 +45,7 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl load --oci SOME.docker.tar
+   $ oci-ctl podman load --oci SOME.docker.tar
 
 AUTHOR
 ------

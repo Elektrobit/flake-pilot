@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl register [OPTIONS] --container <CONTAINER> --app <APP>
+       oci-ctl podman register [OPTIONS] --container <CONTAINER> --app <APP>
 
    OPTIONS:
        --app <APP>                An absolute path to the application on the host. If not
@@ -65,6 +65,12 @@ OPTIONS
   specified via the target option, the application will be
   called with that path inside of the container
 
+--attach <ATTACH>
+
+  Attach to the container if still running, rather than executing
+  the app again. Only makes sense for interactive sessions like a
+  shell application
+
 --base <BASE>
 
   Name of the base container. The name must match with a name in
@@ -81,6 +87,12 @@ OPTIONS
   base container. This option can be specified multiple times. The
   resulting layer list is evaluated in the order of the arguments
   as they were provided on the command line
+
+--resume <RESUME>
+
+  Resume the container from previous execution. If the container is
+  still running, the app will be executed inside of this container
+  instance
 
 --container <CONTAINER>
 
@@ -105,7 +117,7 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl register --container SOME_APT_CONTAINER \
+   $ oci-ctl podman register --container SOME_APT_CONTAINER \
        --app /usr/bin/apt-get
 
 AUTHOR
