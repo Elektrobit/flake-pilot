@@ -63,6 +63,9 @@ pub enum Commands {
         app: Option<String>,
     },
     /// Register container application
+    #[clap(group(
+        ArgGroup::new("register").required(false).args(&["resume", "attach"]),
+    ))]
     Register {
         /// A container name. The name must match with a
         /// name in the local podman registry
@@ -97,6 +100,18 @@ pub enum Commands {
         /// were provided on the command line.
         #[clap(long, multiple = true)]
         layer: Option<Vec<String>>,
+
+        /// Resume the container from previous execution.
+        /// If the container is still running, the app will be
+        /// executed inside of this container instance.
+        #[clap(long)]
+        resume: Option<bool>,
+
+        /// Attach to the container if still running, rather than
+        /// executing the app again. Only makes sense for interactive
+        /// sessions like a shell application.
+        #[clap(long)]
+        attach: Option<bool>,
     },
     /// List registered container applications
     List {

@@ -61,11 +61,13 @@ fn main() {
             }
         },
         // register
-        cli::Commands::Register { container, app, target, base, layer } => {
+        cli::Commands::Register {
+            container, app, target, base, layer, resume, attach
+        } => {
             if app::init() {
                 app::register(
                     container, app, target.as_ref(), base.as_ref(),
-                    layer.as_ref().cloned()
+                    layer.as_ref().cloned(), resume.as_ref(), attach.as_ref()
                 );
             }
         },

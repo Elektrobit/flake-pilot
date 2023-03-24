@@ -30,7 +30,8 @@ use glob::glob;
 pub fn register(
     container: &String, app: &String,
     target: Option<&String>, base: Option<&String>,
-    layers: Option<Vec<String>>
+    layers: Option<Vec<String>>, resume: Option<&bool>,
+    attach: Option<&bool>
 ) {
     /*!
     Register container application.
@@ -39,20 +40,7 @@ pub fn register(
     pointing to the oci-pilot launcher. Second it will create an
     app configuration file as CONTAINER_FLAKE_DIR/app.yaml containing
     the required information to launch the application inside of
-    the container as follows:
-
-    container: container
-    target_app_path: path/to/program/in/container
-    host_app_path: path/to/program/on/host
-    base_container: base_container_name
-
-    layer:
-      - name_A
-      - name_B
-
-    runtime:
-      podman:
-        - option: [value]
+    the container.
     !*/
     let host_app_path = app;
     let mut target_app_path = host_app_path;
@@ -101,7 +89,8 @@ pub fn register(
     };
     match app_config::AppConfig::save(
         Path::new(&app_config_file),
-        &container, &target_app_path, &host_app_path, base, layers
+        &container, &target_app_path, &host_app_path,
+        base, layers, resume, attach
     ) {
         Ok(_) => { },
         Err(error) => {
