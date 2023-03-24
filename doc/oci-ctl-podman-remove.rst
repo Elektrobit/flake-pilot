@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl remove <--container <CONTAINER>|--app <APP>>
+       oci-ctl podman remove <--container <CONTAINER>|--app <APP>>
 
    OPTIONS:
        --app <APP>                Application absolute path to be removed from host
@@ -59,9 +59,9 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl remove --app /usr/bin/apt-get
+   $ oci-ctl podman remove --app /usr/bin/apt-get
 
-   $ oci-ctl remove --container SOME_APT_CONTAINER
+   $ oci-ctl podman remove --container SOME_APT_CONTAINER
 
 AUTHOR
 ------

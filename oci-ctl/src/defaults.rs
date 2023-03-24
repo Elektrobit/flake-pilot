@@ -21,9 +21,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-pub const CONTAINER_FLAKE_DIR: &str = "/usr/share/flakes";
-pub const PILOT: &str = "/usr/bin/oci-pilot";
-pub const OCIDEB: &str = "/usr/bin/oci-deb";
-pub const OCIDEB_PACKAGE: &str = "oci-deb";
-pub const PODMAN_PATH:&str = "/usr/bin/podman";
-pub const FLAKE_TEMPLATE:&str = "/usr/share/flakes/template/flake.yaml";
+pub const CONTAINER_FLAKE_DIR: &str =
+    "/usr/share/flakes";
+pub const PILOT: &str =
+    "/usr/bin/oci-pilot";
+pub const OCIDEB: &str =
+    "/usr/bin/oci-deb";
+pub const OCIDEB_PACKAGE: &str =
+    "oci-deb";
+pub const PODMAN_PATH:&str =
+    "/usr/bin/podman";
+pub const FLAKE_TEMPLATE_CONTAINER:&str =
+    "/usr/share/flakes/template/container-flake.yaml";

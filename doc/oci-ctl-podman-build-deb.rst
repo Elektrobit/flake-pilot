@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl build-deb [OPTIONS] --oci <OCI> --repo <REPO>
+       oci-ctl podman build-deb [OPTIONS] --oci <OCI> --repo <REPO>
 
    OPTIONS:
         --app <APP>...    An absolute path to the application on the host
@@ -72,7 +72,7 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl build-deb --oci SOME.docker.tar \
+   $ oci-ctl podman build-deb --oci SOME.docker.tar \
        --repo ${HOME}/localrepo \
        --app /usr/bin/myapp
 

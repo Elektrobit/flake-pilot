@@ -63,8 +63,8 @@ install:
 		$(DESTDIR)$(BINDIR)/oci-deb
 	install -m 644 oci-ctl/debbuild/container.spec.in \
 		$(DESTDIR)$(SHAREDIR)/container.spec.in
-	install -m 644 oci-ctl/template/flake.yaml \
-		$(DESTDIR)$(TEMPLATEDIR)/flake.yaml
+	install -m 644 oci-ctl/template/container-flake.yaml \
+		$(DESTDIR)$(TEMPLATEDIR)/container-flake.yaml
 	install -m 644 doc/*.8 ${DESTDIR}usr/share/man/man8
 
 uninstall:

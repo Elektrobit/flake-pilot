@@ -55,57 +55,58 @@ pub fn create(
     called in the container. An example program config file
     looks like the following:
 
-    container: name
-    target_app_path: path/to/program/in/container
-    host_app_path: path/to/program/on/host
+    container:
+      name: name
+      target_app_path: path/to/program/in/container
+      host_app_path: path/to/program/on/host
 
-    # Optional base container to use with a delta 'container: name'
-    # If specified the given 'container: name' is expected to be
-    # an overlay for the specified base_container. oci-pilot
-    # combines the 'container: name' with the base_container into
-    # one overlay and starts the result as a container instance
-    #
-    # Default: not_specified
-    base_container: name
-
-    # Optional additional container layers on top of the
-    # specified base container
-    layers:
-      - name_A
-      - name_B
-
-    runtime:
-      # Run the container engine as a user other than the
-      # default target user root. The user may be either
-      # a user name or a numeric user-ID (UID) prefixed
-      # with the ‘#’ character (e.g. #0 for UID 0). The call
-      # of the container engine is performed by sudo.
-      # The behavior of sudo can be controlled via the
-      # file /etc/sudoers
-      runas: root
-
-      # Resume the container from previous execution.
-      # If the container is still running, the app will be
-      # executed inside of this container instance.
+      # Optional base container to use with a delta 'container: name'
+      # If specified the given 'container: name' is expected to be
+      # an overlay for the specified base_container. oci-pilot
+      # combines the 'container: name' with the base_container into
+      # one overlay and starts the result as a container instance
       #
-      # Default: false
-      resume: true|false
+      # Default: not_specified
+      base_container: name
 
-      # Attach to the container if still running, rather than
-      # executing the app again. Only makes sense for interactive
-      # sessions like a shell running as app in the container.
-      #
-      # Default: false
-      attach: true|false
+      # Optional additional container layers on top of the
+      # specified base container
+      layers:
+        - name_A
+        - name_B
 
-      podman:
-        - --storage-opt size=10G
-        - --rm
-        - -ti
+      runtime:
+        # Run the container engine as a user other than the
+        # default target user root. The user may be either
+        # a user name or a numeric user-ID (UID) prefixed
+        # with the ‘#’ character (e.g. #0 for UID 0). The call
+        # of the container engine is performed by sudo.
+        # The behavior of sudo can be controlled via the
+        # file /etc/sudoers
+        runas: root
 
-    Calling this method returns a vector including the
-    container ID and and the name of the container ID
-    file.
+        # Resume the container from previous execution.
+        # If the container is still running, the app will be
+        # executed inside of this container instance.
+        #
+        # Default: false
+        resume: true|false
+
+        # Attach to the container if still running, rather than
+        # executing the app again. Only makes sense for interactive
+        # sessions like a shell running as app in the container.
+        #
+        # Default: false
+        attach: true|false
+
+        podman:
+          - --storage-opt size=10G
+          - --rm
+          - -ti
+
+      Calling this method returns a vector including the
+      container ID and and the name of the container ID
+      file.
     !*/
     let args: Vec<String> = env::args().collect();
     let mut result: Vec<String> = Vec::new();
@@ -125,25 +126,26 @@ pub fn create(
     }
     container_cid_file = format!("{}.cid", container_cid_file);
 
+    let container_section = &runtime_config[0]["container"];
+
     // setup podman container to use
-    if runtime_config[0]["container"].as_str().is_none() {
-        error!(
-            "No 'container' attribute specified in {}",
+    if container_section["name"].as_str().is_none() {
+        error!("No 'name' attribute specified in {}",
             program_config_file(&program_name)
         );
         exit(1)
     }
-    let container_name = runtime_config[0]["container"].as_str().unwrap();
+    let container_name = container_section["name"].as_str().unwrap();
 
     // setup base container if specified
     let container_base_name;
     let delta_container;
-    if ! runtime_config[0]["base_container"].as_str().is_none() {
+    if ! container_section["base_container"].as_str().is_none() {
         // get base container name
-        container_base_name = runtime_config[0]["base_container"]
+        container_base_name = container_section["base_container"]
             .as_str().unwrap();
         // get additional container layers
-        let layer_section = &runtime_config[0]["layers"];
+        let layer_section = &container_section["layers"];
         if ! layer_section.as_vec().is_none() {
             for layer in layer_section.as_vec().unwrap() {
                 debug(&format!("Adding layer: [{}]", layer.as_str().unwrap()));
@@ -160,7 +162,7 @@ pub fn create(
     let target_app_path = get_target_app_path(&program_name, &runtime_config);
 
     // get runtime section
-    let runtime_section = &runtime_config[0]["runtime"];
+    let runtime_section = &container_section["runtime"];
 
     // setup container operation mode
     let mut resume: bool = false;
@@ -366,7 +368,8 @@ pub fn start(
 
     oci-pilot exits with the return code from podman after this function
     !*/
-    let runtime_section = &runtime_config[0]["runtime"];
+    let container_section = &runtime_config[0]["container"];
+    let runtime_section = &container_section["runtime"];
 
     let mut status_code;
     let mut resume: bool = false;
@@ -431,9 +434,10 @@ pub fn get_target_app_path(
     configuration file
     !*/
     let mut target_app_path = String::new();
-    if ! runtime_config[0]["target_app_path"].as_str().is_none() {
+    let container_section = &runtime_config[0]["container"];
+    if ! container_section["target_app_path"].as_str().is_none() {
         target_app_path.push_str(
-            runtime_config[0]["target_app_path"].as_str().unwrap()
+            container_section["target_app_path"].as_str().unwrap()
         )
     } else {
         target_app_path.push_str(program_name.as_str())
@@ -449,7 +453,8 @@ pub fn call_instance(
     Call container ID based podman commands
     !*/
     let args: Vec<String> = env::args().collect();
-    let runtime_section = &runtime_config[0]["runtime"];
+    let container_section = &runtime_config[0]["container"];
+    let runtime_section = &container_section["runtime"];
     let mut resume: bool = false;
     if ! runtime_section.as_hash().is_none() {
         if ! &runtime_section["resume"].as_bool().is_none() {

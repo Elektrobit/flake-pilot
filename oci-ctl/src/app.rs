@@ -221,8 +221,8 @@ pub fn purge(container: &str) {
         );
         match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
             Ok(app_conf) => {
-                if container == app_conf.container {
-                    remove(&app_conf.host_app_path);
+                if container == app_conf.container.name {
+                    remove(&app_conf.container.host_app_path);
                 }
             },
             Err(error) => {

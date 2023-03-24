@@ -1,0 +1,12 @@
+container:
+  name: name
+  target_app_path: path/to/program/in/container
+  host_app_path: path/to/program/on/host
+  base_container: ~
+  layers: ~
+  runtime:
+    runas: root
+    resume: false
+    attach: false
+    podman:
+      - "-ti"

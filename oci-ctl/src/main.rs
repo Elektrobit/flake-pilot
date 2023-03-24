@@ -40,14 +40,6 @@ fn main() {
     let args = cli::parse_args();
 
     match &args.command {
-        // pull
-        cli::Commands::Pull { uri } => {
-            exit(podman::pull(uri));
-        },
-        // load
-        cli::Commands::Load { oci } => {
-            exit(podman::load(oci));
-        },
         // list
         cli::Commands::List { } => {
             info!("Registered applications:");
@@ -60,30 +52,52 @@ fn main() {
                 }
             }
         },
-        // register
-        cli::Commands::Register {
-            container, app, target, base, layer, resume, attach
-        } => {
-            if app::init() {
-                app::register(
-                    container, app, target.as_ref(), base.as_ref(),
-                    layer.as_ref().cloned(), resume.as_ref(), attach.as_ref()
-                );
+        // podman engine
+        cli::Commands::Podman { command } => {
+            match &command {
+                // pull
+                cli::Podman::Pull { uri } => {
+                    exit(podman::pull(uri));
+                },
+                // load
+                cli::Podman::Load { oci } => {
+                    exit(podman::load(oci));
+                },
+                // register
+                cli::Podman::Register {
+                    container, app, target, base, layer, resume, attach
+                } => {
+                    if app::init() {
+                        app::register(
+                            container,
+                            app,
+                            target.as_ref(),
+                            base.as_ref(),
+                            layer.as_ref().cloned(),
+                            resume.as_ref(),
+                            attach.as_ref()
+                        );
+                    }
+                },
+                // remove
+                cli::Podman::Remove { container, app } => {
+                    if ! app.is_none() {
+                        app::remove(
+                            app.as_ref().map(String::as_str).unwrap()
+                        );
+                    }
+                    if ! container.is_none() {
+                        app::purge(
+                            container.as_ref().map(String::as_str).unwrap()
+                        );
+                    }
+                }
+                // build deb
+                cli::Podman::BuildDeb { oci, app, repo, arch } => {
+                    exit(deb::ocideb(oci, repo, app, arch.as_ref()));
+                }
             }
         },
-        // remove
-        cli::Commands::Remove { container, app } => {
-            if ! app.is_none() {
-                app::remove(app.as_ref().map(String::as_str).unwrap());
-            }
-            if ! container.is_none() {
-                app::purge(container.as_ref().map(String::as_str).unwrap());
-            }
-        }
-        // build deb
-        cli::Commands::BuildDeb { oci, app, repo, arch } => {
-            exit(deb::ocideb(oci, repo, app, arch.as_ref()));
-        }
     }
 }
 

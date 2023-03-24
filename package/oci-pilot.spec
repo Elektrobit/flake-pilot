@@ -22,7 +22,7 @@
 # SOFTWARE.
 #
 Name:           oci-pilot
-Version:        1.2.2
+Version:        2.0.1
 Release:        0
 Summary:        oci-pilot - launcher for container applications
 License:        MIT
@@ -95,7 +95,7 @@ chmod 777 %{buildroot}/usr/share/flakes
 %defattr(-,root,root)
 %dir /usr/share/flakes
 %dir /usr/share/flakes/template
-/usr/share/flakes/template/flake.yaml
+/usr/share/flakes/template/container-flake.yaml
 /usr/bin/oci-pilot
 /usr/bin/oci-ctl
 %doc /usr/share/man/man8/*

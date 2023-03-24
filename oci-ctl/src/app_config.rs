@@ -31,15 +31,20 @@ type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 // AppConfig represents application yaml configuration
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppConfig {
-    pub container: String,
+    pub container: AppContainer
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppContainer {
+    pub name: String,
     pub target_app_path: String,
     pub host_app_path: String,
     pub base_container: Option<String>,
     pub layers: Option<Vec<String>>,
-    pub runtime: Option<AppRuntime>
+    pub runtime: Option<AppContainerRuntime>
 }
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AppRuntime {
+pub struct AppContainerRuntime {
     pub runas: Option<String>,
     pub resume: Option<bool>,
     pub attach: Option<bool>,
@@ -56,28 +61,34 @@ impl AppConfig {
         /*!
         save stores an AppConfig to the given file
         !*/
-        let template = std::fs::File::open(defaults::FLAKE_TEMPLATE)
-            .expect(&format!("Failed to open {}", defaults::FLAKE_TEMPLATE));
+        let template = std::fs::File::open(defaults::FLAKE_TEMPLATE_CONTAINER)
+            .expect(&format!(
+                "Failed to open {}", defaults::FLAKE_TEMPLATE_CONTAINER)
+            );
         let mut yaml_config: AppConfig = serde_yaml::from_reader(template)
             .expect("Failed to import config template");
-        yaml_config.container = container.to_string();
-        yaml_config.target_app_path = target_app_path.to_string();
-        yaml_config.host_app_path = host_app_path.to_string();
+        yaml_config.container.name = container.to_string();
+        yaml_config.container.target_app_path = target_app_path.to_string();
+        yaml_config.container.host_app_path = host_app_path.to_string();
         if ! base.is_none() {
-            yaml_config.base_container = Some(base.unwrap().to_string());
+            yaml_config.container.base_container = Some(
+                base.unwrap().to_string()
+            );
         }
         if ! layers.is_none() {
-            yaml_config.layers = Some(layers.as_ref().unwrap().to_vec());
+            yaml_config.container.layers = Some(
+                layers.as_ref().unwrap().to_vec()
+            );
         }
         if ! resume.is_none() && *resume.unwrap() == true {
-            yaml_config.runtime.as_mut().unwrap()
+            yaml_config.container.runtime.as_mut().unwrap()
                 .resume = Some(*resume.unwrap());
         } else if ! attach.is_none() && *attach.unwrap() == true {
-            yaml_config.runtime.as_mut().unwrap()
+            yaml_config.container.runtime.as_mut().unwrap()
                 .attach = Some(*attach.unwrap());
         } else {
             // default: remove the container if no resume/attach is set
-            yaml_config.runtime.as_mut().unwrap()
+            yaml_config.container.runtime.as_mut().unwrap()
                 .podman.as_mut().unwrap().push(format!("--rm"));
         }
 
