@@ -1,3 +1,5 @@
+include:
+  tar: ~
 container:
   name: name
   target_app_path: path/to/program/in/container

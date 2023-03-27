@@ -31,6 +31,7 @@ type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 // AppConfig represents application yaml configuration
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppConfig {
+    pub include: AppInclude,
     pub container: AppContainer
 }
 
@@ -50,12 +51,21 @@ pub struct AppContainerRuntime {
     pub attach: Option<bool>,
     pub podman: Option<Vec<String>>
 }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppInclude {
+    pub tar: Option<Vec<String>>
+}
 
 impl AppConfig {
     pub fn save(
-        config_file: &Path, container: &String, target_app_path: &String,
-        host_app_path: &String, base: Option<&String>,
-        layers: Option<Vec<String>>, resume: Option<&bool>,
+        config_file: &Path,
+        container: &String,
+        target_app_path: &String,
+        host_app_path: &String,
+        base: Option<&String>,
+        layers: Option<Vec<String>>,
+        includes_tar: Option<Vec<String>>,
+        resume: Option<&bool>,
         attach: Option<&bool>
     ) -> Result<(), GenericError> {
         /*!
@@ -90,6 +100,11 @@ impl AppConfig {
             // default: remove the container if no resume/attach is set
             yaml_config.container.runtime.as_mut().unwrap()
                 .podman.as_mut().unwrap().push(format!("--rm"));
+        }
+        if ! includes_tar.is_none() {
+            yaml_config.include.tar = Some(
+                includes_tar.as_ref().unwrap().to_vec()
+            );
         }
 
         let config = std::fs::OpenOptions::new()
