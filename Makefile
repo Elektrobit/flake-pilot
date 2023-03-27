@@ -3,6 +3,7 @@
 PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
 SHAREDIR ?= ${PREFIX}/share/oci-pilot
+FLAKEDIR ?= ${PREFIX}/share/flakes
 TEMPLATEDIR ?= /etc/flakes
 
 .PHONY: package
@@ -54,6 +55,7 @@ install:
 	install -d -m 755 $(DESTDIR)$(BINDIR)
 	install -d -m 755 $(DESTDIR)$(SHAREDIR)
 	install -d -m 755 $(DESTDIR)$(TEMPLATEDIR)
+	install -d -m 755 $(DESTDIR)$(FLAKEDIR)
 	install -d -m 755 ${DESTDIR}usr/share/man/man8
 	install -m 755 oci-pilot/target/release/oci-pilot \
 		$(DESTDIR)$(BINDIR)/oci-pilot
