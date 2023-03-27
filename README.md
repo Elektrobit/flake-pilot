@@ -41,7 +41,7 @@ connected to the ```aws-cli``` container provided by Amazon on
 1. Pull the container
 
    ```bash
-   podman pull docker.io/amazon/aws-cli
+   podman podman pull docker.io/amazon/aws-cli
    ```
 
 2. Register the ```aws``` application
