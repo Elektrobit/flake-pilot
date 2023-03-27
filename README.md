@@ -47,7 +47,7 @@ connected to the ```aws-cli``` container provided by Amazon on
 2. Register the ```aws``` application
 
    ```bash
-   oci-ctl register --container amazon/aws-cli --app /usr/bin/aws --target /
+   oci-ctl podman register --container amazon/aws-cli --app /usr/bin/aws --target /
    ```
 
    This creates ```/usr/bin/aws``` on your host which actually
