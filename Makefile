@@ -3,7 +3,7 @@
 PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
 SHAREDIR ?= ${PREFIX}/share/oci-pilot
-TEMPLATEDIR ?= ${PREFIX}/share/flakes/template
+TEMPLATEDIR ?= /etc/flakes
 
 .PHONY: package
 package: clean vendor sourcetar

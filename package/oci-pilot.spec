@@ -94,8 +94,8 @@ chmod 777 %{buildroot}/usr/share/flakes
 %files
 %defattr(-,root,root)
 %dir /usr/share/flakes
-%dir /usr/share/flakes/template
-/usr/share/flakes/template/container-flake.yaml
+%dir /etc/flakes
+/etc/flakes/container-flake.yaml
 /usr/bin/oci-pilot
 /usr/bin/oci-ctl
 %doc /usr/share/man/man8/*

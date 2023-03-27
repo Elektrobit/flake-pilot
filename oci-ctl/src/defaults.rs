@@ -32,4 +32,4 @@ pub const OCIDEB_PACKAGE: &str =
 pub const PODMAN_PATH:&str =
     "/usr/bin/podman";
 pub const FLAKE_TEMPLATE_CONTAINER:&str =
-    "/usr/share/flakes/template/container-flake.yaml";
+    "/etc/flakes/container-flake.yaml";
