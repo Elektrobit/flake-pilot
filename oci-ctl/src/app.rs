@@ -246,7 +246,18 @@ pub fn init() -> bool {
     is called a 'flake' :)
     !*/
     let mut status = true;
-    fs::create_dir_all(defaults::CONTAINER_FLAKE_DIR).unwrap_or_else(|why| {
+    let mut flake_dir = String::new();
+    match fs::read_link(&flake_dir) {
+        Ok(target) => {
+            flake_dir.push_str(
+                &target.into_os_string().into_string().unwrap()
+            );
+        },
+        Err(_) => {
+            flake_dir.push_str(defaults::CONTAINER_FLAKE_DIR);
+        }
+    }
+    fs::create_dir_all(flake_dir).unwrap_or_else(|why| {
         error!(
             "Failed creating {}: {:?}",
             defaults::CONTAINER_FLAKE_DIR, why.kind()
