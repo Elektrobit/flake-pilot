@@ -15,9 +15,7 @@ SYNOPSIS
        oci-ctl podman load --oci <OCI>
 
    OPTIONS:
-       -h, --help         Print help information
-           --oci <OCI>    OCI image to load into local podman registry
-       -V, --version      Print version information
+       --oci <OCI>
 
 
 DESCRIPTION

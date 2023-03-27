@@ -15,9 +15,7 @@ SYNOPSIS
        oci-ctl podman pull --uri <URI>
 
    OPTIONS:
-       -h, --help         Print help information
-       --uri <URI>        OCI image to pull from remote registry into local podman registry
-       -V, --version      Print version information
+       --uri <URI>
 
 DESCRIPTION
 -----------
