@@ -28,9 +28,13 @@ use crate::{defaults, podman, app_config};
 use glob::glob;
 
 pub fn register(
-    container: &String, app: &String,
-    target: Option<&String>, base: Option<&String>,
-    layers: Option<Vec<String>>, resume: Option<&bool>,
+    container: &String,
+    app: &String,
+    target: Option<&String>,
+    base: Option<&String>,
+    layers: Option<Vec<String>>,
+    includes_tar: Option<Vec<String>>,
+    resume: Option<&bool>,
     attach: Option<&bool>
 ) {
     /*!
@@ -90,7 +94,7 @@ pub fn register(
     match app_config::AppConfig::save(
         Path::new(&app_config_file),
         &container, &target_app_path, &host_app_path,
-        base, layers, resume, attach
+        base, layers, includes_tar, resume, attach
     ) {
         Ok(_) => { },
         Err(error) => {

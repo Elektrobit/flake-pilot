@@ -146,6 +146,7 @@ FILES
 -----
 
 * /usr/share/flakes
+* /etc/flakes
 
 AUTHOR
 ------

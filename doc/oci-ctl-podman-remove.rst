@@ -15,11 +15,8 @@ SYNOPSIS
        oci-ctl podman remove <--container <CONTAINER>|--app <APP>>
 
    OPTIONS:
-       --app <APP>                Application absolute path to be removed from host
-       --container <CONTAINER>    Remove all applications registered with the given container
-                                  and also remove the container from the local podman registry
-   -h, --help                     Print help information
-   -V, --version                  Print version information
+       --app <APP>
+       --container <CONTAINER>
 
 DESCRIPTION
 -----------

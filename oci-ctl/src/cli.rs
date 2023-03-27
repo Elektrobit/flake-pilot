@@ -113,6 +113,12 @@ pub enum Podman {
         #[clap(long, multiple = true)]
         layer: Option<Vec<String>>,
 
+        /// Name of a tar file to be included on top of
+        /// the container instance. This option can be
+        /// specified multiple times.
+        #[clap(long, multiple = true)]
+        include_tar: Option<Vec<String>>,
+
         /// Resume the container from previous execution.
         /// If the container is still running, the app will be
         /// executed inside of this container instance.

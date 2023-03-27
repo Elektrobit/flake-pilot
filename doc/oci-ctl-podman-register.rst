@@ -15,30 +15,14 @@ SYNOPSIS
        oci-ctl podman register [OPTIONS] --container <CONTAINER> --app <APP>
 
    OPTIONS:
-       --app <APP>                An absolute path to the application on the host. If not
-                                  specified via the target option, the application will be
-                                  called with that path inside of the container
-       --attach <ATTACH>          Attach to the container if still running, rather than executing
-                                  the app again. Only makes sense for interactive sessions like a
-                                  shell application
-       --base <BASE>              Name of the base container. The name must match with a name in
-                                  the local podman registry
-       --container <CONTAINER>    A container name. The name must match with a name in the local
-                                  podman registry
-   -h, --help                     Print help information
-       --layer <LAYER>...         Name of an additional container layer on top of the specified
-                                  base container. This option can be specified multiple times. The
-                                  resulting layer list is evaluated in the order of the arguments
-                                  as they were provided on the command line
-       --resume <RESUME>          Resume the container from previous execution. If the container is
-                                  still running, the app will be executed inside of this container
-                                  instance
-       --target <TARGET>          An absolute path to the application in the container. Use this option
-                                  if the application path on the host should be different to the
-                                  application path inside of the container. Set this option to an empty string
-                                  if the default entrypoint of the container should
-                                  be called.
-   -V, --version                  Print version information
+       --app <APP>
+       --attach <true|false>
+       --base <BASE>
+       --container <CONTAINER>
+       --include-tar <INCLUDE_TAR>...
+       --layer <LAYER>...
+       --resume <true|false>
+       --target <TARGET>
 
 DESCRIPTION
 -----------
@@ -81,6 +65,11 @@ OPTIONS
   against the specified base container. Such delta containers
   can be created with KIWI.
 
+--include-tar <INCLUDE_TAR>...
+
+  Name of a tar file to be included on top of the container instance.
+  This option can be specified multiple times
+
 --layer <LAYER>...
 
   Name of an additional container layer on top of the specified
@@ -111,6 +100,7 @@ FILES
 -----
 
 * /usr/share/flakes
+* /etc/flakes
 
 EXAMPLE
 -------

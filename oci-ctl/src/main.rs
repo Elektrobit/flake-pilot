@@ -65,7 +65,8 @@ fn main() {
                 },
                 // register
                 cli::Podman::Register {
-                    container, app, target, base, layer, resume, attach
+                    container, app, target, base,
+                    layer, include_tar, resume, attach
                 } => {
                     if app::init() {
                         app::register(
@@ -74,6 +75,7 @@ fn main() {
                             target.as_ref(),
                             base.as_ref(),
                             layer.as_ref().cloned(),
+                            include_tar.as_ref().cloned(),
                             resume.as_ref(),
                             attach.as_ref()
                         );

@@ -107,6 +107,10 @@ pub fn create(
       Calling this method returns a vector including the
       container ID and and the name of the container ID
       file.
+
+    include:
+      tar:
+        - tar-archive-file-name-to-include
     !*/
     let args: Vec<String> = env::args().collect();
     let mut result: Vec<String> = Vec::new();
@@ -127,6 +131,16 @@ pub fn create(
     container_cid_file = format!("{}.cid", container_cid_file);
 
     let container_section = &runtime_config[0]["container"];
+
+    // check for includes
+    let include_section = &runtime_config[0]["include"];
+    let tar_includes = &include_section["tar"];
+    let has_includes;
+    if ! tar_includes.as_vec().is_none() {
+        has_includes = true;
+    } else {
+        has_includes = false;
+    }
 
     // setup podman container to use
     if container_section["name"].as_str().is_none() {
@@ -295,56 +309,69 @@ pub fn create(
                     .strip_suffix("\n").unwrap().to_string();
                 result.push(cid);
                 result.push(container_cid_file);
-                if delta_container {
-                    // Create tmpfile to hold accumulated removed data
-                    let removed_files: File;
-                    match tempfile() {
-                        Ok(file) => {
-                            removed_files = file
-                        },
-                        Err(error) => {
-                            panic!("Failed to create tempfile: {}", error)
-                        }
-                    }
-                    debug("Provisioning delta container...");
+
+                if delta_container || has_includes {
+                    debug("Mounting instance for provisioning workload");
+                    let mut provision_ok = true;
                     let instance_mount_point = mount_container(
                         &result[0], &runas, false
                     );
-                    update_removed_files(
-                        &instance_mount_point, &removed_files
-                    );
-                    let mut provision_ok = 1;
-                    debug(&format!(
-                        "Adding main app [{}] to layer list", container_name
-                    ));
-                    layers.push(container_name.to_string());
-                    for layer in layers {
-                        debug(&format!(
-                            "Syncing delta dependencies [{}]...", layer
-                        ));
-                        let app_mount_point = mount_container(
-                            &layer, &runas, true
-                        );
-                        update_removed_files(
-                            &app_mount_point, &removed_files
-                        );
-                        provision_ok = sync_delta(
-                            &app_mount_point, &instance_mount_point, &runas
-                        );
-                        umount_container(&layer, &runas, true);
-                        if provision_ok != 0 {
-                            break
+
+                    if delta_container {
+                        // Create tmpfile to hold accumulated removed data
+                        let removed_files: File;
+                        match tempfile() {
+                            Ok(file) => {
+                                removed_files = file
+                            },
+                            Err(error) => {
+                                panic!("Failed to create tempfile: {}", error)
+                            }
                         }
+                        debug("Provisioning delta container...");
+                        update_removed_files(
+                            &instance_mount_point, &removed_files
+                        );
+                        debug(&format!(
+                            "Adding main app [{}] to layer list", container_name
+                        ));
+                        layers.push(container_name.to_string());
+                        for layer in layers {
+                            debug(&format!(
+                                "Syncing delta dependencies [{}]...", layer
+                            ));
+                            let app_mount_point = mount_container(
+                                &layer, &runas, true
+                            );
+                            update_removed_files(
+                                &app_mount_point, &removed_files
+                            );
+                            provision_ok = sync_delta(
+                                &app_mount_point, &instance_mount_point, &runas
+                            );
+                            umount_container(&layer, &runas, true);
+                            if ! provision_ok {
+                                break
+                            }
+                        }
+                        if provision_ok {
+                            debug("Syncing host dependencies...");
+                            provision_ok = sync_host(
+                                &instance_mount_point, &removed_files, &runas
+                            )
+                        }
+                        umount_container(&result[0], &runas, false);
                     }
-                    if provision_ok == 0 {
-                        debug("Syncing host dependencies...");
-                        provision_ok = sync_host(
-                            &instance_mount_point, &removed_files, &runas
+
+                    if has_includes && provision_ok {
+                        debug("Syncing includes...");
+                        provision_ok = sync_includes(
+                            &instance_mount_point, &runtime_config, &runas
                         )
                     }
-                    umount_container(&result[0], &runas, false);
-                    if provision_ok > 0 {
-                        panic!("Failed to provision delta container")
+
+                    if ! provision_ok {
+                        panic!("Failed to provision container")
                     }
                 }
                 return result;
@@ -564,9 +591,46 @@ pub fn umount_container(
     status_code
 }
 
+pub fn sync_includes(
+    target: &String, runtime_config: &Vec<Yaml>, user: &String
+) -> bool {
+    /*!
+    Sync custom include data to target path
+    !*/
+    let include_section = &runtime_config[0]["include"];
+    let tar_includes = &include_section["tar"];
+    let mut status_code = 0;
+    if ! tar_includes.as_vec().is_none() {
+        for tar in tar_includes.as_vec().unwrap() {
+            debug(&format!("Adding tar include: [{}]", tar.as_str().unwrap()));
+            let mut call = Command::new("sudo");
+            if ! user.is_empty() {
+                call.arg("--user").arg(user);
+            }
+            call.arg("tar")
+                .arg("-C").arg(&target)
+                .arg("-xf").arg(tar.as_str().unwrap());
+            debug(&format!("{:?}", call.get_args()));
+            match call.output() {
+                Ok(output) => {
+                    debug(&String::from_utf8_lossy(&output.stdout).to_string());
+                    status_code = output.status.code().unwrap();
+                },
+                Err(error) => {
+                    panic!("Failed to execute tar: {:?}", error)
+                }
+            }
+        }
+    }
+    if status_code == 0 {
+        return true
+    }
+    return false
+}
+
 pub fn sync_delta(
     source: &String, target: &String, user: &String
-) -> i32 {
+) -> bool {
     /*!
     Sync data from source path to target path
     !*/
@@ -589,12 +653,15 @@ pub fn sync_delta(
             panic!("Failed to execute rsync: {:?}", error)
         }
     }
-    status_code
+    if status_code == 0 {
+        return true
+    }
+    return false
 }
 
 pub fn sync_host(
     target: &String, mut removed_files: &File, user: &String
-) -> i32 {
+) -> bool {
     /*!
     Sync files/dirs specified in target/defaults::HOST_DEPENDENCIES
     from the running host to the target path
@@ -606,7 +673,7 @@ pub fn sync_host(
         Ok(_) => {
             if removed_files_contents.is_empty() {
                 debug("There are no host dependencies to resolve");
-                return 0
+                return true
             }
             match File::create(&host_deps) {
                 Ok(mut removed) => {
@@ -647,7 +714,10 @@ pub fn sync_host(
             panic!("Failed to execute rsync: {:?}", error)
         }
     }
-    status_code
+    if status_code == 0 {
+        return true
+    }
+    return false
 }
 
 pub fn init_cid_dir() {

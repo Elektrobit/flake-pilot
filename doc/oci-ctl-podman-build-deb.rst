@@ -15,14 +15,9 @@ SYNOPSIS
        oci-ctl podman build-deb [OPTIONS] --oci <OCI> --repo <REPO>
 
    OPTIONS:
-        --app <APP>...    An absolute path to the application on the host
-                          and optional absolute path to the application in the
-                          container. The path spec is separated by a semicolon.
-                          This option can be specified multiple times.
-    -h, --help            Print help information
-        --oci <OCI>       OCI image to load into local podman registry
-        --repo <REPO>     Output directory to store package(s) as local debian repository
-    -V, --version         Print version information
+       --app <APP>...
+       --oci <OCI>
+       --repo <REPO>
 
 DESCRIPTION
 -----------
