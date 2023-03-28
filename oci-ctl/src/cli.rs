@@ -130,6 +130,15 @@ pub enum Podman {
         /// sessions like a shell application.
         #[clap(long)]
         attach: Option<bool>,
+
+        /// Name of the user to run podman. Note: This requires
+        /// rootless podman to be configured on the host. It's also
+        /// important to understand that the user's HOME registry
+        /// will be used to lookup the containers. It is not possible
+        /// to provision base- or layers of containers across multiple
+        /// container registries.
+        #[clap(long)]
+        run_as: Option<String>,
     },
     /// Build container package
     BuildDeb {
