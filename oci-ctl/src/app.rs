@@ -66,6 +66,15 @@ pub fn register(
     info!("Registering application: {}", host_app_path);
 
     // host_app_path -> pointing to oci-pilot
+    let host_app_dir = Path::new(host_app_path)
+        .parent().unwrap().to_str().unwrap();
+    match fs::create_dir_all(&host_app_dir) {
+        Ok(dir) => dir,
+        Err(error) => {
+            error!("Failed creating: {}: {:?}", &host_app_dir, error);
+            return
+        }
+    };
     match symlink(defaults::PILOT, host_app_path) {
         Ok(link) => link,
         Err(error) => {
@@ -251,7 +260,7 @@ pub fn init() -> bool {
     !*/
     let mut status = true;
     let mut flake_dir = String::new();
-    match fs::read_link(&flake_dir) {
+    match fs::read_link(&defaults::CONTAINER_FLAKE_DIR) {
         Ok(target) => {
             flake_dir.push_str(
                 &target.into_os_string().into_string().unwrap()
