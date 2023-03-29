@@ -66,7 +66,8 @@ impl AppConfig {
         layers: Option<Vec<String>>,
         includes_tar: Option<Vec<String>>,
         resume: Option<&bool>,
-        attach: Option<&bool>
+        attach: Option<&bool>,
+        run_as: Option<&String>
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
@@ -100,6 +101,10 @@ impl AppConfig {
             // default: remove the container if no resume/attach is set
             yaml_config.container.runtime.as_mut().unwrap()
                 .podman.as_mut().unwrap().push(format!("--rm"));
+        }
+        if ! run_as.is_none() {
+            yaml_config.container.runtime.as_mut().unwrap()
+                .runas = Some(run_as.unwrap().to_string());
         }
         if ! includes_tar.is_none() {
             yaml_config.include.tar = Some(

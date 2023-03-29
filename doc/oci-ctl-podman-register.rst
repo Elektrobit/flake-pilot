@@ -22,6 +22,7 @@ SYNOPSIS
        --include-tar <INCLUDE_TAR>...
        --layer <LAYER>...
        --resume <true|false>
+       --run-as <RUN_AS>
        --target <TARGET>
 
 DESCRIPTION
@@ -82,6 +83,15 @@ OPTIONS
   Resume the container from previous execution. If the container is
   still running, the app will be executed inside of this container
   instance
+
+--run-as <RUN_AS>
+
+  Name of the user to run podman. Note: This requires rootless
+  podman to be configured on the host. It's also important to
+  understand that the user's HOME registry will be used to
+  lookup the containers. It is not possible to provision
+  base- or layers of containers across multiple container
+  registries
 
 --container <CONTAINER>
 
