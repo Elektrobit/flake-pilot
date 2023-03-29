@@ -21,6 +21,7 @@ SYNOPSIS
        --container <CONTAINER>
        --include-tar <INCLUDE_TAR>...
        --layer <LAYER>...
+       --opt <OPT>...
        --resume <true|false>
        --run-as <RUN_AS>
        --target <TARGET>
@@ -78,6 +79,17 @@ OPTIONS
   resulting layer list is evaluated in the order of the arguments
   as they were provided on the command line
 
+--opt <OPT>...
+
+  Container runtime option, and optional value, used to create the
+  container. This option can be specified multiple times.
+  If no options are specified the container always starts with
+  terminal emulation activated "-ti". In addition if none of
+  --resume or --attach is set, the container will be deleted by
+  default "--rm". If runtime option(s) are specified none of the
+  default settings will apply. See the example section for further
+  details.
+
 --resume <RESUME>
 
   Resume the container from previous execution. If the container is
@@ -119,6 +131,12 @@ EXAMPLE
 
    $ oci-ctl podman register --container SOME_APT_CONTAINER \
        --app /usr/bin/apt-get
+
+   $ oci-ctl podman register --container SOME_APT_CONTAINER \
+       --app /usr/bin/apt-get \
+       --opt '\-ti' \
+       --opt '\--rm' \
+       --opt '\--storage-opt size=10G'
 
 AUTHOR
 ------

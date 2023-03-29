@@ -139,6 +139,12 @@ pub enum Podman {
         /// container registries.
         #[clap(long)]
         run_as: Option<String>,
+
+        /// Container runtime option, and optional value, used to
+        /// create the container. This option can be
+        /// specified multiple times.
+        #[clap(long, multiple = true)]
+        opt: Option<Vec<String>>,
     },
     /// Build container package
     BuildDeb {
