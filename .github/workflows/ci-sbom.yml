@@ -17,11 +17,11 @@ jobs:
         run: |
           sudo apt update && sudo apt install cargo
           cargo install cargo-bom
-      - name: Run SPDX Creation for oci-ctl
+      - name: Run SPDX Creation for flake-ctl
         run: |
-          cd oci-ctl
+          cd flake-ctl
           cargo bom
-      - name: Run SPDX Creation for oci-pilot
+      - name: Run SPDX Creation for podman-pilot
         run: |
-          cd oci-pilot
+          cd podman-pilot
           cargo bom

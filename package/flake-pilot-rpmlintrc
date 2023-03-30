@@ -1,0 +1,5 @@
+# flakes for everyone in the system
+addFilter("E: permissions-world-writable");
+
+# providing deb packages from this spec requires the tag to be hard coded
+addFilter("W: hardcoded-packager-tag");
