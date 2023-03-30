@@ -28,6 +28,8 @@ popd
 pushd oci-ctl
 cargo build --release
 popd
+sudo mkdir -p /etc/flakes
+sudo install -m 644 oci-pilot/oci-ctl/template/container-flake.yaml /etc/flakes
 sudo install -m 755 oci-pilot/target/release/oci-pilot /usr/bin
 sudo install -m 755 oci-ctl/target/release/oci-ctl /usr/bin
 ```
