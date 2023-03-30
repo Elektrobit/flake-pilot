@@ -1,10 +1,10 @@
-OCI-CTL-REMOVE(8)
-=================
+FLAKE-CTL-REMOVE(8)
+===================
 
 NAME
 ----
 
-**oci-ctl remove** - Remove application registration and/or entire container
+**flake-ctl remove** - Remove application registration and/or entire container
 
 SYNOPSIS
 --------
@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl podman remove <--container <CONTAINER>|--app <APP>>
+       flake-ctl podman remove <--container <CONTAINER>|--app <APP>>
 
    OPTIONS:
        --app <APP>
@@ -26,7 +26,7 @@ Remove registration(s). The command operates in two modes:
 1. Remove an application registration provided via **--app**
 
    In this mode the command deletes the specified application if it
-   is a link pointing to :file:`/usr/bin/oci-pilot`. It then also
+   is a link pointing to :file:`/usr/bin/podman-pilot`. It then also
    deletes the application configuration from :file:`/usr/share/flakes`
 
 2. Remove a container including all its registered applications via **--container**
@@ -56,9 +56,9 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl podman remove --app /usr/bin/apt-get
+   $ flake-ctl podman remove --app /usr/bin/apt-get
 
-   $ oci-ctl podman remove --container SOME_APT_CONTAINER
+   $ flake-ctl podman remove --container SOME_APT_CONTAINER
 
 AUTHOR
 ------

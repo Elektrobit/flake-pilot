@@ -1,10 +1,10 @@
-OCI-CTL-BUILD-DEB(8)
-====================
+FLAKE-CTL-BUILD-DEB(8)
+======================
 
 NAME
 ----
 
-**oci-ctl build-deb** - Build debian package from OCI image
+**flake-ctl build-deb** - Build debian package from OCI image
 
 SYNOPSIS
 --------
@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl podman build-deb [OPTIONS] --oci <OCI> --repo <REPO>
+       flake-ctl podman build-deb [OPTIONS] --oci <OCI> --repo <REPO>
 
    OPTIONS:
        --app <APP>...
@@ -59,7 +59,7 @@ OPTIONS
 FILES
 -----
 
-* /usr/share/oci-pilot/container.spec.in
+* /usr/share/podman-pilot/container.spec.in
 * /usr/bin/oci-deb
 
 EXAMPLE
@@ -67,7 +67,7 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl podman build-deb --oci SOME.docker.tar \
+   $ flake-ctl podman build-deb --oci SOME.docker.tar \
        --repo ${HOME}/localrepo \
        --app /usr/bin/myapp
 

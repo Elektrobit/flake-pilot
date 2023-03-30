@@ -1,10 +1,10 @@
-OCI-CTL-LOAD(8)
-===============
+FLAKE-CTL-LOAD(8)
+=================
 
 NAME
 ----
 
-**oci-ctl load** - Load container to local registry
+**flake-ctl load** - Load container to local registry
 
 SYNOPSIS
 --------
@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl podman load --oci <OCI>
+       flake-ctl podman load --oci <OCI>
 
    OPTIONS:
        --oci <OCI>
@@ -43,7 +43,7 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl podman load --oci SOME.docker.tar
+   $ flake-ctl podman load --oci SOME.docker.tar
 
 AUTHOR
 ------

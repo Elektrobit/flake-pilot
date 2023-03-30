@@ -1,10 +1,10 @@
-OCI-CTL-LIST(8)
-===============
+FLAKE-CTL-LIST(8)
+=================
 
 NAME
 ----
 
-**oci-ctl list** - List registered flake applications
+**flake-ctl list** - List registered flake applications
 
 SYNOPSIS
 --------
@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl list
+       flake-ctl list
 
    OPTIONS:
        -h, --help       Print help information
@@ -34,7 +34,7 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl list
+   $ flake-ctl list
 
 AUTHOR
 ------

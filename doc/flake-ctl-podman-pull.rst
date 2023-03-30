@@ -1,10 +1,10 @@
-OCI-CTL-PULL(8)
-===============
+FLAKE-CTL-PULL(8)
+=================
 
 NAME
 ----
 
-**oci-ctl pull** - Fetch container from registry
+**flake-ctl pull** - Fetch container from registry
 
 SYNOPSIS
 --------
@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl podman pull --uri <URI>
+       flake-ctl podman pull --uri <URI>
 
    OPTIONS:
        --uri <URI>
@@ -41,7 +41,7 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl podman pull --uri opensuse/tumbleweed
+   $ flake-ctl podman pull --uri opensuse/tumbleweed
 
 AUTHOR
 ------

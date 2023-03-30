@@ -1,34 +1,32 @@
-OCI-PILOT(8)
-============
+PODMAN-PILOT(8)
+===============
 
 NAME
 ----
 
-**oci-pilot** - Launcher for flake applications
+**podman-pilot** - Launcher for flake applications
 
 DESCRIPTION
 -----------
 
 A flake application is an application which gets called through
-a runtime engine. As of today oci-pilot supports OCI containers
-called through the podman container engine. Future releases
-are planned to support other engines as well, for example
-FireCracker
+a runtime engine. podman-pilot supports OCI containers
+called through the podman container engine.
 
-oci-pilot provides the application launcher binary and is not expected
+podman-pilot provides the application launcher binary and is not expected
 to be called by users. Instead it is being used as the symlink target
-at the time an application is registered via **oci-ctl register**.
+at the time an application is registered via **flake-ctl register**.
 
-This means oci-pilot is the actual binary called with any application
+This means podman-pilot is the actual binary called with any application
 registration. If the registered application is requested as
 :file:`/usr/bin/myapp` there will be a symlink pointing to:
 
 .. code:: bash
 
-   /usr/bin/myapp -> /usr/bin/oci-pilot
+   /usr/bin/myapp -> /usr/bin/podman-pilot
 
-Consequently calling **myapp** will effectively call **oci-pilot**.
-oci-pilot now reads the calling program basename, which is **myapp**
+Consequently calling **myapp** will effectively call **podman-pilot**.
+podman-pilot now reads the calling program basename, which is **myapp**
 and looks up all the registration metadata stored in
 :file:`/usr/share/flakes`
 
@@ -42,7 +40,7 @@ with the following layout:
        │   └── other.yaml
        └── myapp.yaml
 
-All metadata information read by **oci-pilot** uses the YAML
+All metadata information read by **podman-pilot** uses the YAML
 markup. The main configuration :file:`myapp.yaml` is read first
 and can be optionally extended with further :file:`*.yaml` files
 below the :file:`myapp.d` directory. All files in the
@@ -68,7 +66,7 @@ can be set for the supported container engine:
 
      # Optional base container to use with a delta 'container: name'
      # If specified the given 'container: name' is expected to be
-     # an overlay for the specified base_container. oci-pilot
+     # an overlay for the specified base_container. podman-pilot
      # combines the 'container: name' with the base_container into
      # one overlay and starts the result as a container instance
      #
@@ -135,7 +133,7 @@ a resume based flake setup.
 DEBUGGING
 ---------
 
-oci-pilot provides more inner works details if the following
+podman-pilot provides more inner works details if the following
 environment variable is set:
 
 .. code:: bash

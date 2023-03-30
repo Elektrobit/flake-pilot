@@ -1,10 +1,10 @@
-OCI-CTL-REGISTER(8)
-===================
+FLAKE-CTL-REGISTER(8)
+=====================
 
 NAME
 ----
 
-**oci-ctl register** - Register container application
+**flake-ctl register** - Register container application
 
 SYNOPSIS
 --------
@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       oci-ctl podman register [OPTIONS] --container <CONTAINER> --app <APP>
+       flake-ctl podman register [OPTIONS] --container <CONTAINER> --app <APP>
 
    OPTIONS:
        --app <APP>
@@ -32,7 +32,7 @@ DESCRIPTION
 Register the given application to run inside of the specified container.
 The registration process is two fold:
 
-1. Create the application symlink pointing to :file:`/usr/bin/oci-pilot`
+1. Create the application symlink pointing to :file:`/usr/bin/podman-pilot`
 2. Create the application default configuration below :file:`/usr/share/flakes`.
    Each application registered is called a **flake**
 
@@ -40,7 +40,7 @@ On successful completion the registered *--app* name can be called
 like a normal application on this host.
 
 For further details about the flake configuration please refer to
-the **oci-pilot** manual page.
+the **podman-pilot** manual page.
 
 OPTIONS
 -------
@@ -129,10 +129,10 @@ EXAMPLE
 
 .. code:: bash
 
-   $ oci-ctl podman register --container SOME_APT_CONTAINER \
+   $ flake-ctl podman register --container SOME_APT_CONTAINER \
        --app /usr/bin/apt-get
 
-   $ oci-ctl podman register --container SOME_APT_CONTAINER \
+   $ flake-ctl podman register --container SOME_APT_CONTAINER \
        --app /usr/bin/apt-get \
        --opt '\-ti' \
        --opt '\--rm' \
