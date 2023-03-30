@@ -67,7 +67,8 @@ impl AppConfig {
         includes_tar: Option<Vec<String>>,
         resume: Option<&bool>,
         attach: Option<&bool>,
-        run_as: Option<&String>
+        run_as: Option<&String>,
+        opts: Option<Vec<String>>
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
@@ -109,6 +110,19 @@ impl AppConfig {
         if ! includes_tar.is_none() {
             yaml_config.include.tar = Some(
                 includes_tar.as_ref().unwrap().to_vec()
+            );
+        }
+        if ! opts.is_none() {
+            let mut final_opts: Vec<String> = Vec::new();
+            for opt in opts.as_ref().unwrap() {
+                if opt.chars().next().unwrap() == '\\' {
+                    final_opts.push(opt[1..].to_string())
+                } else {
+                    final_opts.push(opt.to_string())
+                }
+            }
+            yaml_config.container.runtime.as_mut().unwrap().podman = Some(
+                final_opts
             );
         }
 

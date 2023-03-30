@@ -36,7 +36,8 @@ pub fn register(
     includes_tar: Option<Vec<String>>,
     resume: Option<&bool>,
     attach: Option<&bool>,
-    run_as: Option<&String>
+    run_as: Option<&String>,
+    opts: Option<Vec<String>>
 ) {
     /*!
     Register container application.
@@ -104,7 +105,7 @@ pub fn register(
     match app_config::AppConfig::save(
         Path::new(&app_config_file),
         &container, &target_app_path, &host_app_path,
-        base, layers, includes_tar, resume, attach, run_as
+        base, layers, includes_tar, resume, attach, run_as, opts
     ) {
         Ok(_) => { },
         Err(error) => {
