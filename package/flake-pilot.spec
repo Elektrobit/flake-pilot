@@ -1,5 +1,5 @@
 #
-# spec file for package oci-pilot
+# spec file for package flake-pilot
 #
 # Copyright (c) 2022 Elektrobit Automotive GmbH
 #
@@ -21,10 +21,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-Name:           oci-pilot
+Name:           flake-pilot
 Version:        2.0.5
 Release:        0
-Summary:        oci-pilot - launcher for container applications
+Summary:        flake-pilot - launcher for flake applications
 License:        MIT
 %if "%{_vendor}" == "debbuild"
 Packager:       Marcus Schaefer <marcus.schaefer@elektrobit.com>
@@ -53,13 +53,13 @@ BuildRequires:  upx-ucl
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
-Run container applications using a symlink structure pointing
-to oci-pilot which actually launches the application through podman.
-Along with the launcher there are also registration tools to
-manage the symlink structure and podman registry
+Run flake applications using a symlink structure pointing
+to a launcher binary which actually launches the application through
+a runtime engine like podman. Along with the launcher there is
+also a control tool to register an application as a flake application
 
 %package -n oci-deb
-Summary:        oci-deb - build oci-pilot compliant debian package from OCI tar
+Summary:        oci-deb - build flake-pilot compliant debian package from OCI container image
 Group:          Application/Misc
 %if 0%{?debian} || 0%{?ubuntu}
 Requires:       libxml2-utils
@@ -73,18 +73,18 @@ Requires:       debbuild
 
 %description -n oci-deb
 Provides oci-deb utility which uses debbuild and dpkg to create
-a debian package from a given OCI tar file. The created debian
-package hooks into the oci-pilot registration mechanism to run
+a debian package from a given OCI image file. The created debian
+package hooks into the flake-pilot registration mechanism to run
 containerized applications.
 
 %prep
-%setup -q -n oci-pilot
+%setup -q -n flake-pilot
 
 %build
-mkdir -p oci-pilot/.cargo
-mkdir -p oci-ctl/.cargo
-cp %{SOURCE1} oci-pilot/.cargo/config
-cp %{SOURCE1} oci-ctl/.cargo/config
+mkdir -p podman-pilot/.cargo
+mkdir -p flake-ctl/.cargo
+cp %{SOURCE1} podman-pilot/.cargo/config
+cp %{SOURCE1} flake-ctl/.cargo/config
 make build
 
 %install
@@ -97,12 +97,12 @@ chmod 777 %{buildroot}/usr/share/flakes
 %dir /usr/share/flakes
 %dir /etc/flakes
 /etc/flakes/container-flake.yaml
-/usr/bin/oci-pilot
-/usr/bin/oci-ctl
+/usr/bin/podman-pilot
+/usr/bin/flake-ctl
 %doc /usr/share/man/man8/*
 
 %files -n oci-deb
-/usr/share/oci-pilot
+/usr/share/podman-pilot
 /usr/bin/oci-deb
 
 %changelog
