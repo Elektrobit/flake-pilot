@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
-// This file is part of oci-pilot
+// This file is part of flake-pilot
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@
 pub const CONTAINER_FLAKE_DIR: &str =
     "/usr/share/flakes";
 pub const PILOT: &str =
-    "/usr/bin/oci-pilot";
+    "/usr/bin/podman-pilot";
 pub const OCIDEB: &str =
     "/usr/bin/oci-deb";
 pub const OCIDEB_PACKAGE: &str =

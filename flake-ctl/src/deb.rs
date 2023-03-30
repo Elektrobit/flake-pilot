@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
-// This file is part of oci-pilot
+// This file is part of flake-pilot
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@ pub fn ocideb(
 ) -> i32 {
     /*!
     Call oci-deb to create a debian package from the given OCI
-    container tar including oci-pilot app registration hooks
+    container tar including flake-ctl app registration hooks
     !*/
     let mut status_code = 255;
 

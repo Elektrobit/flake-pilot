@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
-// This file is part of oci-pilot
+// This file is part of flake-pilot
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@ pub fn register(
     Register container application.
 
     The registration is two fold. First it will create an app symlink
-    pointing to the oci-pilot launcher. Second it will create an
+    pointing to the podman-pilot launcher. Second it will create an
     app configuration file as CONTAINER_FLAKE_DIR/app.yaml containing
     the required information to launch the application inside of
     the container.
@@ -67,7 +67,7 @@ pub fn register(
     }
     info!("Registering application: {}", host_app_path);
 
-    // host_app_path -> pointing to oci-pilot
+    // host_app_path -> pointing to podman-pilot
     let host_app_dir = Path::new(host_app_path)
         .parent().unwrap().to_str().unwrap();
     match fs::create_dir_all(&host_app_dir) {
@@ -139,7 +139,7 @@ pub fn remove(app: &str) {
                     }
                 }
             } else {
-                error!("Symlink not pointing to oci-pilot: {}", app);
+                error!("Symlink not pointing to podman-pilot: {}", app);
                 return
             }
         },
@@ -257,8 +257,7 @@ pub fn init() -> bool {
 
     Symlink references to containers will be stored in /usr/share/flakes.
     The init method makes sure to create this directory unless it
-    already exists. The way oci-pilot manages container applications
-    is called a 'flake' :)
+    already exists.
     !*/
     let mut status = true;
     let mut flake_dir = String::new();

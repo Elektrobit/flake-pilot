@@ -30,7 +30,7 @@ Group:          System/Management
 License:        MIT
 Source0:        __SOURCE0__
 Requires:       podman
-Requires:       oci-pilot
+Requires:       flake-pilot
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if "%{_vendor}" == "debbuild"
 Packager:       NautilOS Team <nautilos@elektrobit.com>
@@ -54,23 +54,23 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 #!/bin/sh
-if [ -f "/usr/bin/oci-ctl" ]; then
-    /usr/bin/oci-ctl load --oci /usr/share/kiwi-images/native/__SOURCE0_BASENAME__
+if [ -f "/usr/bin/flake-ctl" ]; then
+    /usr/bin/flake-ctl podman load --oci /usr/share/kiwi-images/native/__SOURCE0_BASENAME__
     for entry in $(echo "__CONTAINER_APPS__" | tr "," " ");do
         app=$(echo $entry | cut -f1 -d\;)
         target=$(echo $entry | cut -f2 -d\;)
         test -z "$target" && target=$app
-        /usr/bin/oci-ctl register --app $app --target $target --container __CONTAINER_NAME__
+        /usr/bin/flake-ctl podman register --app $app --target $target --container __CONTAINER_NAME__
     done
 fi
 
 %preun
 #!/bin/sh
-if [ -f "/usr/bin/oci-ctl" ]; then
-    /usr/bin/oci-ctl remove --container __CONTAINER_NAME__
+if [ -f "/usr/bin/flake-ctl" ]; then
+    /usr/bin/flake-ctl podman remove --container __CONTAINER_NAME__
     for entry in $(echo "__CONTAINER_APPS__" | tr "," " ");do
         app=$(echo $entry | cut -f1 -d\;)
-        /usr/bin/oci-ctl remove --app $app
+        /usr/bin/flake-ctl podman remove --app $app
     done
 fi
 
