@@ -1,37 +1,37 @@
-# OCI Pilot
+# Flake Pilot
 
-oci-pilot is a very simple software to manage and run applications
-that are actually provided inside of OCI container(s). There are
-two main components:
+flake-pilot is a very simple software to register and launch applications
+that are actually provided inside of a runtime environment like an
+OCI container. There are two main components:
 
-1. oci-pilot
+1. The launcher(s)
 
-   The launcher binary. Every application on your host that actually
-   calls an application inside of a container is redirected to this
-   launcher binary. oci-pilot currently only supports ```podman```
-   as the runtime engine for containers.
+   The launcher binary. Each application that was registered as a
+   flake is redirected to a launcher binary. As of today only
+   support for the ```podman``` engine is implemented leading to
+   the respective ```podman-pilot``` launcher binary.
 
-2. oci-ctl
+2. The flake registration tool
 
-   The management utility to list, register, remove, more...
-   container applications on your host.
+   ```flake-ctl``` is the management utility to list, register,
+   remove, more... flake applications on your host.
 
 ## Installation
 
-```oci-pilot``` and ```oci-ctl``` are two implementations written in ```rust```
-They can be compiled one after the other as follows:
+launcher(s) and control tool are implementations written in ```rust```.
+They can be compiled and installed one after the other as follows:
 
 ```bash
-pushd oci-pilot
+pushd podman-pilot
 cargo build --release
 popd
-pushd oci-ctl
+pushd flake-ctl
 cargo build --release
 popd
 sudo mkdir -p /etc/flakes
-sudo install -m 644 oci-pilot/oci-ctl/template/container-flake.yaml /etc/flakes
-sudo install -m 755 oci-pilot/target/release/oci-pilot /usr/bin
-sudo install -m 755 oci-ctl/target/release/oci-ctl /usr/bin
+sudo install -m 644 flake-ctl/template/container-flake.yaml /etc/flakes
+sudo install -m 755 podman-pilot/target/release/podman-pilot /usr/bin
+sudo install -m 755 flake-ctl/target/release/flake-ctl /usr/bin
 ```
 
 ## Quick Start
@@ -43,13 +43,13 @@ connected to the ```aws-cli``` container provided by Amazon on
 1. Pull the container
 
    ```bash
-   podman podman pull docker.io/amazon/aws-cli
+   flake-ctl podman pull --uri docker.io/amazon/aws-cli
    ```
 
 2. Register the ```aws``` application
 
    ```bash
-   oci-ctl podman register --container amazon/aws-cli --app /usr/bin/aws --target /
+   flake-ctl podman register --container amazon/aws-cli --app /usr/bin/aws --target /
    ```
 
    This creates ```/usr/bin/aws``` on your host which actually
@@ -72,13 +72,13 @@ connected to the ```aws-cli``` container provided by Amazon on
 After the registration of an application they can be listed via
 
 ```bash
-oci-ctl list
+flake-ctl list
 ```
 
 Each application provides a configuration below ```/usr/share/flakes/```.
-The term ```flake``` is a short name that we came up with to simplify
-the conversations when talking about *container application registrations*
-:-) For our above registered ```aws``` flake the config file structure
+The term ```flake``` is a short name that we came up with to provide
+a generic name for an application running inside of an isolated environment.
+For our above registered ```aws``` flake the config file structure
 looks like the following:
 
 ```
@@ -87,10 +87,10 @@ looks like the following:
 └── aws.yaml
 ```
 
-Please consult the manual pages of oci-* tools for detailed information 
+Please consult the manual pages for detailed information 
 about the contents of the flake setup.
 
-oci-pilot is a project in its early stages and the result of
+Flake pilot is a project in its early stages and the result of
 a fun conversation over beer on a conference. Feedback
 is very much welcome.
 
