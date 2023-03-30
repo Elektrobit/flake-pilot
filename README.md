@@ -29,7 +29,7 @@ pushd oci-ctl
 cargo build --release
 popd
 sudo mkdir -p /etc/flakes
-sudo install -m 644 oci-pilot/oci-ctl/template/container-flake.yaml /etc/flakes
+sudo install -m 644 oci-ctl/template/container-flake.yaml /etc/flakes
 sudo install -m 755 oci-pilot/target/release/oci-pilot /usr/bin
 sudo install -m 755 oci-ctl/target/release/oci-ctl /usr/bin
 ```
@@ -43,7 +43,7 @@ connected to the ```aws-cli``` container provided by Amazon on
 1. Pull the container
 
    ```bash
-   podman podman pull docker.io/amazon/aws-cli
+   podman pull docker.io/amazon/aws-cli
    ```
 
 2. Register the ```aws``` application
