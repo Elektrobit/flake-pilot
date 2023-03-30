@@ -14,6 +14,7 @@ package: clean vendor sourcetar
 	mv package/flake-pilot.tar.gz package/build
 	cp package/flake-pilot.spec package/build
 	cp package/cargo_config package/build
+	cp package/flake-pilot-rpmlintrc package/build
 	# update changelog using reference file
 	helper/update_changelog.py --since package/flake-pilot.changes.ref > \
 		package/build/flake-pilot.changes
