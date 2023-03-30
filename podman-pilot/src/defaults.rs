@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
-// This file is part of oci-pilot
+// This file is part of flake-pilot
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,24 +21,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-use crate::app_path::program_abs_path;
-use crate::app_path::basename;
-use crate::app_path::program_config_file;
+use std::env;
 
-#[test]
-fn test_program_abs_path() {
-    let program_path = program_abs_path();
-    assert!(program_path.starts_with("/"));
-}
+pub const CONTAINER_FLAKE_DIR: &str = "/usr/share/flakes";
+pub const CONTAINER_CID_DIR: &str = "/tmp/flakes";
+pub const GC_THRESHOLD: i32 = 20;
+pub const HOST_DEPENDENCIES: &str = "removed";
 
-#[test]
-fn test_program_config_file() {
-    let config_file = program_config_file(&format!("app"));
-    assert_eq!("/usr/share/flakes/app.yaml", config_file);
-}
-
-#[test]
-fn test_basename() {
-    let base_name = basename(&format!("/some/name"));
-    assert_eq!("name", base_name);
+pub fn debug(message: &str) {
+    match env::var("PILOT_DEBUG") {
+        Ok(_) => { debug!("{}", message) },
+        Err(_) => { }
+    };
 }

@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
-// This file is part of oci-pilot
+// This file is part of flake-pilot
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,7 @@ pub fn create(
 
       # Optional base container to use with a delta 'container: name'
       # If specified the given 'container: name' is expected to be
-      # an overlay for the specified base_container. oci-pilot
+      # an overlay for the specified base_container. podman-pilot
       # combines the 'container: name' with the base_container into
       # one overlay and starts the result as a container instance
       #
@@ -393,7 +393,7 @@ pub fn start(
     /*!
     Start container with the given container ID
 
-    oci-pilot exits with the return code from podman after this function
+    podman-pilot exits with the return code from podman after this function
     !*/
     let container_section = &runtime_config[0]["container"];
     let runtime_section = &container_section["runtime"];
