@@ -503,6 +503,10 @@ pub fn call_instance(
     }
     if action == "start" && ! resume {
         call.arg("--attach");
+    } else if action == "start" {
+        // start detached, we are not interested in the
+        // start output in this case
+        call.stdout(Stdio::null());
     }
     call.arg(&cid);
     if action == "exec" {
