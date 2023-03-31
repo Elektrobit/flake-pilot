@@ -303,12 +303,12 @@ pub fn create(
 
     // create container
     debug(&format!("{:?}", app.get_args()));
+    let spinner = Spinner::new(
+        spinners::Line, "Launching flake...", Color::Yellow
+    );
     match app.output() {
         Ok(output) => {
             if output.status.success() {
-                let spinner = Spinner::new(
-                    spinners::Line, "Launching flake...", Color::Yellow
-                );
                 let cid = String::from_utf8_lossy(&output.stdout)
                     .strip_suffix("\n").unwrap().to_string();
                 result.push(cid);
@@ -383,12 +383,14 @@ pub fn create(
                 spinner.success("Launching flake");
                 return result;
             }
+            spinner.fail("Flake launch has failed");
             panic!(
                 "Failed to create container: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
         },
         Err(error) => {
+            spinner.fail("Flake launch has failed");
             panic!("Failed to execute podman: {:?}", error)
         }
     }
