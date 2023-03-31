@@ -1,6 +1,6 @@
 # Flake Pilot
 
-flake-pilot is a simple software to register and launch applications
+flake-pilot is a simple software to register, provision and launch applications
 that are actually provided inside of a runtime environment like an
 OCI container. There are two main components:
 
