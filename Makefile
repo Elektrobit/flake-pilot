@@ -2,6 +2,7 @@
 
 PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
+SBINDIR ?= ${PREFIX}/sbin
 SHAREDIR ?= ${PREFIX}/share/podman-pilot
 FLAKEDIR ?= ${PREFIX}/share/flakes
 TEMPLATEDIR ?= /etc/flakes
@@ -33,6 +34,7 @@ sourcetar:
 	cp -a podman-pilot package/flake-pilot/
 	cp -a flake-ctl package/flake-pilot/
 	cp -a doc package/flake-pilot/
+	cp -a utils package/flake-pilot/
 	tar -C package -cf package/flake-pilot.tar flake-pilot
 	rm -rf package/flake-pilot
 
@@ -54,6 +56,7 @@ test:
 
 install:
 	install -d -m 755 $(DESTDIR)$(BINDIR)
+	install -d -m 755 $(DESTDIR)$(SBINDIR)
 	install -d -m 755 $(DESTDIR)$(SHAREDIR)
 	install -d -m 755 $(DESTDIR)$(TEMPLATEDIR)
 	install -d -m 755 $(DESTDIR)$(FLAKEDIR)
@@ -69,6 +72,7 @@ install:
 	install -m 644 flake-ctl/template/container-flake.yaml \
 		$(DESTDIR)$(TEMPLATEDIR)/container-flake.yaml
 	install -m 644 doc/*.8 ${DESTDIR}usr/share/man/man8
+	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl

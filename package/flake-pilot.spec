@@ -99,6 +99,7 @@ chmod 777 %{buildroot}/usr/share/flakes
 /etc/flakes/container-flake.yaml
 /usr/bin/podman-pilot
 /usr/bin/flake-ctl
+/usr/sbin/oci-registry
 %doc /usr/share/man/man8/*
 
 %files -n oci-deb

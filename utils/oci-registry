@@ -1,0 +1,163 @@
+#!/bin/sh
+# Copyright (c) 2022 Elektrobit Automotive GmbH
+#
+# This file is part of flake-pilot
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# manage OCI read-write registry
+#
+# NOTE: This script only works on systems that uses a specific
+# container registry layout. It is expected that the registry is
+# configured to use the overlay storage type and furthermore it's
+# expected that the storage space is LUKS encrypted providing
+# the device name luksInstances. The following lsblk output shows
+# an example which this script is based on:
+#
+# mmcblk0           179:0    0  29.7G  0 disk  
+# └─mmcblk0p3       179:3    0  29.5G  0 part  
+#   └─luksInstances 254:0    0  29.5G  0 crypt /var/lib/containers/storage
+#
+# If your host system does not provide the device stack like the
+# above example shows, don't use it.
+#
+# NOTE: This script calls set_tpmread as a generic utility to provide
+# the key used for encrypting the container storage. If no such tool
+# exists it is possible to create an insecure version of it which
+# just prints a key to make things work. Of course this will create
+# no security at all. The expectation is that set_tpmread really
+# reads a secure key from e.g some TPM chip and it is been used by
+# this script only for the time it's required.
+#
+# shellcheck shell=bash
+#
+set -e
+
+tpm_key=/run/key
+
+trap "rm -f /run/key" EXIT
+
+usage() {
+    echo "USAGE:"
+    echo "  oci-registry [OPTIONS]"
+    echo
+    echo "OPTIONS:"
+    echo "  --setup <DEVICE>"
+    echo "      Prepare the given device as read-write"
+    echo "      location for the local container registry"
+    echo "      WARNING: The given device will be wiped !!"
+    echo
+    echo "  --activate <DEVICE>"
+    echo "      Activate registry"
+    echo
+    echo "  --stop"
+    echo "      Deactivate current RW registry"
+}
+
+deactivate() {
+    echo "Deactivating RW registry..."
+    if mountpoint /var/lib/containers/storage; then
+        if umount /var/lib/containers/storage; then
+            cryptsetup luksClose luksInstances
+            echo "OK"
+        else
+            false
+        fi
+    fi
+}
+
+activate() {
+    local reg_instance_device=$1
+    set_tpmread > "${tpm_key}"
+    cryptsetup --key-file "${tpm_key}" \
+        luksOpen "${reg_instance_device}" luksInstances
+    rm -f "${tpm_key}"
+    mount /dev/mapper/luksInstances /var/lib/containers/storage
+}
+
+format() {
+    local reg_instance_device=$1
+    set_tpmread > "${tpm_key}"
+    if ! cryptsetup -q --key-file "${tpm_key}" --type luks1 \
+        luksFormat "${reg_instance_device}";then
+        echo "Consider --stop first"
+        exit 1
+    fi
+    cryptsetup --key-file "${tpm_key}" \
+        luksOpen "${reg_instance_device}" newInstances
+    rm -f "${tpm_key}"
+    if ! mkfs.ext4 -L INSTANCE /dev/mapper/newInstances; then
+        echo "Failed to create filesystem for registry"
+        cryptsetup luksClose newInstances
+        exit 1
+    fi
+    cryptsetup luksClose newInstances
+}
+
+ARGUMENT_LIST=(
+    "setup:"
+    "activate:"
+    "stop"
+)
+# read arguments
+if ! opts=$(getopt \
+    --longoptions "$(printf "%s," "${ARGUMENT_LIST[@]}")" \
+    --name "$(basename "$0")" \
+    --options "" \
+    -- "$@"
+); then
+    usage
+    exit 1
+fi
+
+eval set --"${opts}"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --setup)
+            argNew=$2
+            shift 2
+            ;;
+        --activate)
+            argActivate=$2
+            shift 2
+            ;;
+        --stop)
+            argStop=1
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [ "${argNew}" ];then
+    echo "Set up ${argNew} as registry device"
+    format "${argNew}"
+elif [ "${argActivate}" ];then
+    deactivate
+    echo "Activating RW registry..."
+    activate "${argActivate}"
+    echo "OK"
+elif [ "${argStop}" ];then
+    deactivate
+else
+    usage
+fi
