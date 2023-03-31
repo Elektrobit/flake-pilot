@@ -21,6 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
+use spinoff::{Spinner, spinners, Color};
 use yaml_rust::Yaml;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -29,7 +30,7 @@ use std::process::exit;
 use std::env;
 use std::fs;
 use crate::app_path::program_config_file;
-use crate::defaults::{debug};
+use crate::defaults::debug;
 use tempfile::tempfile;
 use std::io::{Write, Read};
 use std::fs::File;
@@ -305,6 +306,9 @@ pub fn create(
     match app.output() {
         Ok(output) => {
             if output.status.success() {
+                let spinner = Spinner::new(
+                    spinners::Line, "Launching flake...", Color::Yellow
+                );
                 let cid = String::from_utf8_lossy(&output.stdout)
                     .strip_suffix("\n").unwrap().to_string();
                 result.push(cid);
@@ -325,6 +329,7 @@ pub fn create(
                                 removed_files = file
                             },
                             Err(error) => {
+                                spinner.fail("Flake launch has failed");
                                 panic!("Failed to create tempfile: {}", error)
                             }
                         }
@@ -371,9 +376,11 @@ pub fn create(
                     }
 
                     if ! provision_ok {
+                        spinner.fail("Flake launch has failed");
                         panic!("Failed to provision container")
                     }
                 }
+                spinner.success("Launching flake");
                 return result;
             }
             panic!(
