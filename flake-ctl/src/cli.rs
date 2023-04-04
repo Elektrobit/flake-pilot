@@ -75,9 +75,16 @@ pub enum Podman {
         app: Option<String>,
     },
     /// Register container application
-    #[clap(group(
-        ArgGroup::new("register").required(false).args(&["resume", "attach"]),
-    ))]
+    #[clap(
+        group(
+            ArgGroup::new("register")
+                .required(false).args(&["resume", "attach"])
+        ),
+        group(
+            ArgGroup::new("application")
+                .required(true).args(&["app", "info"])
+        )
+    )]
     Register {
         /// A container name. The name must match with a
         /// name in the local podman registry
@@ -89,7 +96,7 @@ pub enum Podman {
         /// application will be called with that path inside
         /// of the container.
         #[clap(long)]
-        app: String,
+        app: Option<String>,
 
         /// An absolute path to the application in the container.
         /// Use this option if the application path on the host
@@ -123,13 +130,13 @@ pub enum Podman {
         /// If the container is still running, the app will be
         /// executed inside of this container instance.
         #[clap(long)]
-        resume: Option<bool>,
+        resume: bool,
 
         /// Attach to the container if still running, rather than
         /// executing the app again. Only makes sense for interactive
         /// sessions like a shell application.
         #[clap(long)]
-        attach: Option<bool>,
+        attach: bool,
 
         /// Name of the user to run podman. Note: This requires
         /// rootless podman to be configured on the host. It's also
@@ -145,6 +152,10 @@ pub enum Podman {
         /// specified multiple times.
         #[clap(long, multiple = true)]
         opt: Option<Vec<String>>,
+
+        /// Print registration information from container if provided
+        #[clap(long)]
+        info: bool,
     },
     /// Build container package
     BuildDeb {

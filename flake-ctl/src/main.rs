@@ -66,20 +66,22 @@ fn main() {
                 // register
                 cli::Podman::Register {
                     container, app, target, base,
-                    layer, include_tar, resume, attach, run_as, opt
+                    layer, include_tar, resume, attach, run_as, opt, info
                 } => {
                     if app::init() {
                         app::register(
                             container,
-                            app,
+                            app.as_ref(),
                             target.as_ref(),
                             base.as_ref(),
                             layer.as_ref().cloned(),
                             include_tar.as_ref().cloned(),
-                            resume.as_ref(),
-                            attach.as_ref(),
+                            *resume,
+                            *attach,
                             run_as.as_ref(),
-                            opt.as_ref().cloned()
+                            opt.as_ref().cloned(),
+                            *info,
+                            defaults::PODMAN_PILOT
                         );
                     }
                 },
@@ -87,12 +89,14 @@ fn main() {
                 cli::Podman::Remove { container, app } => {
                     if ! app.is_none() {
                         app::remove(
-                            app.as_ref().map(String::as_str).unwrap()
+                            app.as_ref().map(String::as_str).unwrap(),
+                            defaults::PODMAN_PILOT
                         );
                     }
                     if ! container.is_none() {
                         app::purge(
-                            container.as_ref().map(String::as_str).unwrap()
+                            container.as_ref().map(String::as_str).unwrap(),
+                            defaults::PODMAN_PILOT
                         );
                     }
                 }
