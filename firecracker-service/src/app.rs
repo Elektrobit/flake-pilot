@@ -46,7 +46,8 @@ pub mod app{
                 return
             }
         }
-
+        println!("Awaiting incomming connections");
+        
         for client in srv_socket.incoming(){
             match client{
                 Ok(client) => {

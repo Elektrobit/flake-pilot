@@ -12,8 +12,8 @@ fn main() {
         firecracker-service is a service meant to run in background, to provide unix-domain socket
         that will be used to communicate with it. 
     !*/
-    let stdout = File::create("/tmp/daemon.out").unwrap();
-    let stderr = File::create("/tmp/daemon.err").unwrap();
+    let stdout = File::create("/tmp/firecracker-service.out").unwrap();
+    let stderr = File::create("/tmp/firecracker-service.err").unwrap();
     
 
     let daemonize = Daemonize::new()
@@ -24,11 +24,13 @@ fn main() {
         .group("root") 
         .umask(0o777)    
         .stdout(stdout) 
-        .stderr(stderr) 
-        .privileged_action(|| "Executed before drop privileges");
+        .stderr(stderr);        
 
     match daemonize.start() {
-        Ok(_) => handle_incoming_connections(),
+        Ok(_) => {
+            println!("Started daemon ...");
+            handle_incoming_connections();            
+        },
         Err(e) => println!("Error, {}", e),
     }
 
