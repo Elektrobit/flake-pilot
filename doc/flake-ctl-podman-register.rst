@@ -16,13 +16,14 @@ SYNOPSIS
 
    OPTIONS:
        --app <APP>
-       --attach <true|false>
+       --attach
        --base <BASE>
        --container <CONTAINER>
        --include-tar <INCLUDE_TAR>...
+       --info
        --layer <LAYER>...
        --opt <OPT>...
-       --resume <true|false>
+       --resume
        --run-as <RUN_AS>
        --target <TARGET>
 
@@ -51,7 +52,7 @@ OPTIONS
   specified via the target option, the application will be
   called with that path inside of the container
 
---attach <ATTACH>
+--attach
 
   Attach to the container if still running, rather than executing
   the app again. Only makes sense for interactive sessions like a
@@ -72,6 +73,10 @@ OPTIONS
   Name of a tar file to be included on top of the container instance.
   This option can be specified multiple times
 
+--info
+
+  Print registration information from container if provided
+
 --layer <LAYER>...
 
   Name of an additional container layer on top of the specified
@@ -90,7 +95,7 @@ OPTIONS
   default settings will apply. See the example section for further
   details.
 
---resume <RESUME>
+--resume
 
   Resume the container from previous execution. If the container is
   still running, the app will be executed inside of this container

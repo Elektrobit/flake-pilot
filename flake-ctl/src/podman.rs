@@ -21,8 +21,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-use std::process::Command;
+use std::fs;
+use std::path::Path;
+use std::process::{Command, Stdio};
 use crate::defaults;
+use crate::{app, app_config};
 
 pub fn pull(uri: &String) -> i32 {
     /*!
@@ -110,4 +113,123 @@ pub fn rm(container: &String){
         }
         Err(status) => { error!("Process terminated by signal: {}", status) }
     }
+}
+
+pub fn mount_container(container_name: &str) -> String {
+    /*!
+    Mount container and return mount point,
+    or an empty string in the error case
+    !*/
+    match Command::new(defaults::PODMAN_PATH)
+        .arg("image")
+        .arg("mount")
+        .arg(&container_name)
+        .output()
+    {
+        Ok(output) => {
+            if output.status.success() {
+                return String::from_utf8_lossy(&output.stdout)
+                    .strip_suffix("\n").unwrap().to_string()
+            }
+            error!(
+                "Failed to mount container image: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        },
+        Err(error) => {
+            error!("Failed to execute podman image mount: {:?}", error)
+        }
+    }
+    return "".to_string();
+}
+
+pub fn umount_container(container_name: &str) -> i32 {
+    /*!
+    Umount container image
+    !*/
+    let mut status_code = 255;
+    match Command::new(defaults::PODMAN_PATH)
+        .stderr(Stdio::null())
+        .stdout(Stdio::null())
+        .arg("image")
+        .arg("umount")
+        .arg(&container_name)
+        .status()
+    {
+        Ok(status) => {
+            status_code = status.code().unwrap();
+        },
+        Err(error) => {
+            error!("Failed to execute podman image umount: {:?}", error)
+        }
+    }
+    status_code
+}
+
+pub fn purge_container(container: &str) {
+    /*!
+    Iterate over all yaml config files and find those connected
+    to the container. Delete all app registrations for this
+    container and also delete the container from the local
+    registry
+    !*/
+    for app_name in app::app_names() {
+        let config_file = format!(
+            "{}/{}.yaml", defaults::FLAKE_DIR, app_name
+        );
+        match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
+            Ok(app_conf) => {
+                if container == app_conf.container.name {
+                    app::remove(
+                        &app_conf.container.host_app_path,
+                        defaults::PODMAN_PILOT
+                    );
+                }
+            },
+            Err(error) => {
+                error!(
+                    "Ignoring error on load or parse flake config {}: {:?}",
+                    config_file, error
+                );
+            }
+        };
+    }
+    rm(&container.to_string());
+}
+
+pub fn print_container_info(container: &str) {
+    /*!
+    Print app info file
+
+    Lookup container_base_name.yaml file in the root of the
+    specified container and print the file if it is present
+    !*/
+    let container_basename = Path::new(
+        container
+    ).file_name().unwrap().to_str().unwrap();
+    let image_mount_point = mount_container(&container);
+    if image_mount_point.is_empty() {
+        return
+    }
+    let info_file = format!(
+        "{}/{}.yaml", image_mount_point, container_basename
+    );
+    if Path::new(&info_file).exists() {
+        match fs::read_to_string(&info_file) {
+            Ok(data) => {
+                println!("{}", &String::from_utf8_lossy(
+                    data.as_bytes()
+                ).to_string());
+            },
+            Err(error) => {
+                // info_file file exists but could not be read
+                error!("Error reading {}: {:?}", info_file, error);
+            }
+        }
+    } else {
+        error!("No info file {}.yaml found in container: {}",
+            container_basename, container
+        );
+    }
+    umount_container(&container);
 }

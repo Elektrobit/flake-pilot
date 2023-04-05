@@ -29,26 +29,37 @@ use glob::glob;
 
 pub fn register(
     container: &String,
-    app: &String,
+    app: Option<&String>,
     target: Option<&String>,
     base: Option<&String>,
     layers: Option<Vec<String>>,
     includes_tar: Option<Vec<String>>,
-    resume: Option<&bool>,
-    attach: Option<&bool>,
+    resume: bool,
+    attach: bool,
     run_as: Option<&String>,
-    opts: Option<Vec<String>>
+    opts: Option<Vec<String>>,
+    info: bool,
+    engine: &str
 ) {
     /*!
-    Register container application.
+    Register application for specified engine.
 
     The registration is two fold. First it will create an app symlink
-    pointing to the podman-pilot launcher. Second it will create an
-    app configuration file as CONTAINER_FLAKE_DIR/app.yaml containing
+    pointing to the engine launcher. Second it will create an
+    app configuration file as FLAKE_DIR/app.yaml containing
     the required information to launch the application inside of
-    the container.
+    the specified engine.
     !*/
-    let host_app_path = app;
+    if info {
+        if engine == defaults::PODMAN_PILOT {
+            podman::print_container_info(&container);
+        }
+        return
+    }
+    if app.is_none() {
+        return
+    }
+    let host_app_path = app.unwrap();
     let mut target_app_path = host_app_path;
     if ! target.is_none() {
         target_app_path = target.unwrap();
@@ -62,12 +73,12 @@ pub fn register(
         }
     }
     if base.is_none() && ! layers.is_none() {
-        error!("Container layer(s) specified without a base container");
+        error!("Layer(s) specified without a base");
         return
     }
     info!("Registering application: {}", host_app_path);
 
-    // host_app_path -> pointing to podman-pilot
+    // host_app_path -> pointing to engine
     let host_app_dir = Path::new(host_app_path)
         .parent().unwrap().to_str().unwrap();
     match fs::create_dir_all(&host_app_dir) {
@@ -77,23 +88,23 @@ pub fn register(
             return
         }
     };
-    match symlink(defaults::PILOT, host_app_path) {
+    match symlink(&engine, host_app_path) {
         Ok(link) => link,
         Err(error) => {
             error!("Error while creating symlink \"{} -> {}\": {:?}",
-                host_app_path, defaults::PILOT, error
+                host_app_path, &engine, error
             );
             return
         }
     }
 
     // creating default app configuration
-    let app_basename = Path::new(app).file_name().unwrap().to_str().unwrap();
+    let app_basename = Path::new(app.unwrap()).file_name().unwrap().to_str().unwrap();
     let app_config_file = format!("{}/{}.yaml",
-        defaults::CONTAINER_FLAKE_DIR, &app_basename
+        defaults::FLAKE_DIR, &app_basename
     );
     let app_config_dir = format!("{}/{}.d",
-        defaults::CONTAINER_FLAKE_DIR, &app_basename
+        defaults::FLAKE_DIR, &app_basename
     );
     match fs::create_dir_all(&app_config_dir) {
         Ok(dir) => dir,
@@ -104,8 +115,16 @@ pub fn register(
     };
     match app_config::AppConfig::save(
         Path::new(&app_config_file),
-        &container, &target_app_path, &host_app_path,
-        base, layers, includes_tar, resume, attach, run_as, opts
+        &container,
+        &target_app_path,
+        &host_app_path,
+        base,
+        layers,
+        includes_tar,
+        resume,
+        attach,
+        run_as,
+        opts
     ) {
         Ok(_) => { },
         Err(error) => {
@@ -116,7 +135,7 @@ pub fn register(
     }
 }
 
-pub fn remove(app: &str) {
+pub fn remove(app: &str, engine: &str) {
     /*!
     Delete application link and config files
     !*/
@@ -130,7 +149,7 @@ pub fn remove(app: &str) {
     // remove pilot link if valid
     match fs::read_link(app) {
         Ok(link_name) => {
-            if link_name.into_os_string() == defaults::PILOT {
+            if link_name.into_os_string() == engine {
                 match fs::remove_file(app) {
                     Ok(_) => {},
                     Err(error) => {
@@ -139,7 +158,7 @@ pub fn remove(app: &str) {
                     }
                 }
             } else {
-                error!("Symlink not pointing to podman-pilot: {}", app);
+                error!("Symlink not pointing to {}: {}", engine, app);
                 return
             }
         },
@@ -151,10 +170,10 @@ pub fn remove(app: &str) {
     // remove config file and config directory
     let app_basename = basename(&format!("{}",app));
     let config_file = format!(
-        "{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, &app_basename
+        "{}/{}.yaml", defaults::FLAKE_DIR, &app_basename
     );
     let app_config_dir = format!(
-        "{}/{}.d", defaults::CONTAINER_FLAKE_DIR, &app_basename
+        "{}/{}.d", defaults::FLAKE_DIR, &app_basename
     );
     if Path::new(&config_file).exists() {
         match fs::remove_file(&config_file) {
@@ -196,7 +215,7 @@ pub fn app_names() -> Vec<String> {
     Read all flake config files
     !*/
     let mut flakes: Vec<String> = Vec::new();
-    let glob_pattern = format!("{}/*.yaml", defaults::CONTAINER_FLAKE_DIR);
+    let glob_pattern = format!("{}/*.yaml", defaults::FLAKE_DIR);
     for config_file in glob(&glob_pattern).unwrap() {
         match config_file {
             Ok(filepath) => {
@@ -223,58 +242,40 @@ pub fn app_names() -> Vec<String> {
     flakes
 }
 
-pub fn purge(container: &str) {
+pub fn purge(app: &str, engine: &str) {
     /*!
-    Iterate over all yaml config files and find those connected
-    to the container. Delete all app registrations for this
-    container and also delete the container from the local
-    registry
+    Iterate over all yaml config files and delete all app
+    registrations and its connected resources for the specified app
     !*/
-    for app_name in app_names() {
-        let config_file = format!(
-            "{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, app_name
-        );
-        match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
-            Ok(app_conf) => {
-                if container == app_conf.container.name {
-                    remove(&app_conf.container.host_app_path);
-                }
-            },
-            Err(error) => {
-                error!(
-                    "Ignoring error on load or parse flake config {}: {:?}",
-                    config_file, error
-                );
-            }
-        };
+    if engine == defaults::PODMAN_PILOT {
+        podman::purge_container(&app)
     }
-    podman::rm(&container.to_string());
 }
 
 pub fn init() -> bool {
     /*!
     Create required directory structure.
 
-    Symlink references to containers will be stored in /usr/share/flakes.
+    Symlink references to apps will be stored in defaults::FLAKE_DIR
     The init method makes sure to create this directory unless it
     already exists.
     !*/
     let mut status = true;
     let mut flake_dir = String::new();
-    match fs::read_link(&defaults::CONTAINER_FLAKE_DIR) {
+    match fs::read_link(&defaults::FLAKE_DIR) {
         Ok(target) => {
             flake_dir.push_str(
                 &target.into_os_string().into_string().unwrap()
             );
         },
         Err(_) => {
-            flake_dir.push_str(defaults::CONTAINER_FLAKE_DIR);
+            flake_dir.push_str(defaults::FLAKE_DIR);
         }
     }
     fs::create_dir_all(flake_dir).unwrap_or_else(|why| {
         error!(
             "Failed creating {}: {:?}",
-            defaults::CONTAINER_FLAKE_DIR, why.kind()
+            defaults::FLAKE_DIR, why.kind()
         );
         status = false
     });

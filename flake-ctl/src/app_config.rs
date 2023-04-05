@@ -65,8 +65,8 @@ impl AppConfig {
         base: Option<&String>,
         layers: Option<Vec<String>>,
         includes_tar: Option<Vec<String>>,
-        resume: Option<&bool>,
-        attach: Option<&bool>,
+        resume: bool,
+        attach: bool,
         run_as: Option<&String>,
         opts: Option<Vec<String>>
     ) -> Result<(), GenericError> {
@@ -92,12 +92,12 @@ impl AppConfig {
                 layers.as_ref().unwrap().to_vec()
             );
         }
-        if ! resume.is_none() && *resume.unwrap() == true {
+        if resume {
             yaml_config.container.runtime.as_mut().unwrap()
-                .resume = Some(*resume.unwrap());
-        } else if ! attach.is_none() && *attach.unwrap() == true {
+                .resume = Some(resume);
+        } else if attach {
             yaml_config.container.runtime.as_mut().unwrap()
-                .attach = Some(*attach.unwrap());
+                .attach = Some(attach);
         } else {
             // default: remove the container if no resume/attach is set
             yaml_config.container.runtime.as_mut().unwrap()
