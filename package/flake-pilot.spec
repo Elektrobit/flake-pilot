@@ -22,7 +22,7 @@
 # SOFTWARE.
 #
 Name:           flake-pilot
-Version:        2.1.1
+Version:        2.1.2
 Release:        0
 Summary:        flake-pilot - launcher for flake applications
 License:        MIT
