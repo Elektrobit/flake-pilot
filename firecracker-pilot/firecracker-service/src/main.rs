@@ -4,17 +4,24 @@ use std::fs::File;
 use daemonize::Daemonize;
 
 mod app;
-use crate::app::app::handle_incoming_connections;
+use crate::app::handle_incoming_connections;
+
+
+#[macro_use]
+extern crate log;
+
+use env_logger::Env;
 
 
 fn main() {
     /*! 
         firecracker-service is a service meant to run in background, to provide unix-domain socket
         that will be used to communicate with it. 
-    !*/
+    !*/    
     let stdout = File::create("/tmp/firecracker-service.out").unwrap();
     let stderr = File::create("/tmp/firecracker-service.err").unwrap();
     
+    setup_logger();
 
     let daemonize = Daemonize::new()
         .pid_file("/var/run/firecracker-service.pid") 
@@ -28,12 +35,17 @@ fn main() {
 
     match daemonize.start() {
         Ok(_) => {
-            println!("Started daemon ...");
+            info!("Started daemon ...");
             handle_incoming_connections();            
         },
-        Err(e) => println!("Error, {}", e),
+        Err(e) => error!("Error, {}", e),
     }
+}
 
+fn setup_logger() {
+    let env = Env::default()
+        .filter_or("MY_LOG_LEVEL", "trace")
+        .write_style_or("MY_LOG_STYLE", "always");
 
-
+    env_logger::init_from_env(env);
 }
