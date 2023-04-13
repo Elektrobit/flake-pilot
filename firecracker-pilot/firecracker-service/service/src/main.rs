@@ -3,6 +3,10 @@ extern crate daemonize;
 use std::fs::File;
 use daemonize::Daemonize;
 
+/**
+    Module implements incomming client connection and handles commands and responses 
+    towards client.
+ */
 mod app;
 use crate::app::handle_incoming_connections;
 
@@ -17,7 +21,7 @@ fn main() {
     /*! 
         firecracker-service is a service meant to run in background, to provide unix-domain socket
         that will be used to communicate with it. 
-    !*/    
+    */    
     let stdout = File::create("/tmp/firecracker-service.out").unwrap();
     let stderr = File::create("/tmp/firecracker-service.err").unwrap();
     
@@ -43,6 +47,9 @@ fn main() {
 }
 
 fn setup_logger() {
+    /*!
+        Set up the logger internally
+    */
     let env = Env::default()
         .filter_or("MY_LOG_LEVEL", "trace")
         .write_style_or("MY_LOG_STYLE", "always");
