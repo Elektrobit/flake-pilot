@@ -834,7 +834,7 @@ pub fn pull(uri: &str, user: &str) {
                 }
                 prune.arg("podman").arg("image").arg("prune").arg("--force");
                 match prune.status() {
-                    Ok(_) => { },
+                    Ok(status) => { debug(&format!("{:?}", status)) },
                     Err(error) => { debug(&format!("{:?}", error)) }
                 }
             }
