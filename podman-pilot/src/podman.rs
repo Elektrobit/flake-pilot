@@ -806,7 +806,9 @@ pub fn container_image_exists(name: &str, user: &str) -> bool {
                 exists_status = true
             }
         },
-        Err(_) => { }
+        Err(error) => {
+            panic!("Failed to execute podman image exists: {:?}", error)
+        }
     }
     exists_status
 }
