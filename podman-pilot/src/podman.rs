@@ -823,10 +823,13 @@ pub fn pull(uri: &str, user: &str) {
     }
     pull.arg("podman").arg("pull").arg(uri);
     debug(&format!("{:?}", pull.get_args()));
-    match pull.status() {
-        Ok(status) => {
-            if ! status.success() {
-                panic!("Failed, error message(s) reported");
+    match pull.output() {
+        Ok(output) => {
+            if ! output.status.success() {
+                panic!(
+                    "Failed to fetch container: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
             } else {
                 let mut prune = Command::new("sudo");
                 if ! user.is_empty() {
@@ -839,8 +842,8 @@ pub fn pull(uri: &str, user: &str) {
                 }
             }
         }
-        Err(status) => {
-            panic!("Failed to call podman pull: {}", status)
+        Err(error) => {
+            panic!("Failed to call podman pull: {}", error)
         }
     }
 }
