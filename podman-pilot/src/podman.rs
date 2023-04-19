@@ -552,6 +552,9 @@ pub fn mount_container(
         call.arg("--user").arg(user);
     }
     if as_image {
+        if ! container_image_exists(&container_name, &user) {
+            pull(&container_name, &user);
+        }
         call.arg("podman").arg("image").arg("mount").arg(&container_name);
     } else {
         call.arg("podman").arg("mount").arg(&container_name);
@@ -783,6 +786,66 @@ pub fn container_running(cid: &String, user: &String) -> bool {
         }
     }
     running_status
+}
+
+pub fn container_image_exists(name: &str, user: &str) -> bool {
+    /*!
+    Check if container image is present in local registry
+    !*/
+    let mut exists_status = false;
+    let mut exists = Command::new("sudo");
+    if ! user.is_empty() {
+        exists.arg("--user").arg(&user);
+    }
+    exists.arg("podman")
+        .arg("image").arg("exists").arg(name);
+    debug(&format!("{:?}", exists.get_args()));
+    match exists.status() {
+        Ok(status) => {
+            if status.code().unwrap() == 0 {
+                exists_status = true
+            }
+        },
+        Err(error) => {
+            panic!("Failed to execute podman image exists: {:?}", error)
+        }
+    }
+    exists_status
+}
+
+pub fn pull(uri: &str, user: &str) {
+    /*!
+    Call podman pull and prune with the provided uri
+    !*/
+    let mut pull = Command::new("sudo");
+    if ! user.is_empty() {
+        pull.arg("--user").arg(&user);
+    }
+    pull.arg("podman").arg("pull").arg(uri);
+    debug(&format!("{:?}", pull.get_args()));
+    match pull.output() {
+        Ok(output) => {
+            if ! output.status.success() {
+                panic!(
+                    "Failed to fetch container: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            } else {
+                let mut prune = Command::new("sudo");
+                if ! user.is_empty() {
+                    prune.arg("--user").arg(&user);
+                }
+                prune.arg("podman").arg("image").arg("prune").arg("--force");
+                match prune.status() {
+                    Ok(status) => { debug(&format!("{:?}", status)) },
+                    Err(error) => { debug(&format!("{:?}", error)) }
+                }
+            }
+        }
+        Err(error) => {
+            panic!("Failed to call podman pull: {}", error)
+        }
+    }
 }
 
 pub fn update_removed_files(
