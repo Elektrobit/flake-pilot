@@ -3,3 +3,15 @@ addFilter("E: permissions-world-writable");
 
 # providing deb packages from this spec requires the tag to be hard coded
 addFilter("W: hardcoded-packager-tag");
+
+# invalid detection of lib dependency, libxml2-tools is not a lib
+addFilter("W: explicit-lib-dependency libxml2-tools");
+
+# no-version-in-last-changelog, why is this a check
+addFilter("W: no-version-in-last-changelog");
+
+# awk '/\xA0/ { print FILENAME, FNR }' flake-pilot.spec lists nothing
+addFilter("W: non-break-space");
+
+# invalid detection imho
+addFilter("W: shared-lib-without-dependency-information");

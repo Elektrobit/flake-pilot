@@ -26,6 +26,8 @@ package: clean vendor sourcetar
 vendor:
 	(cd podman-pilot && cargo vendor)
 	(cd flake-ctl && cargo vendor)
+	(cd firecracker-pilot/firecracker-service/service && cargo vendor)
+	(cd firecracker-pilot/firecracker-service/service-communication && cargo vendor)
 
 sourcetar:
 	rm -rf package/flake-pilot
@@ -33,6 +35,7 @@ sourcetar:
 	cp Makefile package/flake-pilot
 	cp -a podman-pilot package/flake-pilot/
 	cp -a flake-ctl package/flake-pilot/
+	cp -a firecracker-pilot package/flake-pilot/
 	cp -a doc package/flake-pilot/
 	cp -a utils package/flake-pilot/
 	tar -C package -cf package/flake-pilot.tar flake-pilot
@@ -42,12 +45,16 @@ sourcetar:
 build: man
 	cd podman-pilot && cargo build -v --release && upx --best --lzma target/release/podman-pilot
 	cd flake-ctl && cargo build -v --release && upx --best --lzma target/release/flake-ctl
+	cd firecracker-pilot/firecracker-service/service && cargo build -v --release && upx --best --lzma target/release/firecracker-service
 
 clean:
 	cd podman-pilot && cargo -v clean
 	cd flake-ctl && cargo -v clean
+	cd firecracker-pilot/firecracker-service/service && cargo -v clean
 	rm -rf podman-pilot/vendor
 	rm -rf flake-ctl/vendor
+	rm -rf firecracker-pilot/firecracker-service/service/vendor
+	rm -rf firecracker-pilot/firecracker-service/service-communication/vendor
 	${MAKE} -C doc clean
 
 test:
@@ -63,6 +70,8 @@ install:
 	install -d -m 755 ${DESTDIR}usr/share/man/man8
 	install -m 755 podman-pilot/target/release/podman-pilot \
 		$(DESTDIR)$(BINDIR)/podman-pilot
+	install -m 755 firecracker-pilot/firecracker-service/service/target/release/firecracker-service \
+		$(DESTDIR)$(BINDIR)/firecracker-service
 	install -m 755 flake-ctl/target/release/flake-ctl \
 		$(DESTDIR)$(BINDIR)/flake-ctl
 	install -m 755 flake-ctl/debbuild/oci-deb \
@@ -77,6 +86,7 @@ install:
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl
 	rm -f $(DESTDIR)$(BINDIR)/podman-pilot
+	rm -f $(DESTDIR)$(BINDIR)/firecracker-service
 	rm -rf $(DESTDIR)$(FLAKEDIR) $(DESTDIR)$(SHAREDIR) $(DESTDIR)$(TEMPLATEDIR)
 
 man:
