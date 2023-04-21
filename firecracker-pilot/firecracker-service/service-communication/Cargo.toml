@@ -1,7 +1,14 @@
+[profile.release]
+# strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+
 [package]
 name = "firecracker-service-communication"
-version = "0.1.0"
-edition = "2021"
+version = "2.1.4"
+edition = "2018"
 
 
 [dependencies]

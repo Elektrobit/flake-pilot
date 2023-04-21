@@ -24,12 +24,12 @@
 Name:           flake-pilot
 Version:        2.1.4
 Release:        0
-Summary:        flake-pilot - launcher for flake applications
+Summary:        Launcher for flake applications
 License:        MIT
 %if "%{_vendor}" == "debbuild"
 Packager:       Marcus Schaefer <marcus.schaefer@elektrobit.com>
 %endif
-Group:          Application/Misc
+Group:          System/Management
 Url:            https://github.com/schaefi/pilot
 Source0:        %{name}.tar.gz
 Source1:        cargo_config
@@ -59,8 +59,8 @@ a runtime engine like podman. Along with the launcher there is
 also a control tool to register an application as a flake application
 
 %package -n oci-deb
-Summary:        oci-deb - build flake-pilot compliant debian package from OCI container image
-Group:          Application/Misc
+Summary:        Build flake-pilot compliant debian package from OCI container image
+Group:          System/Management
 %if 0%{?debian} || 0%{?ubuntu}
 Requires:       libxml2-utils
 %else
@@ -77,33 +77,60 @@ a debian package from a given OCI image file. The created debian
 package hooks into the flake-pilot registration mechanism to run
 containerized applications.
 
+%package -n flake-pilot-podman
+Summary:        Podman pilot
+Group:          System/Management
+Requires:       rsync
+
+%description -n flake-pilot-podman
+Launcher for OCI containers based applications through podman
+
+%package -n flake-pilot-firecracker
+Summary:        FireCracker pilot
+Group:          System/Management
+Requires:       rsync
+
+%description -n flake-pilot-firecracker
+Launcher for KVM VM based applications through firecracker
+
 %prep
 %setup -q -n flake-pilot
 
 %build
 mkdir -p podman-pilot/.cargo
 mkdir -p flake-ctl/.cargo
+mkdir -p firecracker-pilot/firecracker-service/service/.cargo
 cp %{SOURCE1} podman-pilot/.cargo/config
 cp %{SOURCE1} flake-ctl/.cargo/config
+cp %{SOURCE1} firecracker-pilot/firecracker-service/service/.cargo/config
 make build
 
 %install
 make DESTDIR=%{buildroot}/ install
 chmod 777 %{buildroot}/usr/share/flakes
 
-
 %files
 %defattr(-,root,root)
 %dir /usr/share/flakes
 %dir /etc/flakes
-/etc/flakes/container-flake.yaml
-/usr/bin/podman-pilot
 /usr/bin/flake-ctl
+%doc /usr/share/man/man8/flake-ctl.8.gz
+%doc /usr/share/man/man8/flake-ctl-list.8.gz
+
+%files -n flake-pilot-podman
+%config /etc/flakes/container-flake.yaml
+/usr/bin/podman-pilot
 /usr/sbin/oci-registry
-%doc /usr/share/man/man8/*
+%doc /usr/share/man/man8/flake-ctl-podman-build-deb.8.gz
+%doc /usr/share/man/man8/flake-ctl-podman-load.8.gz
+%doc /usr/share/man/man8/flake-ctl-podman-pull.8.gz
+%doc /usr/share/man/man8/flake-ctl-podman-register.8.gz
+%doc /usr/share/man/man8/flake-ctl-podman-remove.8.gz
+%doc /usr/share/man/man8/podman-pilot.8.gz
+
+%files -n flake-pilot-firecracker
+/usr/bin/firecracker-service
 
 %files -n oci-deb
 /usr/share/podman-pilot
 /usr/bin/oci-deb
-
-%changelog
