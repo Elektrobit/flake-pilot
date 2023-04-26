@@ -15,28 +15,29 @@ use env_logger::Env;
 /**
     SCE_EXE is an executable for Simple Command Executor
  */
-const SCE_EXE: &str = "/sbin/sce";
+const SCE: &str = "/sbin/sce";
 
 /**
     SR_EXE is a switch_root tool path
  */
-const SR_EXE: &str = "/usr/sbin/switch_root";
+const SWITCH_ROOT: &str = "/usr/sbin/switch_root";
 
 /** 
     OV_DIR is a destination overlay dir 
  */
-const OV_DIR: &str = "/overlay/rootfs";
+const OVERLAY_DIR: &str = "/overlay/rootfs";
 
 fn main() {
      /*! Simple Command Init is a tool which is responsible to read variable *overlay_root* and 
         mount proper overlay devices if set. When all mount's are finished it has to start the 
-        sce (Simple Command Executor) as main process switching the root to the overlay fs   
+        sce (Simple Command Executor) as main process switching the root to the overlay fs.
+        Note: all environment variables are passed along by the kernel.  
     */  
     setup_logger();
 
     let overlay_root = match env::var("overlay_root").ok() {
         Some( v ) => v,
-        None => "ram".to_string()
+        None => "normal".to_string()
     };
     
     // mount proc fs and sysfs
@@ -73,10 +74,10 @@ fn main() {
     }
 
     match overlay_root.as_str() {
-        "ram" => {
+        "normal" => {
             // overlay not set, start sce without any additional mounting
             info!("Starting sce without mounting overlayfs");          
-            execute( SCE_EXE, &[]);
+            execute(SCE_EXE, &[]);
         },
         ovr => {          
             // overlay device set, mount the device and prepare the folder structure
@@ -131,7 +132,7 @@ fn main() {
             }
         
             info!("Execute sce tool");
-            execute( SR_EXE, &[OV_DIR, SCE_EXE]);
+            execute(SR_EXE, &[OV_DIR, SCE_EXE]);
         }
     }   
 }
@@ -140,7 +141,7 @@ fn execute(exe: &str, args: &[&str]) -> Error {
     /*!
         Execute in place command with arguments, equivalent to execv in linux
      */
-    info!("Executed process : {} ",exe );
+    info!("Executed process : {} ", exe);
     Command::new(exe).args(args).exec()
 }
 
