@@ -13,17 +13,17 @@ extern crate log;
 use env_logger::Env;
 
 /**
-    SCE_EXE is an executable for Simple Command Executor
+    SCE is an executable for Simple Command Executor
  */
 const SCE: &str = "/sbin/sce";
 
 /**
-    SR_EXE is a switch_root tool path
+    SWITCH_ROOT is a switch_root tool path
  */
 const SWITCH_ROOT: &str = "/usr/sbin/switch_root";
 
 /** 
-    OV_DIR is a destination overlay dir 
+    OVERLAY_DIR is a destination overlay dir 
  */
 const OVERLAY_DIR: &str = "/overlay/rootfs";
 
@@ -77,7 +77,7 @@ fn main() {
         "normal" => {
             // overlay not set, start sce without any additional mounting
             info!("Starting sce without mounting overlayfs");          
-            execute(SCE_EXE, &[]);
+            execute(SCE, &[]);
         },
         ovr => {          
             // overlay device set, mount the device and prepare the folder structure
@@ -132,7 +132,7 @@ fn main() {
             }
         
             info!("Execute sce tool");
-            execute(SR_EXE, &[OV_DIR, SCE_EXE]);
+            execute(SWITCH_ROOT, &[OVERLAY_DIR, SCE]);
         }
     }   
 }
