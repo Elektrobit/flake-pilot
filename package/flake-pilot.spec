@@ -88,6 +88,7 @@ Launcher for OCI containers based applications through podman
 %package -n flake-pilot-firecracker
 Summary:        FireCracker pilot
 Group:          System/Management
+BuildRequires:  clang-devel
 Requires:       rsync
 
 %description -n flake-pilot-firecracker
@@ -100,9 +101,11 @@ Launcher for KVM VM based applications through firecracker
 mkdir -p podman-pilot/.cargo
 mkdir -p flake-ctl/.cargo
 mkdir -p firecracker-pilot/firecracker-service/service/.cargo
+mkdir -p firecracker-pilot/guestvm-tools/sci/.cargo
 cp %{SOURCE1} podman-pilot/.cargo/config
 cp %{SOURCE1} flake-ctl/.cargo/config
 cp %{SOURCE1} firecracker-pilot/firecracker-service/service/.cargo/config
+cp %{SOURCE1} firecracker-pilot/guestvm-tools/sci/.cargo/config
 make build
 
 %install
@@ -130,6 +133,7 @@ chmod 777 %{buildroot}/usr/share/flakes
 
 %files -n flake-pilot-firecracker
 /usr/bin/firecracker-service
+/usr/sbin/sci
 
 %files -n oci-deb
 /usr/share/podman-pilot

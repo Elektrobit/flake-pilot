@@ -28,6 +28,7 @@ vendor:
 	(cd flake-ctl && cargo vendor)
 	(cd firecracker-pilot/firecracker-service/service && cargo vendor)
 	(cd firecracker-pilot/firecracker-service/service-communication && cargo vendor)
+	(cd firecracker-pilot/guestvm-tools/sci && cargo vendor)
 
 sourcetar:
 	rm -rf package/flake-pilot
@@ -46,15 +47,18 @@ build: man
 	cd podman-pilot && cargo build -v --release && upx --best --lzma target/release/podman-pilot
 	cd flake-ctl && cargo build -v --release && upx --best --lzma target/release/flake-ctl
 	cd firecracker-pilot/firecracker-service/service && cargo build -v --release && upx --best --lzma target/release/firecracker-service
+	cd firecracker-pilot/guestvm-tools/sci && cargo build -v --release && upx --best --lzma target/release/sci
 
 clean:
 	cd podman-pilot && cargo -v clean
 	cd flake-ctl && cargo -v clean
 	cd firecracker-pilot/firecracker-service/service && cargo -v clean
+	cd firecracker-pilot/guestvm-tools/sci && cargo -v clean
 	rm -rf podman-pilot/vendor
 	rm -rf flake-ctl/vendor
 	rm -rf firecracker-pilot/firecracker-service/service/vendor
 	rm -rf firecracker-pilot/firecracker-service/service-communication/vendor
+	rm -rf firecracker-pilot/guestvm-tools/sci/vendor
 	${MAKE} -C doc clean
 
 test:
@@ -72,6 +76,8 @@ install:
 		$(DESTDIR)$(BINDIR)/podman-pilot
 	install -m 755 firecracker-pilot/firecracker-service/service/target/release/firecracker-service \
 		$(DESTDIR)$(BINDIR)/firecracker-service
+	install -m 755 firecracker-pilot/guestvm-tools/sci/target/release/sci \
+		$(DESTDIR)$(SBINDIR)/sci
 	install -m 755 flake-ctl/target/release/flake-ctl \
 		$(DESTDIR)$(BINDIR)/flake-ctl
 	install -m 755 flake-ctl/debbuild/oci-deb \
