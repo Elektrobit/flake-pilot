@@ -92,7 +92,15 @@ BuildRequires:  clang-devel
 Requires:       rsync
 
 %description -n flake-pilot-firecracker
-Launcher for KVM VM based applications through firecracker
+Launcher and service tools for KVM VM based applications
+through firecracker
+
+%package -n flake-pilot-firecracker-guestvm-tools
+Summary:        FireCracker guest VM tools
+Group:          System/Management
+
+%description -n flake-pilot-firecracker-guestvm-tools
+Guest VM tools to help with firecracker workloads
 
 %prep
 %setup -q -n flake-pilot
@@ -136,6 +144,8 @@ mkdir -p %{buildroot}/overlayroot
 %files -n flake-pilot-firecracker
 %dir /overlayroot
 /usr/bin/firecracker-service
+
+%files -n flake-pilot-firecracker-guestvm-tools
 /usr/sbin/sci
 
 %files -n oci-deb
