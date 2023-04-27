@@ -112,6 +112,8 @@ make build
 make DESTDIR=%{buildroot}/ install
 chmod 777 %{buildroot}/usr/share/flakes
 
+mkdir -p %{buildroot}/overlayroot
+
 %files
 %defattr(-,root,root)
 %dir /usr/share/flakes
@@ -132,6 +134,7 @@ chmod 777 %{buildroot}/usr/share/flakes
 %doc /usr/share/man/man8/podman-pilot.8.gz
 
 %files -n flake-pilot-firecracker
+%dir /overlayroot
 /usr/bin/firecracker-service
 /usr/sbin/sci
 
