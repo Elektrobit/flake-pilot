@@ -23,6 +23,7 @@
 //
 #[macro_use]
 extern crate log;
+extern crate shell_words;
 
 pub mod defaults;
 
@@ -41,8 +42,9 @@ use crate::defaults::debug;
 fn main() {
     /*!
     Simple Command Init (sci) is a tool which executes the provided
-    command after preparation of an execution environment for the
-    purpose to run a command inside of a firecracker instance.
+    command in the run=... cmdline variable after preparation of an
+    execution environment for the purpose to run a command inside
+    of a firecracker instance.
 
     if provided via the overlay_root=/dev/block_device kernel boot
     parameter, sci also prepares the root filesystem as an overlay
@@ -50,17 +52,37 @@ fn main() {
     !*/
     setup_logger();
 
-    let args: Vec<String> = env::args().collect();
+    let mut args: Vec<String> = vec![];
     let mut call: Command;
     let mut do_exec = false;
+    let mut ok = true;
+
+    // parse commandline from run environment variable
+    match env::var("run").ok() {
+        Some(call_cmd) => {
+            match shell_words::split(&call_cmd) {
+                Ok(call_params) => {
+                    args = call_params
+                },
+                Err(error) => {
+                    debug(&format!("Failed to parse {}: {}", call_cmd, error));
+                    ok = false
+                }
+            }
+        },
+        None => {
+            debug("No run=... cmdline parameter specified");
+            ok = false
+        }
+    }
 
     // sanity check on command to call
-    if args[1].is_empty() {
-        panic!("No command to execute specified");
+    if args[0].is_empty() {
+        debug("No command to execute specified");
     }
 
     // check if given command requires process replacement
-    if args[1] == "/usr/lib/systemd/systemd" {
+    if args[0] == "/usr/lib/systemd/systemd" {
         do_exec = true;
     }
 
@@ -68,7 +90,6 @@ fn main() {
     mount_basic_fs();
 
     // mount overlay if requested
-    let mut ok = true;
     match env::var("overlay_root").ok() {
         Some(overlay) => {
             // overlay device is specified, mount the device and
@@ -161,9 +182,9 @@ fn main() {
             }
             if do_exec {
                 call = Command::new(defaults::SWITCH_ROOT);
-                call.arg(".").arg(&args[1]);
+                call.arg(".").arg(&args[0]);
             } else {
-                call = Command::new(&args[1]);
+                call = Command::new(&args[0]);
                 if ok {
                     let mut pivot = Command::new(defaults::PIVOT_ROOT);
                     pivot.arg(".").arg("mnt");
@@ -189,12 +210,12 @@ fn main() {
         },
         None => {
             // Call command in current environment
-            call = Command::new(&args[1]);
+            call = Command::new(&args[0]);
         }
     };
 
     // Setup command call parameters
-    for arg in &args[2..] {
+    for arg in &args[1..] {
         call.arg(arg);
     }
 
@@ -211,11 +232,11 @@ fn main() {
     if ok {
         if do_exec {
             // replace ourselves
-            debug(&format!("EXEC: {} -> {:?}", &args[1], call.get_args()));
+            debug(&format!("EXEC: {} -> {:?}", &args[0], call.get_args()));
             call.exec();
         } else {
             // call a command and keep control
-            debug(&format!("CALL: {} -> {:?}", &args[1], call.get_args()));
+            debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
             match call.status() {
                 Ok(_) => { },
                 Err(_) => { }
