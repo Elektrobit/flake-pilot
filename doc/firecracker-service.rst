@@ -16,7 +16,10 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-Service running as a daemon, providing possibility to register and store information about current
+firecracker-service exists to support users controlling flake applications started through the
+firecracker engine. In contrast to e.g container tools like podman, firecracker does not yet
+provide an infrastructure to manage (list, start, stop, etc...) firecracker instances. The service
+is running as a daemon and currently provides the possibility to register and store information about current
 running firecracker micro vm's. Gives also possibility to query the service about current running vm's. 
 The communication endpoint to the service is the unix socket **/run/firecracker-service.socket** where commands 
 can be send in json format.
