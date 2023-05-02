@@ -40,8 +40,39 @@ pub enum Commands {
         #[clap(subcommand)]
         command: Podman,
     },
+    Firecracker {
+        #[clap(subcommand)]
+        command: Firecracker,
+    },
     /// List registered flake applications
     List {
+    }
+}
+
+#[derive(Subcommand)]
+pub enum Firecracker {
+    /// Pull image
+    #[clap(
+        group(
+            ArgGroup::new("pull")
+                .required(false).args(&["force"])
+        ),
+    )]
+    Pull {
+        /// Image name used as local identifier
+        #[clap(long)]
+        name: String,
+
+        /// Firecracker image built by KIWI as kis image type
+        /// to pull into local image store
+        #[clap(long)]
+        kis_image: String,
+
+        /// Force pulling the image even if it already exists
+        /// This will wipe existing data for the provided
+        /// identifier
+        #[clap(long)]
+        force: bool,
     }
 }
 

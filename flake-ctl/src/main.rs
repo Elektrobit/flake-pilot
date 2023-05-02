@@ -29,12 +29,15 @@ use std::process::exit;
 
 pub mod cli;
 pub mod podman;
+pub mod firecracker;
 pub mod app;
 pub mod deb;
 pub mod app_config;
 pub mod defaults;
+pub mod fetch;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     setup_logger();
 
     let args = cli::parse_args();
@@ -50,6 +53,15 @@ fn main() {
                 for app in app_names {
                     println!("- {}", app);
                 }
+            }
+        },
+        // firecracker engine
+        cli::Commands::Firecracker { command } => {
+            match &command {
+                // pull
+                cli::Firecracker::Pull { name, kis_image, force } => {
+                    exit(firecracker::pull_kis_image(name, kis_image, *force).await);
+                },
             }
         },
         // podman engine
@@ -107,11 +119,12 @@ fn main() {
             }
         },
     }
+    Ok(())
 }
 
 fn setup_logger() {
     let env = Env::default()
-        .filter_or("MY_LOG_LEVEL", "trace")
+        .filter_or("MY_LOG_LEVEL", "info")
         .write_style_or("MY_LOG_STYLE", "always");
 
     env_logger::init_from_env(env);

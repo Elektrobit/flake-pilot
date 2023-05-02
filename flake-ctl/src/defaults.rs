@@ -33,3 +33,11 @@ pub const PODMAN_PATH:&str =
     "/usr/bin/podman";
 pub const FLAKE_TEMPLATE_CONTAINER:&str =
     "/etc/flakes/container-flake.yaml";
+pub const FIRECRACKER_IMAGES_DIR:&str =
+    "/var/lib/firecracker/images";
+pub const FIRECRACKER_INITRD_NAME:&str =
+    "initrd";
+pub const FIRECRACKER_KERNEL_NAME:&str =
+    "kernel";
+pub const FIRECRACKER_ROOTFS_NAME:&str =
+    "rootfs";

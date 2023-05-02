@@ -143,6 +143,7 @@ mkdir -p %{buildroot}/overlayroot
 
 %files -n flake-pilot-firecracker
 %dir /overlayroot
+%doc /usr/share/man/man8/flake-ctl-firecracker-pull.8.gz
 /usr/bin/firecracker-service
 
 %files -n flake-pilot-firecracker-guestvm-tools
