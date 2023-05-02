@@ -1,10 +1,10 @@
-FLAKE-CTL-BUILD-DEB(8)
-======================
+FLAKE-CTL-PODMAN-BUILD-DEB(8)
+=============================
 
 NAME
 ----
 
-**flake-ctl build-deb** - Build debian package from OCI image
+**flake-ctl podman build-deb** - Build debian package from OCI image
 
 SYNOPSIS
 --------

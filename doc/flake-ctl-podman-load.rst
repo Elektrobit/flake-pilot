@@ -1,10 +1,10 @@
-FLAKE-CTL-LOAD(8)
-=================
+FLAKE-CTL-PODMAN-LOAD(8)
+========================
 
 NAME
 ----
 
-**flake-ctl load** - Load container to local registry
+**flake-ctl podman load** - Load container to local registry
 
 SYNOPSIS
 --------

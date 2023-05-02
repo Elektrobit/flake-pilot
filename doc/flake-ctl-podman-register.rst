@@ -1,10 +1,10 @@
-FLAKE-CTL-REGISTER(8)
-=====================
+FLAKE-CTL-PODMAN-REGISTER(8)
+============================
 
 NAME
 ----
 
-**flake-ctl register** - Register container application
+**flake-ctl podman register** - Register container application
 
 SYNOPSIS
 --------

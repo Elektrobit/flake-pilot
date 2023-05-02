@@ -1,10 +1,10 @@
-FLAKE-CTL-REMOVE(8)
-===================
+FLAKE-CTL-PODMAN-REMOVE(8)
+==========================
 
 NAME
 ----
 
-**flake-ctl remove** - Remove application registration and/or entire container
+**flake-ctl podman remove** - Remove application registration and/or entire container
 
 SYNOPSIS
 --------
