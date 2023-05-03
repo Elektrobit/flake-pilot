@@ -97,3 +97,8 @@ uninstall:
 
 man:
 	${MAKE} -C doc man
+
+cargo:
+	for path in $(shell find . -name Cargo.toml ! -path "*/vendor/*");do \
+		pushd `dirname $$path`; cargo build || exit 1; popd;\
+	done

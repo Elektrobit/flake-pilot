@@ -1,0 +1,27 @@
+name: CI-Compile
+  
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cargo:
+    name: Cargo Compile Components
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install
+        run: |
+          sudo apt update
+          sudo apt install cargo
+          sudo ln -s bash /bin/sh.bash
+          sudo mv /bin/sh.bash /bin/sh
+      - name: Compile
+        run: |
+          make cargo
