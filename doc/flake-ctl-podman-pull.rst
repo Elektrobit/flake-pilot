@@ -1,10 +1,10 @@
-FLAKE-CTL-PULL(8)
-=================
+FLAKE-CTL-PODMAN-PULL(8)
+========================
 
 NAME
 ----
 
-**flake-ctl pull** - Fetch container from registry
+**flake-ctl podman pull** - Fetch container from registry
 
 SYNOPSIS
 --------
