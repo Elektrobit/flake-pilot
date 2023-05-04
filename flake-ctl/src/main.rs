@@ -60,8 +60,52 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match &command {
                 // pull
                 cli::Firecracker::Pull { name, kis_image, force } => {
-                    exit(firecracker::pull_kis_image(name, kis_image, *force).await);
+                    exit(
+                        firecracker::pull_kis_image(
+                            name, kis_image, *force
+                        ).await
+                    );
                 },
+                // register
+                cli::Firecracker::Register {
+                    vm, app, target, run_as, overlay_size
+                } => {
+                    if app::init() {
+                        let mut ok = app::register(
+                            Some(app), target.as_ref(),
+                            defaults::FIRECRACKER_PILOT
+                        );
+                        if ok {
+                            ok = app::create_vm_config(
+                                vm,
+                                Some(app),
+                                target.as_ref(),
+                                run_as.as_ref(),
+                                overlay_size.as_ref()
+                            );
+                        }
+                        if ! ok {
+                            app::remove(
+                                app, defaults::FIRECRACKER_PILOT, true
+                            );
+                        }
+                    }
+                },
+                // remove
+                cli::Firecracker::Remove { vm, app } => {
+                    if ! app.is_none() {
+                        app::remove(
+                            app.as_ref().map(String::as_str).unwrap(),
+                            defaults::FIRECRACKER_PILOT, false
+                        );
+                    }
+                    if ! vm.is_none() {
+                        app::purge(
+                            vm.as_ref().map(String::as_str).unwrap(),
+                            defaults::FIRECRACKER_PILOT
+                        );
+                    }
+                }
             }
         },
         // podman engine
@@ -80,21 +124,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     container, app, target, base,
                     layer, include_tar, resume, attach, run_as, opt, info
                 } => {
-                    if app::init() {
-                        app::register(
-                            container,
-                            app.as_ref(),
-                            target.as_ref(),
-                            base.as_ref(),
-                            layer.as_ref().cloned(),
-                            include_tar.as_ref().cloned(),
-                            *resume,
-                            *attach,
-                            run_as.as_ref(),
-                            opt.as_ref().cloned(),
-                            *info,
+                    if *info {
+                        podman::print_container_info(container);
+                    } else if app::init() {
+                        let mut ok = app::register(
+                            app.as_ref(), target.as_ref(),
                             defaults::PODMAN_PILOT
                         );
+                        if ok {
+                            ok = app::create_container_config(
+                                container,
+                                app.as_ref(),
+                                target.as_ref(),
+                                base.as_ref(),
+                                layer.as_ref().cloned(),
+                                include_tar.as_ref().cloned(),
+                                *resume,
+                                *attach,
+                                run_as.as_ref(),
+                                opt.as_ref().cloned()
+                            );
+                        }
+                        if ! ok {
+                            app::remove(
+                                app.as_ref().map(String::as_str).unwrap(),
+                                defaults::PODMAN_PILOT, true
+                            );
+                        }
                     }
                 },
                 // remove
@@ -102,7 +158,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if ! app.is_none() {
                         app::remove(
                             app.as_ref().map(String::as_str).unwrap(),
-                            defaults::PODMAN_PILOT
+                            defaults::PODMAN_PILOT, false
                         );
                     }
                     if ! container.is_none() {

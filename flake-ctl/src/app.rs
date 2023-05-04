@@ -24,40 +24,20 @@
 use std::fs;
 use std::path::Path;
 use std::os::unix::fs::symlink;
-use crate::{defaults, podman, app_config};
+use crate::{defaults, podman, firecracker, app_config};
 use glob::glob;
 
 pub fn register(
-    container: &String,
-    app: Option<&String>,
-    target: Option<&String>,
-    base: Option<&String>,
-    layers: Option<Vec<String>>,
-    includes_tar: Option<Vec<String>>,
-    resume: bool,
-    attach: bool,
-    run_as: Option<&String>,
-    opts: Option<Vec<String>>,
-    info: bool,
-    engine: &str
-) {
+    app: Option<&String>, target: Option<&String>, engine: &str
+) -> bool {
     /*!
-    Register application for specified engine.
+    Register container application for specified engine.
 
-    The registration is two fold. First it will create an app symlink
-    pointing to the engine launcher. Second it will create an
-    app configuration file as FLAKE_DIR/app.yaml containing
-    the required information to launch the application inside of
-    the specified engine.
+    Create an app symlink pointing to the engine launcher.
     !*/
-    if info {
-        if engine == defaults::PODMAN_PILOT {
-            podman::print_container_info(&container);
-        }
-        return
-    }
     if app.is_none() {
-        return
+        error!("No application specified");
+        return false
     }
     let host_app_path = app.unwrap();
     let mut target_app_path = host_app_path;
@@ -69,12 +49,8 @@ pub fn register(
             error!(
                 "Application {:?} must be specified with an absolute path", path
             );
-            return
+            return false
         }
-    }
-    if base.is_none() && ! layers.is_none() {
-        error!("Layer(s) specified without a base");
-        return
     }
     info!("Registering application: {}", host_app_path);
 
@@ -85,7 +61,7 @@ pub fn register(
         Ok(dir) => dir,
         Err(error) => {
             error!("Failed creating: {}: {:?}", &host_app_dir, error);
-            return
+            return false
         }
     };
     match symlink(&engine, host_app_path) {
@@ -94,15 +70,14 @@ pub fn register(
             error!("Error while creating symlink \"{} -> {}\": {:?}",
                 host_app_path, &engine, error
             );
-            return
+            return false
         }
     }
 
     // creating default app configuration
-    let app_basename = Path::new(app.unwrap()).file_name().unwrap().to_str().unwrap();
-    let app_config_file = format!("{}/{}.yaml",
-        defaults::FLAKE_DIR, &app_basename
-    );
+    let app_basename = Path::new(
+        app.unwrap()
+    ).file_name().unwrap().to_str().unwrap();
     let app_config_dir = format!("{}/{}.d",
         defaults::FLAKE_DIR, &app_basename
     );
@@ -110,10 +85,48 @@ pub fn register(
         Ok(dir) => dir,
         Err(error) => {
             error!("Failed creating: {}: {:?}", &app_config_dir, error);
-            return
+            return false
         }
-    };
-    match app_config::AppConfig::save(
+    }
+    true
+}
+
+pub fn create_container_config (
+    container: &String,
+    app: Option<&String>,
+    target: Option<&String>,
+    base: Option<&String>,
+    layers: Option<Vec<String>>,
+    includes_tar: Option<Vec<String>>,
+    resume: bool,
+    attach: bool,
+    run_as: Option<&String>,
+    opts: Option<Vec<String>>
+) -> bool {
+    /*!
+    Create app configuration for the container engine.
+
+    Create an app configuration file as FLAKE_DIR/app.yaml
+    containing the required information to launch the
+    application inside of the container engine.
+    !*/
+    if base.is_none() && ! layers.is_none() {
+        error!("Layer(s) specified without a base");
+        return false
+    }
+    let result;
+    let host_app_path = app.unwrap();
+    let mut target_app_path = host_app_path;
+    if ! target.is_none() {
+        target_app_path = target.unwrap();
+    }
+    let app_basename = Path::new(
+        app.unwrap()
+    ).file_name().unwrap().to_str().unwrap();
+    let app_config_file = format!("{}/{}.yaml",
+        defaults::FLAKE_DIR, &app_basename
+    );
+    match app_config::AppConfig::save_container(
         Path::new(&app_config_file),
         &container,
         &target_app_path,
@@ -126,26 +139,77 @@ pub fn register(
         run_as,
         opts
     ) {
-        Ok(_) => { },
+        Ok(_) => { result = true },
         Err(error) => {
             error!("Failed to create AppConfig {}: {:?}",
                 app_config_file, error
             );
+            result = false
         }
     }
+    result
 }
 
-pub fn remove(app: &str, engine: &str) {
+pub fn create_vm_config(
+    vm: &String,
+    app: Option<&String>,
+    target: Option<&String>,
+    run_as: Option<&String>,
+    overlay_size: Option<&String>
+) -> bool {
+    /*!
+    Create app configuration for the firecracker engine.
+
+    Create an app configuration file as FLAKE_DIR/app.yaml
+    containing the required information to launch the
+    application inside of the firecracker engine.
+    !*/
+    let result;
+    let host_app_path = app.unwrap();
+    let mut target_app_path = host_app_path;
+    if ! target.is_none() {
+        target_app_path = target.unwrap();
+    }
+    let app_basename = Path::new(
+        app.unwrap()
+    ).file_name().unwrap().to_str().unwrap();
+    let app_config_file = format!("{}/{}.yaml",
+        defaults::FLAKE_DIR, &app_basename
+    );
+    match app_config::AppConfig::save_vm(
+        Path::new(&app_config_file),
+        &vm,
+        &target_app_path,
+        &host_app_path,
+        run_as,
+        overlay_size
+    ) {
+        Ok(_) => { result = true },
+        Err(error) => {
+            error!("Failed to create AppConfig {}: {:?}",
+                app_config_file, error
+            );
+            result = false
+        }
+    }
+    result
+}
+
+pub fn remove(app: &str, engine: &str, silent: bool) {
     /*!
     Delete application link and config files
     !*/
     if ! app.starts_with("/") {
-        error!(
-            "Application {:?} must be specified with an absolute path", app
-        );
+        if ! silent {
+            error!(
+                "Application {:?} must be specified with an absolute path", app
+            );
+        }
         return
     }
-    info!("Removing application: {}", app);
+    if ! silent {
+        info!("Removing application: {}", app);
+    }
     // remove pilot link if valid
     match fs::read_link(app) {
         Ok(link_name) => {
@@ -153,17 +217,26 @@ pub fn remove(app: &str, engine: &str) {
                 match fs::remove_file(app) {
                     Ok(_) => {},
                     Err(error) => {
-                        error!("Error removing pilot link: {}: {:?}", app, error);
+                        if ! silent {
+                            error!(
+                                "Error removing pilot link: {}: {:?}",
+                                app, error
+                            );
+                        }
                         return
                     }
                 }
             } else {
-                error!("Symlink not pointing to {}: {}", engine, app);
+                if ! silent {
+                    error!("Symlink not pointing to {}: {}", engine, app);
+                }
                 return
             }
         },
         Err(error) => {
-            error!("Failed to read as symlink: {}: {:?}", app, error);
+            if ! silent {
+                error!("Failed to read as symlink: {}: {:?}", app, error);
+            }
             return
         }
     }
@@ -179,10 +252,12 @@ pub fn remove(app: &str, engine: &str) {
         match fs::remove_file(&config_file) {
             Ok(_) => {},
             Err(error) => {
-                error!(
-                    "Error removing config file: {}: {:?}",
-                    config_file, error
-                )
+                if ! silent {
+                    error!(
+                        "Error removing config file: {}: {:?}",
+                        config_file, error
+                    )
+                }
             }
         }
     }
@@ -190,10 +265,12 @@ pub fn remove(app: &str, engine: &str) {
         match fs::remove_dir_all(&app_config_dir) {
             Ok(_) => {},
             Err(error) => {
-                error!(
-                    "Error removing config directory: {}: {:?}",
-                    app_config_dir , error
-                )
+                if ! silent {
+                    error!(
+                        "Error removing config directory: {}: {:?}",
+                        app_config_dir , error
+                    )
+                }
             }
         }
     }
@@ -249,6 +326,9 @@ pub fn purge(app: &str, engine: &str) {
     !*/
     if engine == defaults::PODMAN_PILOT {
         podman::purge_container(&app)
+    }
+    if engine == defaults::FIRECRACKER_PILOT {
+        firecracker::purge_vm(&app)
     }
 }
 

@@ -1,0 +1,24 @@
+include:
+  tar: ~
+vm:
+  name: name
+  target_app_path: path/to/program/in/container
+  host_app_path: path/to/program/on/host
+  base_vm: ~
+  layers: ~
+  runtime:
+    runas: root
+    resume: false
+    firecracker:
+      boot_args:
+        - "console=ttyS0"
+        - "root=/dev/vda"
+        - "acpi=off"
+        - "quiet"
+      overlay_size: ~
+      rootfs_image_path: ~
+      kernel_image_path: ~
+      initrd_path: ~
+      mem_size_mib: 4096
+      vcpu_count: 2
+      cache_type: unsafe
