@@ -88,7 +88,11 @@ Launcher for OCI containers based applications through podman
 %package -n flake-pilot-firecracker
 Summary:        FireCracker pilot
 Group:          System/Management
+%if 0%{?debian} || 0%{?ubuntu}
+BuildRequires:  clang
+%else
 BuildRequires:  clang-devel
+%endif
 Requires:       rsync
 
 %description -n flake-pilot-firecracker
