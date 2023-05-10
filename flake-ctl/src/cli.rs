@@ -73,7 +73,57 @@ pub enum Firecracker {
         /// identifier
         #[clap(long)]
         force: bool,
-    }
+    },
+    /// Register VM application
+    Register {
+        /// A virtual machine name. The name must match with a
+        /// name in the local firecracker registry
+        #[clap(long)]
+        vm: String,
+
+        /// An absolute path to the application on the host.
+        /// If not specified via the target option, the
+        /// application will be called with that path inside
+        /// of the VM.
+        #[clap(long)]
+        app: String,
+
+        /// An absolute path to the application in the VM.
+        /// Use this option if the application path on the host
+        /// should be different to the application path inside
+        /// of the VM.
+        #[clap(long)]
+        target: Option<String>,
+
+        /// Name of the user to run firecracker.
+        #[clap(long)]
+        run_as: Option<String>,
+
+        /// Size of overlay write space in bytes. Note: The value
+        /// provided is passed along to the qemu-img program at call
+        /// time of firecracker-pilot. Optional suffixes:
+        /// 'k' or 'K' (kilobyte, 1024), 'M' (megabyte, 1024k),
+        /// 'G' (gigabyte, 1024M), 'T' (terabyte, 1024G),
+        /// 'P' (petabyte, 1024T) and 'E' (exabyte, 1024P)  are
+        /// supported. 'b' is ignored.
+        #[clap(long)]
+        overlay_size: Option<String>,
+    },
+    /// Remove application registration or entire VM
+    #[clap(group(
+        ArgGroup::new("remove").required(true).args(&["vm", "app"]),
+    ))]
+    Remove {
+        /// Remove all applications registered with the given
+        /// VM and also remove the VM from the
+        /// local firecracker registry
+        #[clap(long)]
+        vm: Option<String>,
+
+        /// Application absolute path to be removed from host
+        #[clap(long)]
+        app: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

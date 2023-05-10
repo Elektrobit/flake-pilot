@@ -36,7 +36,6 @@ Source1:        cargo_config
 %if 0%{?debian} || 0%{?ubuntu}
 Requires:       golang-github-containers-common
 %endif
-Requires:       podman
 Requires:       sudo
 Requires:       rsync
 Requires:       tar
@@ -45,10 +44,12 @@ BuildRequires:  pandoc
 BuildRequires:  rust
 BuildRequires:  cargo
 BuildRequires:  upx
+BuildRequires:  openssl-devel
 %endif
 %if 0%{?debian} || 0%{?ubuntu}
 BuildRequires:  rust-all
 BuildRequires:  upx-ucl
+BuildRequires:  openssl-dev
 %endif
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
@@ -81,6 +82,7 @@ containerized applications.
 Summary:        Podman pilot
 Group:          System/Management
 Requires:       rsync
+Requires:       podman
 
 %description -n flake-pilot-podman
 Launcher for OCI containers based applications through podman
@@ -94,6 +96,7 @@ BuildRequires:  clang
 BuildRequires:  clang-devel
 %endif
 Requires:       rsync
+Requires:       firecracker
 
 %description -n flake-pilot-firecracker
 Launcher and service tools for KVM VM based applications
@@ -146,8 +149,11 @@ mkdir -p %{buildroot}/overlayroot
 %doc /usr/share/man/man8/podman-pilot.8.gz
 
 %files -n flake-pilot-firecracker
+%config /etc/flakes/firecracker-flake.yaml
 %dir /overlayroot
 %doc /usr/share/man/man8/flake-ctl-firecracker-pull.8.gz
+%doc /usr/share/man/man8/flake-ctl-firecracker-remove.8.gz
+%doc /usr/share/man/man8/flake-ctl-firecracker-register.8.gz
 /usr/bin/firecracker-service
 %doc /usr/share/man/man8/firecracker-service.8.gz
 

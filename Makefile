@@ -86,6 +86,8 @@ install:
 		$(DESTDIR)$(SHAREDIR)/container.spec.in
 	install -m 644 flake-ctl/template/container-flake.yaml \
 		$(DESTDIR)$(TEMPLATEDIR)/container-flake.yaml
+	install -m 644 flake-ctl/template/firecracker-flake.yaml \
+		$(DESTDIR)$(TEMPLATEDIR)/firecracker-flake.yaml
 	install -m 644 doc/*.8 ${DESTDIR}usr/share/man/man8
 	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
 

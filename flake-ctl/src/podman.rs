@@ -178,11 +178,11 @@ pub fn purge_container(container: &str) {
             "{}/{}.yaml", defaults::FLAKE_DIR, app_name
         );
         match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
-            Ok(app_conf) => {
-                if container == app_conf.container.name {
+            Ok(mut app_conf) => {
+                if container == app_conf.container.as_mut().unwrap().name {
                     app::remove(
-                        &app_conf.container.host_app_path,
-                        defaults::PODMAN_PILOT
+                        &app_conf.container.as_mut().unwrap().host_app_path,
+                        defaults::PODMAN_PILOT, false
                     );
                 }
             },

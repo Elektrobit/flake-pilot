@@ -26,6 +26,7 @@ use std::process::Command;
 use tempfile::tempdir;
 use std::path::Path;
 use crate::defaults;
+use crate::{app, app_config};
 use std::fs;
 
 use crate::fetch::{fetch_file, send_request};
@@ -179,4 +180,40 @@ pub async fn pull_kis_image(name: &String, uri: &String, force: bool) -> i32 {
         }
     }
     result
+}
+
+pub fn purge_vm(vm: &str) {
+    /*!
+    Iterate over all yaml config files and find those connected
+    to the VM. Delete all app registrations for this
+    VM and also delete the VM from the local registry
+    !*/
+    for app_name in app::app_names() {
+        let config_file = format!(
+            "{}/{}.yaml", defaults::FLAKE_DIR, app_name
+        );
+        match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
+            Ok(mut app_conf) => {
+                if vm == app_conf.vm.as_mut().unwrap().name {
+                    app::remove(
+                        &app_conf.vm.as_mut().unwrap().host_app_path,
+                        defaults::FIRECRACKER_PILOT, false
+                    );
+                }
+            },
+            Err(error) => {
+                error!(
+                    "Ignoring error on load or parse flake config {}: {:?}",
+                    config_file, error
+                );
+            }
+        };
+    }
+    let image_dir = format!("{}/{}", defaults::FIRECRACKER_IMAGES_DIR, vm);
+    match fs::remove_dir_all(&image_dir) {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Error removing directory {}: {}", image_dir, error);
+        }
+    }
 }
