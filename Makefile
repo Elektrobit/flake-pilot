@@ -25,6 +25,7 @@ package: clean vendor sourcetar
 
 vendor:
 	(cd podman-pilot && cargo vendor)
+	(cd firecracker-pilot && cargo vendor)
 	(cd flake-ctl && cargo vendor)
 	(cd firecracker-pilot/firecracker-service/service && cargo vendor)
 	(cd firecracker-pilot/firecracker-service/service-communication && cargo vendor)
@@ -48,9 +49,11 @@ build: man
 	cd flake-ctl && cargo build -v --release && upx --best --lzma target/release/flake-ctl
 	cd firecracker-pilot/firecracker-service/service && cargo build -v --release && upx --best --lzma target/release/firecracker-service
 	cd firecracker-pilot/guestvm-tools/sci && cargo build -v --release && upx --best --lzma target/release/sci
+	cd firecracker-pilot && cargo build -v --release && upx --best --lzma target/release/firecracker-pilot
 
 clean:
 	cd podman-pilot && cargo -v clean
+	cd firecracker-pilot && cargo -v clean
 	cd flake-ctl && cargo -v clean
 	cd firecracker-pilot/firecracker-service/service && cargo -v clean
 	cd firecracker-pilot/guestvm-tools/sci && cargo -v clean
@@ -74,6 +77,8 @@ install:
 	install -d -m 755 ${DESTDIR}usr/share/man/man8
 	install -m 755 podman-pilot/target/release/podman-pilot \
 		$(DESTDIR)$(BINDIR)/podman-pilot
+	install -m 755 firecracker-pilot/target/release/firecracker-pilot \
+		$(DESTDIR)$(BINDIR)/firecracker-pilot
 	install -m 755 firecracker-pilot/firecracker-service/service/target/release/firecracker-service \
 		$(DESTDIR)$(BINDIR)/firecracker-service
 	install -m 755 firecracker-pilot/guestvm-tools/sci/target/release/sci \
@@ -88,12 +93,15 @@ install:
 		$(DESTDIR)$(TEMPLATEDIR)/container-flake.yaml
 	install -m 644 flake-ctl/template/firecracker-flake.yaml \
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker-flake.yaml
+	install -m 644 firecracker-pilot/template/firecracker.json \
+		$(DESTDIR)$(TEMPLATEDIR)/firecracker.json
 	install -m 644 doc/*.8 ${DESTDIR}usr/share/man/man8
 	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl
 	rm -f $(DESTDIR)$(BINDIR)/podman-pilot
+	rm -f $(DESTDIR)$(BINDIR)/firecracker-pilot
 	rm -f $(DESTDIR)$(BINDIR)/firecracker-service
 	rm -rf $(DESTDIR)$(FLAKEDIR) $(DESTDIR)$(SHAREDIR) $(DESTDIR)$(TEMPLATEDIR)
 

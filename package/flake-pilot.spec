@@ -114,10 +114,12 @@ Guest VM tools to help with firecracker workloads
 
 %build
 mkdir -p podman-pilot/.cargo
+mkdir -p firecracker-pilot/.cargo
 mkdir -p flake-ctl/.cargo
 mkdir -p firecracker-pilot/firecracker-service/service/.cargo
 mkdir -p firecracker-pilot/guestvm-tools/sci/.cargo
 cp %{SOURCE1} podman-pilot/.cargo/config
+cp %{SOURCE1} firecracker-pilot/.cargo/config
 cp %{SOURCE1} flake-ctl/.cargo/config
 cp %{SOURCE1} firecracker-pilot/firecracker-service/service/.cargo/config
 cp %{SOURCE1} firecracker-pilot/guestvm-tools/sci/.cargo/config
@@ -128,6 +130,12 @@ make DESTDIR=%{buildroot}/ install
 chmod 777 %{buildroot}/usr/share/flakes
 
 mkdir -p %{buildroot}/overlayroot
+
+mkdir -p %{buildroot}/var/lib/firecracker/images
+chmod 777 %{buildroot}/var/lib/firecracker/images
+
+mkdir -p %{buildroot}/var/lib/firecracker/storage
+chmod 777 %{buildroot}/var/lib/firecracker/storage
 
 %files
 %defattr(-,root,root)
@@ -149,15 +157,21 @@ mkdir -p %{buildroot}/overlayroot
 %doc /usr/share/man/man8/podman-pilot.8.gz
 
 %files -n flake-pilot-firecracker
+%dir /var/lib/firecracker
+%dir /var/lib/firecracker/images
+%dir /var/lib/firecracker/storage
 %config /etc/flakes/firecracker-flake.yaml
-%dir /overlayroot
+%config /etc/flakes/firecracker.json
 %doc /usr/share/man/man8/flake-ctl-firecracker-pull.8.gz
 %doc /usr/share/man/man8/flake-ctl-firecracker-remove.8.gz
 %doc /usr/share/man/man8/flake-ctl-firecracker-register.8.gz
 /usr/bin/firecracker-service
+/usr/bin/firecracker-pilot
 %doc /usr/share/man/man8/firecracker-service.8.gz
+%doc /usr/share/man/man8/firecracker-pilot.8.gz
 
 %files -n flake-pilot-firecracker-guestvm-tools
+%dir /overlayroot
 /usr/sbin/sci
 
 %files -n oci-deb

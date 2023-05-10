@@ -1,0 +1,20 @@
+{
+  "boot-source": {
+    "kernel_image_path": "",
+    "initrd_path": "",
+    "boot_args": "init=/usr/sbin/sci"
+  },
+  "drives": [
+    {
+      "drive_id": "rootfs",
+      "path_on_host": "",
+      "is_root_device": true,
+      "is_read_only": true,
+      "cache_type": "Writeback"
+    }
+  ],
+  "machine-config": {
+    "vcpu_count": 2,
+    "mem_size_mib": 4096
+  }
+}
