@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 cli::Firecracker::Register {
                     vm, app, target, run_as, overlay_size
                 } => {
-                    if app::init() {
+                    if app::init(Some(app)) {
                         let mut ok = app::register(
                             Some(app), target.as_ref(),
                             defaults::FIRECRACKER_PILOT
@@ -126,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } => {
                     if *info {
                         podman::print_container_info(container);
-                    } else if app::init() {
+                    } else if app::init(app.as_ref()) {
                         let mut ok = app::register(
                             app.as_ref(), target.as_ref(),
                             defaults::PODMAN_PILOT

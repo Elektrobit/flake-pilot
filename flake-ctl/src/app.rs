@@ -332,7 +332,7 @@ pub fn purge(app: &str, engine: &str) {
     }
 }
 
-pub fn init() -> bool {
+pub fn init(app: Option<&String>) -> bool {
     /*!
     Create required directory structure.
 
@@ -341,6 +341,12 @@ pub fn init() -> bool {
     already exists.
     !*/
     let mut status = true;
+    if ! app.is_none() {
+        if Path::new(&app.unwrap()).exists() {
+            error!("App path {} already exists", app.unwrap());
+            return false
+        }
+    }
     let mut flake_dir = String::new();
     match fs::read_link(&defaults::FLAKE_DIR) {
         Ok(target) => {

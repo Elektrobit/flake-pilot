@@ -21,4 +21,4 @@ vm:
       initrd_path: ~
       mem_size_mib: 4096
       vcpu_count: 2
-      cache_type: unsafe
+      cache_type: ~
