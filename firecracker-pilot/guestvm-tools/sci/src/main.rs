@@ -29,7 +29,7 @@ pub mod defaults;
 
 use std::env;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::os::unix::process::CommandExt;
 use system_shutdown::force_reboot;
 use std::fs;
@@ -237,9 +237,35 @@ fn main() {
         } else {
             // call a command and keep control
             debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
-            match call.status() {
-                Ok(_) => { },
-                Err(_) => { }
+
+            // instead of running command, we fork it as child and wait till whole output 
+            // has been processed
+            let mut interactive = false;
+            match env::var("interactive").ok() {
+                Some(v) => {
+                    if v == "true" {
+                        interactive = true;
+                    }
+                },
+                None =>{/* leave interactive set to false */ }
+            }
+            if interactive {
+                match call.status() {
+                    Ok(_) => { },
+                    Err(_) => { }
+                }
+            }
+            else{
+                match call.stdout(Stdio::piped()).spawn() {
+                    Ok(child) => {                   
+                        let output = child.wait_with_output().expect("Failed to wait for child");
+                        println!("{}", std::str::from_utf8(&output.stdout).unwrap());
+                        println!("{}", std::str::from_utf8(&output.stderr).unwrap());
+                    },
+                    Err(e) => {
+                        debug(&format!("Error: {:?}", e));
+                    }
+                }
             }
         }
     }
