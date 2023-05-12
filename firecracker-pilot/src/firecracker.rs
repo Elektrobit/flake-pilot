@@ -392,7 +392,14 @@ pub fn call_instance(
                     panic!("Failed to open {}: {}", vm_id_file, error)
                 }
             }
-            status_code = child.wait().unwrap().code().unwrap();
+            match child.wait() {
+                Ok(ecode) => {
+                    status_code = ecode.code().unwrap();
+                },
+                Err(error) => {
+                    panic!("firecracker failed with: {}", error);
+                }
+            }
         },
         Err(error) => {
             panic!("Failed to execute firecracker: {:?}", error)
