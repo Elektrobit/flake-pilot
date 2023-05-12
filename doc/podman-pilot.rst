@@ -15,7 +15,7 @@ called through the podman container engine.
 
 podman-pilot provides the application launcher binary and is not expected
 to be called by users. Instead it is being used as the symlink target
-at the time an application is registered via **flake-ctl register**.
+at the time an application is registered via **flake-ctl podman register**.
 
 This means podman-pilot is the actual binary called with any application
 registration. If the registered application is requested as
