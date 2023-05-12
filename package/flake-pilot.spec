@@ -49,7 +49,9 @@ BuildRequires:  openssl-devel
 %if 0%{?debian} || 0%{?ubuntu}
 BuildRequires:  rust-all
 BuildRequires:  upx-ucl
-BuildRequires:  openssl-dev
+BuildRequires:  libssl-dev
+BuildRequires:  openssl
+BuildRequires:  pkg-config
 %endif
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
