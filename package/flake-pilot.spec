@@ -97,6 +97,13 @@ BuildRequires:  clang-devel
 %endif
 Requires:       rsync
 Requires:       firecracker
+Requires:       xz
+Requires:       e2fsprogs
+%if 0%{?suse_version}
+Requires:       qemu-tools
+%else
+Requires:       qemu-img
+%endif
 
 %description -n flake-pilot-firecracker
 Launcher and service tools for KVM VM based applications
