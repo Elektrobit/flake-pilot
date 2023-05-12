@@ -49,7 +49,8 @@ pub struct FireCrackerConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FireCrackerBootSource {
     pub kernel_image_path: String,
-    pub initrd_path: Option<String>,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub initrd_path: String,
     pub boot_args: String
 }
 #[derive(Debug, Serialize, Deserialize)]
@@ -454,8 +455,8 @@ pub fn create_firecracker_config(
                     // set initrd_path
                     if ! engine_section["initrd_path"].as_str().is_none() {
                         firecracker_config.boot_source.initrd_path =
-                            Some(engine_section["initrd_path"]
-                                .as_str().unwrap().to_string())
+                            engine_section["initrd_path"]
+                                .as_str().unwrap().to_string()
                     }
 
                     // setup run commandline for the command call
