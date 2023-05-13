@@ -173,6 +173,8 @@ looks like the following:
 Please consult the manual pages for detailed information 
 about the contents of the flake setup.
 
+https://github.com/Elektrobit/flake-pilot/tree/master/doc
+
 Flake pilot is a project in its early stages and the result of
 a fun conversation over beer on a conference. Feedback
 is very much welcome.
