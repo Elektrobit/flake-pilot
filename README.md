@@ -4,7 +4,8 @@
 2. [Installation](#installation)
 3. [Quick Start OCI containers](#oci)
     1. [Use Cases](#usecases)
-3. [Quick Start FireCracker VMs](#fire)
+4. [Quick Start FireCracker VMs](#fire)
+5. [Application Setup](#setup)
 
 ## Introduction <a name="introduction"/>
 
@@ -150,7 +151,7 @@ the VM instance. In addition some write space of 20GB is added to the instance
 
    Drops you into a bash shell inside of the VM
 
-## Application Setup
+## Application Setup <a name="setup"/>
 
 After the registration of an application they can be listed via
 
