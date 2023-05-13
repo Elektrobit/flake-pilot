@@ -57,6 +57,11 @@ fn main() {
     let mut do_exec = false;
     let mut ok = true;
 
+    // print user space env
+    for (key, value) in env::vars() {
+        debug(&format!("{}: {}", key, value));
+    }
+
     // parse commandline from run environment variable
     match env::var("run").ok() {
         Some(call_cmd) => {
@@ -71,8 +76,7 @@ fn main() {
             }
         },
         None => {
-            debug("No run=... cmdline parameter specified");
-            ok = false
+            panic!("No run=... cmdline parameter in env");
         }
     }
 

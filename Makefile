@@ -48,7 +48,7 @@ build: man
 	cd podman-pilot && cargo build -v --release && upx --best --lzma target/release/podman-pilot
 	cd flake-ctl && cargo build -v --release && upx --best --lzma target/release/flake-ctl
 	cd firecracker-pilot/firecracker-service/service && cargo build -v --release && upx --best --lzma target/release/firecracker-service
-	cd firecracker-pilot/guestvm-tools/sci && cargo build -v --release && upx --best --lzma target/release/sci
+	cd firecracker-pilot/guestvm-tools/sci && cargo build -v --release
 	cd firecracker-pilot && cargo build -v --release && upx --best --lzma target/release/firecracker-pilot
 
 clean:
