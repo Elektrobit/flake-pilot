@@ -140,6 +140,16 @@ This registers an app named ```mybash``` to the system. Once called a firecracke
 the pulled ```leap``` image is started and the ```/bin/bash``` program is called inside of
 the VM instance. In addition some write space of 20GB is added to the instance
 
+3. Launch the application
+
+   To run ```mybash``` just call for example:
+
+   ```bash
+   mybash
+   ```
+
+   Drops you into a bash shell inside of the VM
+
 ## Application Setup
 
 After the registration of an application they can be listed via
