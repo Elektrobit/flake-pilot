@@ -137,9 +137,9 @@ Start an application as virtual machine (VM) instance as follows:
    flake-ctl firecracker register --vm leap --app /usr/bin/mybash --target /bin/bash --overlay-size 20g
    ```
 
-This registers an app named ```mybash``` to the system. Once called a firecracker VM based on
-the pulled ```leap``` image is started and the ```/bin/bash``` program is called inside of
-the VM instance. In addition some write space of 20GB is added to the instance
+   This registers an app named ```mybash``` to the system. Once called a firecracker VM based on
+   the pulled ```leap``` image is started and the ```/bin/bash``` program is called inside of
+   the VM instance. In addition some write space of 20GB is added to the instance
 
 3. Launch the application
 
