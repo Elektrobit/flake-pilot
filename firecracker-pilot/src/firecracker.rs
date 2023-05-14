@@ -102,6 +102,7 @@ pub fn create(
         firecracker:
           # Currently fixed settings through app registration
           boot_args:
+            - "init=/usr/sbin/sci"
             - "console=ttyS0"
             - "root=/dev/vda"
             - "acpi=off"

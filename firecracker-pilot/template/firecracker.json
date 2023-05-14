@@ -2,7 +2,7 @@
   "boot-source": {
     "kernel_image_path": "",
     "initrd_path": "",
-    "boot_args": "init=/usr/sbin/sci"
+    "boot_args": ""
   },
   "drives": [
     {

@@ -11,6 +11,7 @@ vm:
     resume: false
     firecracker:
       boot_args:
+        - "init=/usr/sbin/sci"
         - "console=ttyS0"
         - "root=/dev/vda"
         - "acpi=off"
