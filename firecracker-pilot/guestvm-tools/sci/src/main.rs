@@ -76,7 +76,8 @@ fn main() {
             }
         },
         None => {
-            panic!("No run=... cmdline parameter in env");
+            debug(&format!("No run=... cmdline parameter in env"));
+            do_reboot(ok)
         }
     }
 
@@ -249,6 +250,10 @@ fn main() {
     }
 
     // Close firecracker session
+    do_reboot(ok)
+}
+
+fn do_reboot(ok: bool) {
     debug("Rebooting...");
     if ! ok {
         // give potential error messages some time to settle
