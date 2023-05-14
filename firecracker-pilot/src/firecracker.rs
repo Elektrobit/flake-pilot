@@ -43,6 +43,8 @@ pub struct FireCrackerConfig {
     #[serde(rename = "boot-source")]
     pub boot_source: FireCrackerBootSource,
     pub drives: Vec<FireCrackerDrive>,
+    #[serde(rename = "network-interfaces")]
+    pub network_interfaces: Vec<FireCrackerNetworkInterface>,
     #[serde(rename = "machine-config")]
     pub machine_config: FireCrackerMachine
 }
@@ -60,6 +62,12 @@ pub struct FireCrackerDrive {
     pub is_root_device: bool,
     pub is_read_only: bool,
     pub cache_type: String
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FireCrackerNetworkInterface {
+    pub iface_id: String,
+    pub guest_mac: String,
+    pub host_dev_name: String
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FireCrackerMachine {

@@ -13,6 +13,13 @@
       "cache_type": "Writeback"
     }
   ],
+  "network-interfaces": [
+    {
+      "iface_id": "eth0",
+      "guest_mac": "AA:FC:00:00:00:01",
+      "host_dev_name": "tap0"
+    }
+  ],
   "machine-config": {
     "vcpu_count": 2,
     "mem_size_mib": 4096
