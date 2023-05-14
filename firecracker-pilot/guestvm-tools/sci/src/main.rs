@@ -28,6 +28,7 @@ extern crate shell_words;
 pub mod defaults;
 
 use std::env;
+use std::os::unix::fs::symlink;
 use std::path::Path;
 use std::process::Command;
 use std::os::unix::process::CommandExt;
@@ -211,6 +212,7 @@ fn main() {
                         }
                     }
                     mount_basic_fs();
+                    setup_resolver_link();
                 }
             }
         },
@@ -265,6 +267,23 @@ fn do_reboot(ok: bool) {
         Ok(_) => { },
         Err(error) => {
             panic!("Failed to reboot: {}", error)
+        }
+    }
+}
+
+fn setup_resolver_link() {
+    if Path::new(defaults::SYSTEMD_NETWORK_RESOLV_CONF).exists() {
+        match symlink(
+            defaults::SYSTEMD_NETWORK_RESOLV_CONF, "/etc/resolv.conf"
+        ) {
+            Ok(_) => { },
+            Err(error) => {
+                debug(&format!("Error creating symlink \"{} -> {}\": {:?}",
+                    "/etc/resolv.conf",
+                    defaults::SYSTEMD_NETWORK_RESOLV_CONF,
+                    error
+                ));
+            }
         }
     }
 }

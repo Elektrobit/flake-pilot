@@ -23,12 +23,20 @@
 //
 use std::env;
 
-pub const SWITCH_ROOT: &str = "/usr/sbin/switch_root";
-pub const PIVOT_ROOT: &str = "/usr/sbin/pivot_root";
-pub const OVERLAY_ROOT: &str = "/overlayroot/rootfs";
-pub const OVERLAY_UPPER: &str = "/overlayroot/rootfs_upper";
-pub const OVERLAY_WORK: &str = "/overlayroot/rootfs_work";
-pub const PROBE_MODULE: &str = "/usr/sbin/modprobe";
+pub const SWITCH_ROOT: &str =
+    "/usr/sbin/switch_root";
+pub const PIVOT_ROOT: &str =
+    "/usr/sbin/pivot_root";
+pub const OVERLAY_ROOT: &str =
+    "/overlayroot/rootfs";
+pub const OVERLAY_UPPER: &str =
+    "/overlayroot/rootfs_upper";
+pub const OVERLAY_WORK: &str =
+    "/overlayroot/rootfs_work";
+pub const PROBE_MODULE: &str =
+    "/usr/sbin/modprobe";
+pub const SYSTEMD_NETWORK_RESOLV_CONF: &str =
+    "/run/systemd/resolve/resolv.conf";
 
 pub fn debug(message: &str) {
     match env::var("PILOT_DEBUG") {
