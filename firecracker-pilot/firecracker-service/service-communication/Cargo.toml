@@ -7,7 +7,7 @@ panic = "abort"
 
 [package]
 name = "firecracker-service-communication"
-version = "2.1.9"
+version = "2.1.10"
 edition = "2018"
 
 

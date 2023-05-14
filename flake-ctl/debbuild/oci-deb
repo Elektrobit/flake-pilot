@@ -24,7 +24,7 @@
 set -e
 
 SPEC_IN=/usr/share/podman-pilot/container.spec.in
-PKG_VERSION=2.1.9
+PKG_VERSION=2.1.10
 CONTAINER_TAG=latest
 CONTAINER_APPS=""
 
