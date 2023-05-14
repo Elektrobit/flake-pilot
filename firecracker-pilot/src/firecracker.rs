@@ -533,6 +533,10 @@ pub fn create_firecracker_config(
                         firecracker_config.drives.push(drive);
                     }
 
+                    // set tap device name
+                    firecracker_config.network_interfaces[0].host_dev_name =
+                        format!("tap-{}", get_meta_name(&program_name));
+
                     // set mem_size_mib
                     if ! &engine_section["mem_size_mib"].as_i64().is_none() {
                         firecracker_config.machine_config.mem_size_mib =
@@ -640,10 +644,15 @@ pub fn vm_running(vmid: &String, user: &String) -> bool {
 pub fn get_meta_file_name(
     program_name: &String, target_dir: &str, extension: &str
 ) -> String {
-    let args: Vec<String> = env::args().collect();
-    let mut meta_file = format!(
-        "{}/{}", target_dir, program_name
+    let meta_file = format!(
+        "{}/{}.{}", target_dir, get_meta_name(&program_name), extension
     );
+    meta_file
+}
+
+pub fn get_meta_name(program_name: &String) -> String {
+    let args: Vec<String> = env::args().collect();
+    let mut meta_file = program_name.to_string();
     for arg in &args[1..] {
         if arg.starts_with("@") {
             // The special @NAME argument is not passed to the
@@ -652,7 +661,6 @@ pub fn get_meta_file_name(
             meta_file = format!("{}{}", meta_file, arg);
         }
     }
-    meta_file = format!("{}.{}", meta_file, extension);
     meta_file
 }
 
