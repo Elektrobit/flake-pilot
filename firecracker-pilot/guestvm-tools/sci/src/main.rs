@@ -169,6 +169,7 @@ fn main() {
             }
             // Call specified command through switch root into the overlay
             if ok {
+                move_mounts(defaults::OVERLAY_ROOT);
                 let root = Path::new(defaults::OVERLAY_ROOT);
                 match env::set_current_dir(&root) {
                     Ok(_) => {
@@ -268,6 +269,30 @@ fn do_reboot(ok: bool) {
     }
 }
 
+fn move_mounts(new_root: &str) {
+    /*!
+    Move filesystems from current root to new_root
+    !*/
+    // /run
+    let mut call = Command::new("mount");
+    call.arg("--bind").arg("/run").arg(&format!("{}/run", new_root));
+    debug(&format!("EXEC: mount -> {:?}", call.get_args()));
+    match call.status() {
+        Ok(_) => debug("Bind mounted /run"),
+        Err(error) => {
+            debug(&format!("Failed to bind mount /run: {}", error));
+            match Mount::builder()
+                .fstype("tmpfs").mount("tmpfs", &format!("{}/run", new_root))
+            {
+                Ok(_) => debug("Mounted tmpfs on /run"),
+                Err(error) => {
+                    debug(&format!("Failed to mount /run: {}", error));
+                }
+            }
+        }
+    }
+}
+
 fn mount_basic_fs() {
     /*!
     Mount standard filesystems
@@ -282,12 +307,6 @@ fn mount_basic_fs() {
         Ok(_) => debug("Mounted sysfs on /sys"),
         Err(error) => {
             debug(&format!("Failed to mount /sys: {}", error));
-        }
-    }
-    match Mount::builder().fstype("tmpfs").mount("tmpfs", "/run") {
-        Ok(_) => debug("Mounted tmpfs on /run"),
-        Err(error) => {
-            debug(&format!("Failed to mount /run: {}", error));
         }
     }
     match Mount::builder().fstype("devtmpfs").mount("devtmpfs", "/dev") {
