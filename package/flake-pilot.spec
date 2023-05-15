@@ -111,6 +111,21 @@ Requires:       qemu-img
 Launcher and service tools for KVM VM based applications
 through firecracker
 
+%package -n flake-pilot-firecracker-dracut-netstart
+Summary:        Dracut Module Network Startup
+Group:          System/Management
+%if 0%{?suse_version}
+Requires:       systemd-network
+%else
+Requires:       systemd
+%endif
+
+%description -n flake-pilot-firecracker-dracut-netstart
+Start systemd network and resolver inside of the initrd such
+that the network setup persists after switch_root if there
+is no systemd process called but sci as simple command
+execution interface
+
 %package -n flake-pilot-firecracker-guestvm-tools
 Summary:        FireCracker guest VM tools
 Group:          System/Management
@@ -146,6 +161,13 @@ chmod 777 %{buildroot}/var/lib/firecracker/images
 mkdir -p %{buildroot}/var/lib/firecracker/storage
 chmod 777 %{buildroot}/var/lib/firecracker/storage
 
+mkdir -p %{buildroot}/etc/dracut.conf.d
+mkdir -p %{buildroot}/usr/lib/dracut/modules.d/80netstart
+cp -a firecracker-pilot/dracut/usr/lib/dracut/modules.d/80netstart/* \
+    %{buildroot}/usr/lib/dracut/modules.d/80netstart
+install -m 644 firecracker-pilot/dracut/etc/dracut.conf.d/extramodules.conf \
+    %{buildroot}/etc/dracut.conf.d/extramodules.conf
+
 %files
 %defattr(-,root,root)
 %dir /usr/share/flakes
@@ -178,6 +200,14 @@ chmod 777 %{buildroot}/var/lib/firecracker/storage
 /usr/bin/firecracker-pilot
 %doc /usr/share/man/man8/firecracker-service.8.gz
 %doc /usr/share/man/man8/firecracker-pilot.8.gz
+
+%files -n flake-pilot-firecracker-dracut-netstart
+%dir /usr/lib/dracut
+%dir /usr/lib/dracut/modules.d
+%dir /usr/lib/dracut/modules.d/80netstart
+%dir /etc/dracut.conf.d
+/usr/lib/dracut/modules.d/80netstart
+/etc/dracut.conf.d/extramodules.conf
 
 %files -n flake-pilot-firecracker-guestvm-tools
 %dir /overlayroot
