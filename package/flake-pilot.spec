@@ -182,6 +182,7 @@ chmod 777 %{buildroot}/var/lib/firecracker/storage
 %files -n flake-pilot-firecracker-guestvm-tools
 %dir /overlayroot
 /usr/sbin/sci
+%doc /usr/share/man/man8/sci.8.gz
 
 %files -n oci-deb
 /usr/share/podman-pilot
