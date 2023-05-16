@@ -49,18 +49,8 @@ OPTIONS
 
 --overlay-size <OVERLAY_SIZE>
 
-  Size of overlay write space in bytes. Note: The value provided is passed
-  along to the qemu-img program at call time of firecracker-pilot. Optional
-  suffixes:
-
-  * 'k' (kilobyte, 1024)
-  * 'm' (megabyte, 1024k)
-  * 'g' (gigabyte, 1024M)
-  * 't' (terabyte, 1024G)
-  * 'p' (petabyte, 1024T)
-  * 'e' (exabyte, 1024P)
-
-  are supported. 'b' is ignored
+  Size of overlay write space in bytes. Optional suffixes are:
+  KiB/MiB/GiB/TiB (1024) or KB/MB/GB/TB (1000)
 
 --run-as <RUN_AS>
 
