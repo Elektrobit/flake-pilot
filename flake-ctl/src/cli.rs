@@ -99,13 +99,8 @@ pub enum Firecracker {
         #[clap(long)]
         run_as: Option<String>,
 
-        /// Size of overlay write space in bytes. Note: The value
-        /// provided is passed along to the qemu-img program at call
-        /// time of firecracker-pilot. Optional suffixes:
-        /// 'k' or 'K' (kilobyte, 1024), 'M' (megabyte, 1024k),
-        /// 'G' (gigabyte, 1024M), 'T' (terabyte, 1024G),
-        /// 'P' (petabyte, 1024T) and 'E' (exabyte, 1024P)  are
-        /// supported. 'b' is ignored.
+        /// Size of overlay write space in bytes.
+        /// Optional suffixes: KiB/MiB/GiB/TiB (1024) or KB/MB/GB/TB (1000)
         #[clap(long)]
         overlay_size: Option<String>,
     },

@@ -30,8 +30,9 @@ use std::env;
 use std::fs;
 use crate::defaults::{debug, is_debug};
 use tempfile::NamedTempFile;
-use std::io::Write;
+use std::io::{Write, SeekFrom, Seek};
 use std::fs::File;
+use ubyte::ByteUnit;
 use serde::{Serialize, Deserialize};
 use serde_json::{self};
 
@@ -229,29 +230,31 @@ pub fn create(
             program_name, defaults::FIRECRACKER_OVERLAY_DIR, "ext2"
         );
         if ! Path::new(&vm_overlay_file).exists() || ! resume {
-            let mut qemu_img = Command::new("sudo");
-            if ! runas.is_empty() {
-                qemu_img.arg("--user").arg(&runas);
-            }
-            qemu_img
-                .arg("qemu-img")
-                .arg("create")
-                .arg(&vm_overlay_file)
-                .arg(&engine_section["overlay_size"].as_str().unwrap());
-            debug(&format!("sudo {:?}", qemu_img.get_args()));
-            match qemu_img.output() {
-                Ok(output) => {
-                    if ! output.status.success() {
-                        panic!(
-                            "Failed to create overlay image: {}",
-                            String::from_utf8_lossy(&output.stderr)
-                        );
-                    }
+            let byte_size: u64;
+            let string_size = &engine_section["overlay_size"].as_str().unwrap();
+            match string_size.parse::<ByteUnit>() {
+                Ok(result) => {
+                    byte_size = result.as_u64();
                 },
                 Err(error) => {
-                    panic!("Failed to execute qemu-img {:?}", error)
+                    panic!(
+                        "Failed to parse overlay_size '{}': {}",
+                        string_size, error
+                    )
                 }
             }
+            match std::fs::File::create(&vm_overlay_file) {
+                Ok(mut vm_overlay_file_fd) => {
+                    vm_overlay_file_fd.seek(
+                        SeekFrom::Start(byte_size - 1)
+                    ).unwrap();
+                    vm_overlay_file_fd.write_all(&[0]).unwrap();
+                },
+                Err(error) => {
+                    panic!("Failed to create overlay image: {}", error);
+                }
+            }
+            // Create filesystem
             let mut mkfs = Command::new("sudo");
             if ! runas.is_empty() {
                 mkfs.arg("--user").arg(&runas);
