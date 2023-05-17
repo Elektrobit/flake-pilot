@@ -33,6 +33,7 @@ Group:          System/Management
 Url:            https://github.com/schaefi/pilot
 Source0:        %{name}.tar.gz
 Source1:        cargo_config
+Source2:        gcc_fix_static.sh
 %if 0%{?debian} || 0%{?ubuntu}
 Requires:       golang-github-containers-common
 %endif
@@ -45,6 +46,8 @@ BuildRequires:  rust
 BuildRequires:  cargo
 BuildRequires:  upx
 BuildRequires:  openssl-devel
+BuildRequires:  glibc-devel-static
+BuildRequires:  kiwi-settings
 %endif
 %if 0%{?debian} || 0%{?ubuntu}
 BuildRequires:  rust-all
@@ -132,6 +135,12 @@ Guest VM tools to help with firecracker workloads
 %setup -q -n flake-pilot
 
 %build
+# This is a hack and related to the issue explained here:
+# https://github.com/rust-lang/rust/issues/99382
+%if 0%{?fedora} || 0%{?suse_version}
+sudo bash %{SOURCE2}
+%endif
+
 mkdir -p podman-pilot/.cargo
 mkdir -p firecracker-pilot/.cargo
 mkdir -p flake-ctl/.cargo

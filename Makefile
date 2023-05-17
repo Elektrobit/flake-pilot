@@ -7,6 +7,8 @@ SHAREDIR ?= ${PREFIX}/share/podman-pilot
 FLAKEDIR ?= ${PREFIX}/share/flakes
 TEMPLATEDIR ?= /etc/flakes
 
+ARCH = $(shell uname -m)
+
 .PHONY: package
 package: clean vendor sourcetar
 	rm -rf package/build
@@ -15,6 +17,7 @@ package: clean vendor sourcetar
 	mv package/flake-pilot.tar.gz package/build
 	cp package/flake-pilot.spec package/build
 	cp package/cargo_config package/build
+	cp package/gcc_fix_static.sh package/build
 	cp package/flake-pilot-rpmlintrc package/build
 	# update changelog using reference file
 	helper/update_changelog.py --since package/flake-pilot.changes.ref > \
@@ -48,7 +51,7 @@ build: man
 	cd podman-pilot && cargo build -v --release && upx --best --lzma target/release/podman-pilot
 	cd flake-ctl && cargo build -v --release && upx --best --lzma target/release/flake-ctl
 	cd firecracker-pilot/firecracker-service/service && cargo build -v --release && upx --best --lzma target/release/firecracker-service
-	cd firecracker-pilot/guestvm-tools/sci && cargo build -v --release
+	cd firecracker-pilot/guestvm-tools/sci && RUSTFLAGS='-C target-feature=+crt-static' cargo build -v --release --target $(ARCH)-unknown-linux-gnu
 	cd firecracker-pilot && cargo build -v --release && upx --best --lzma target/release/firecracker-pilot
 
 clean:
@@ -81,7 +84,7 @@ install:
 		$(DESTDIR)$(BINDIR)/firecracker-pilot
 	install -m 755 firecracker-pilot/firecracker-service/service/target/release/firecracker-service \
 		$(DESTDIR)$(BINDIR)/firecracker-service
-	install -m 755 firecracker-pilot/guestvm-tools/sci/target/release/sci \
+	install -m 755 firecracker-pilot/guestvm-tools/sci/target/$(ARCH)-unknown-linux-gnu/release/sci \
 		$(DESTDIR)$(SBINDIR)/sci
 	install -m 755 flake-ctl/target/release/flake-ctl \
 		$(DESTDIR)$(BINDIR)/flake-ctl
