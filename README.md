@@ -5,6 +5,7 @@
 3. [Quick Start OCI containers](#oci)
     1. [Use Cases](#usecases)
 4. [Quick Start FireCracker VMs](#fire)
+    1. [Networking](#networking)
 5. [Application Setup](#setup)
 
 ## Introduction <a name="introduction"/>
@@ -150,6 +151,119 @@ Start an application as virtual machine (VM) instance as follows:
    ```
 
    Drops you into a bash shell inside of the VM
+
+### Networking <a name="networking"/>
+
+As of today firecracker supports networking only through TUN/TAP devices.
+As a consequence it is a user responsibility to setup the routing on the
+host from the TUN/TAP device to the outside world. There are many possible
+solutions available and the following describes a simple static IP and NAT
+based setup.
+
+The proposed example works within the following requirements:
+
+* initrd_path must be set in the flake configuration
+* The used initrd has to provide support for systemd-(networkd, resolved)
+  and must have been created by dracut such that the passed
+  boot_args in the flake setup will become effective
+
+1. Enable IP forwarding
+
+   ```bash 
+   sudo sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"
+   ```
+
+2. Setup NAT on the outgoing interface
+
+   Network Address Translation(NAT) is an easy way to route traffic
+   to the outside world even when it originates from another network.
+   All traffic looks like if it would come from the outgoing interface
+   though. In this example we assume ```eth0``` to be the outgoing
+   interface:
+
+   ```bash
+   sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+   sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+   ```
+
+3. Setup network configuration in the flake setup
+
+   The flake configuration for the registered ```mybash``` app from
+   above can be found at:
+
+   ```bash
+   vi /usr/share/flakes/mybash.yaml
+   ```
+
+   The default network setup is based on DHCP because this is
+   the only generic setting that flake-ctl offers at the moment.
+   The setup offered for networking provides the setting
+   ```ip=dhcp```. Change this setting to the following:
+
+   ```yaml
+   vm:
+     runtime:
+       firecracker:
+         boot_args:
+           - ip=172.16.0.2::172.16.0.1:255.255.255.0::eth0:off
+           - rd.route=172.16.0.1/24::eth0
+           - nameserver=8.8.8.8
+   ```
+
+   In this example the DHCP based setup changes to a static
+   IP: 172.16.0.2 using 172.16.0.1 as its gateway and Google
+   to perform name resolution. Please note: The name of the
+   network interface in the guest is always ```eth0```. For
+   further information about network setup options refer
+   to ```man dracut.cmdline``` and lookup the section
+   about ```ip=```
+
+4. Create a tap device matching the app registration. In the above example
+   the app ```/usr/bin/mybash``` was registered. The firecracker pilot
+   configures the VM instance to pass trafic on the tap device name
+   ```tap-mybash```. If the application is called with an identifier like
+   ```mybash @id```, the tap device name ```tap-mybash@id``` is used.
+
+   ```bash
+   sudo ip tuntap add tap-mybash mode tap
+   ```
+
+   **_NOTE:_** If the tap device does not exist, firecracker-pilot will
+   create it for you. However, this might be too late in case of e.g a
+   DHCP setup which requires the routing of the tap device to be present
+   before the actual network setup inside of the guest takes place.
+   If firecracker-pilot creates the tap device it will also be
+   removed if the instance shuts down.
+
+5. Connect the tap device to the outgoing interface
+
+   Select a subnet range for the tap and bring it up
+
+   **_NOTE:_** The settings here must match with the flake configuration !
+
+   ```bash
+   ip addr add 172.16.0.1/24 dev tap-mybash
+   ip link set tap-mybash up
+   ```
+
+   Forward tap to the outgoing interface
+
+   ```bash
+   sudo iptables -A FORWARD -i tap-mybash -o eth0 -j ACCEPT
+   ```
+
+6. Start the application
+
+   ```bash
+   mybash
+
+   $ ip a
+   $ ping www.google.de
+   ```
+
+   **_NOTE:_** The tap device cannot be shared across multiple instances.
+   Each instance needs its own tap device. Thus the steps 3,4 and 5 needs
+   to be repeated for each instance.
 
 ## Application Setup <a name="setup"/>
 
