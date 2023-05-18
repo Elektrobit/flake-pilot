@@ -45,3 +45,5 @@ pub const FIRECRACKER_KERNEL_NAME:&str =
     "kernel";
 pub const FIRECRACKER_ROOTFS_NAME:&str =
     "rootfs";
+pub const FIRECRACKER_SCI:&str =
+    "/usr/lib/flake-pilot/sci";
