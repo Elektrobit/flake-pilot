@@ -24,9 +24,9 @@
 use std::env;
 
 pub const SWITCH_ROOT: &str =
-    "/usr/sbin/switch_root";
+    "/sbin/switch_root";
 pub const PIVOT_ROOT: &str =
-    "/usr/sbin/pivot_root";
+    "/sbin/pivot_root";
 pub const OVERLAY_ROOT: &str =
     "/overlayroot/rootfs";
 pub const OVERLAY_UPPER: &str =
@@ -34,7 +34,7 @@ pub const OVERLAY_UPPER: &str =
 pub const OVERLAY_WORK: &str =
     "/overlayroot/rootfs_work";
 pub const PROBE_MODULE: &str =
-    "/usr/sbin/modprobe";
+    "/sbin/modprobe";
 pub const SYSTEMD_NETWORK_RESOLV_CONF: &str =
     "/run/systemd/resolve/resolv.conf";
 
