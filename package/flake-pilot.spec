@@ -158,6 +158,7 @@ make DESTDIR=%{buildroot}/ install
 chmod 777 %{buildroot}/usr/share/flakes
 
 mkdir -p %{buildroot}/overlayroot
+mkdir -p %{buildroot}/usr/lib/flake-pilot
 
 mkdir -p %{buildroot}/var/lib/firecracker/images
 chmod 777 %{buildroot}/var/lib/firecracker/images
@@ -171,6 +172,9 @@ cp -a firecracker-pilot/dracut/usr/lib/dracut/modules.d/80netstart/* \
     %{buildroot}/usr/lib/dracut/modules.d/80netstart
 install -m 644 firecracker-pilot/dracut/etc/dracut.conf.d/extramodules.conf \
     %{buildroot}/etc/dracut.conf.d/extramodules.conf
+
+install -m 755 %{buildroot}/usr/sbin/sci \
+    %{buildroot}/usr/lib/flake-pilot/sci
 
 %files
 %defattr(-,root,root)
@@ -195,6 +199,7 @@ install -m 644 firecracker-pilot/dracut/etc/dracut.conf.d/extramodules.conf \
 %dir /var/lib/firecracker
 %dir /var/lib/firecracker/images
 %dir /var/lib/firecracker/storage
+%dir /usr/lib/flake-pilot
 %config /etc/flakes/firecracker-flake.yaml
 %config /etc/flakes/firecracker.json
 %doc /usr/share/man/man8/flake-ctl-firecracker-pull.8.gz
@@ -204,6 +209,7 @@ install -m 644 firecracker-pilot/dracut/etc/dracut.conf.d/extramodules.conf \
 /usr/bin/firecracker-pilot
 %doc /usr/share/man/man8/firecracker-service.8.gz
 %doc /usr/share/man/man8/firecracker-pilot.8.gz
+/usr/lib/flake-pilot/sci
 
 %files -n flake-pilot-firecracker-dracut-netstart
 %dir /usr/lib/dracut
