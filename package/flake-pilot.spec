@@ -33,6 +33,7 @@ Group:          System/Management
 Url:            https://github.com/schaefi/pilot
 Source0:        %{name}.tar.gz
 Source1:        cargo_config
+Source2:        gcc_fix_static.sh
 %if 0%{?debian} || 0%{?ubuntu}
 Requires:       golang-github-containers-common
 %endif
@@ -45,6 +46,8 @@ BuildRequires:  rust
 BuildRequires:  cargo
 BuildRequires:  upx
 BuildRequires:  openssl-devel
+BuildRequires:  glibc-devel-static
+BuildRequires:  kiwi-settings
 %endif
 %if 0%{?debian} || 0%{?ubuntu}
 BuildRequires:  rust-all
@@ -132,6 +135,12 @@ Guest VM tools to help with firecracker workloads
 %setup -q -n flake-pilot
 
 %build
+# This is a hack and related to the issue explained here:
+# https://github.com/rust-lang/rust/issues/99382
+%if 0%{?fedora} || 0%{?suse_version}
+sudo bash %{SOURCE2}
+%endif
+
 mkdir -p podman-pilot/.cargo
 mkdir -p firecracker-pilot/.cargo
 mkdir -p flake-ctl/.cargo
@@ -149,6 +158,7 @@ make DESTDIR=%{buildroot}/ install
 chmod 777 %{buildroot}/usr/share/flakes
 
 mkdir -p %{buildroot}/overlayroot
+mkdir -p %{buildroot}/usr/lib/flake-pilot
 
 mkdir -p %{buildroot}/var/lib/firecracker/images
 chmod 777 %{buildroot}/var/lib/firecracker/images
@@ -162,6 +172,9 @@ cp -a firecracker-pilot/dracut/usr/lib/dracut/modules.d/80netstart/* \
     %{buildroot}/usr/lib/dracut/modules.d/80netstart
 install -m 644 firecracker-pilot/dracut/etc/dracut.conf.d/extramodules.conf \
     %{buildroot}/etc/dracut.conf.d/extramodules.conf
+
+install -m 755 %{buildroot}/usr/sbin/sci \
+    %{buildroot}/usr/lib/flake-pilot/sci
 
 %files
 %defattr(-,root,root)
@@ -186,6 +199,7 @@ install -m 644 firecracker-pilot/dracut/etc/dracut.conf.d/extramodules.conf \
 %dir /var/lib/firecracker
 %dir /var/lib/firecracker/images
 %dir /var/lib/firecracker/storage
+%dir /usr/lib/flake-pilot
 %config /etc/flakes/firecracker-flake.yaml
 %config /etc/flakes/firecracker.json
 %doc /usr/share/man/man8/flake-ctl-firecracker-pull.8.gz
@@ -195,6 +209,7 @@ install -m 644 firecracker-pilot/dracut/etc/dracut.conf.d/extramodules.conf \
 /usr/bin/firecracker-pilot
 %doc /usr/share/man/man8/firecracker-service.8.gz
 %doc /usr/share/man/man8/firecracker-pilot.8.gz
+/usr/lib/flake-pilot/sci
 
 %files -n flake-pilot-firecracker-dracut-netstart
 %dir /usr/lib/dracut
