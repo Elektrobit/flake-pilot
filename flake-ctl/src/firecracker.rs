@@ -130,9 +130,23 @@ pub async fn pull_component_image(
                 let sci_in_image = format!(
                     "{}/{}", tmp_dir_path, "/usr/sbin/sci"
                 );
+                let overlay_root_in_image = format!(
+                    "{}/{}", tmp_dir_path, "/overlayroot"
+                );
                 if ! Path::new(&sci_in_image).exists() {
                     info!("Copying sci to rootfs...");
-                    copy(&defaults::FIRECRACKER_SCI, &sci_in_image, "root");
+                    if ! copy(
+                        &defaults::FIRECRACKER_SCI, &sci_in_image, "root"
+                    ) {
+                        umount(&tmp_dir_path, "root");
+                        return result
+                    }
+                }
+                if ! Path::new(&overlay_root_in_image).exists() {
+                    if ! mkdir(&overlay_root_in_image, "root") {
+                        umount(&tmp_dir_path, "root");
+                        return result
+                    }
                 }
                 umount(&tmp_dir_path, "root");
             }
@@ -278,6 +292,25 @@ pub async fn pull_kis_image(
         }
     }
     result
+}
+
+pub fn mkdir(dirname: &String, user: &str) -> bool {
+    /*!
+    Make directory via sudo
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("mkdir").arg("-p").arg(&dirname);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to mkdir: {}: {:?}", dirname, error);
+            return false
+        }
+    }
+    true
 }
 
 pub fn copy(source: &str, target: &String, user: &str) -> bool {

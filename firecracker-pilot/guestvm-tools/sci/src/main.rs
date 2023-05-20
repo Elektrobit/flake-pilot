@@ -111,16 +111,6 @@ fn main() {
                     debug(&format!("Loading overlay module failed: {}", error));
                 }
             }
-            if ! Path::new("/overlayroot").exists() {
-                match fs::create_dir_all("/overlayroot") {
-                    Ok(_) => { },
-                    Err(error) => {
-                        debug(&format!(
-                            "Error creating directory /overlayroot: {}",error
-                        ));
-                    }
-                }
-            }
             debug(&format!("Mounting overlayfs RW({})", overlay.as_str()));
             match Mount::builder()
                 .fstype("ext2").mount(overlay.as_str(), "/overlayroot")
