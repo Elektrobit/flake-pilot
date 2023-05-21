@@ -105,6 +105,12 @@ pub enum Firecracker {
         force: bool,
     },
     /// Register VM application
+    #[clap(
+        group(
+            ArgGroup::new("register")
+                .required(false).args(&["no-net"])
+        )
+    )]
     Register {
         /// A virtual machine name. The name must match with a
         /// name in the local firecracker registry
@@ -133,6 +139,10 @@ pub enum Firecracker {
         /// Optional suffixes: KiB/MiB/GiB/TiB (1024) or KB/MB/GB/TB (1000)
         #[clap(long)]
         overlay_size: Option<String>,
+
+        /// Disable networking
+        #[clap(long)]
+        no_net: bool
     },
     /// Remove application registration or entire VM
     #[clap(group(

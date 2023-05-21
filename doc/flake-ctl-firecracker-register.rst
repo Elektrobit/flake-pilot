@@ -17,6 +17,7 @@ SYNOPSIS
 
    OPTIONS:
        --app <APP>
+       --no-net
        --overlay-size <OVERLAY_SIZE>
        --run-as <RUN_AS>
        --target <TARGET>
@@ -46,6 +47,10 @@ OPTIONS
   An absolute path to the application on the host. If not specified via
   the target option, the application will be called with that path inside
   of the VM
+
+--no-net
+
+  Disable networking
 
 --overlay-size <OVERLAY_SIZE>
 
