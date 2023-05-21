@@ -75,6 +75,8 @@ can be set for the firecracker engine:
             - "console=ttyS0"
             - "root=/dev/vda"
             - "acpi=off"
+            - "rd.neednet=1"
+            - "ip=dhcp"
             - "quiet"
           mem_size_mib: 4096
           vcpu_count: 2
@@ -83,7 +85,7 @@ can be set for the firecracker engine:
           # Size of the VM overlay
           # If specified a new ext2 overlay filesystem image of the
           # specified size will be created and attached to the VM
-          overlay_size: 20g
+          overlay_size: 20GiB
 
           # Path to rootfs image done by app registration
           rootfs_image_path: /var/lib/firecracker/images/NAME/rootfs
