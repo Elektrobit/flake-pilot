@@ -30,12 +30,11 @@ use std::env;
 use std::fs;
 use crate::defaults::{debug, is_debug};
 use tempfile::NamedTempFile;
-use std::io::{Write, SeekFrom, Seek};
+use std::io::{Write, SeekFrom, Seek, BufRead, BufReader};
 use std::fs::File;
 use ubyte::ByteUnit;
 use serde::{Serialize, Deserialize};
 use serde_json::{self};
-
 use crate::defaults;
 
 // FireCrackerConfig represents firecracker json config
@@ -385,7 +384,7 @@ pub fn call_instance(
         .arg("--config-file")
         .arg(config_file.path());
     debug(&format!("sudo {:?}", firecracker.get_args()));
-    match firecracker.spawn() {
+    match firecracker.stdout(Stdio::piped()).spawn() {
         Ok(mut child) => {
             let pid = child.id();
             debug(&format!("PID {}", pid));
@@ -403,6 +402,14 @@ pub fn call_instance(
                 },
                 Err(error) => {
                     panic!("Failed to open {}: {}", vm_id_file, error)
+                }
+            }
+            if let Some(stdout) = &mut child.stdout {
+                for line in BufReader::new(stdout).lines() {
+                    let data = line.unwrap();
+                    if ! data.starts_with("[    ") {
+                        println!("{}", data);
+                    }
                 }
             }
             match child.wait() {
