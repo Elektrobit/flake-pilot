@@ -59,16 +59,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Commands::Firecracker { command } => {
             match &command {
                 // pull
-                cli::Firecracker::Pull { name, kis_image, force } => {
-                    exit(
-                        firecracker::pull_kis_image(
-                            name, kis_image, *force
-                        ).await
-                    );
+                cli::Firecracker::Pull {
+                    name, kis_image, rootfs, kernel, initrd, force
+                } => {
+                    if ! kis_image.is_none() {
+                        exit(
+                            firecracker::pull_kis_image(
+                                name, kis_image.as_ref(), *force
+                            ).await
+                        );
+                    } else {
+                        exit(
+                            firecracker::pull_component_image(
+                                name, rootfs.as_ref(), kernel.as_ref(),
+                                initrd.as_ref(), *force
+                            ).await
+                        );
+                    }
                 },
                 // register
                 cli::Firecracker::Register {
-                    vm, app, target, run_as, overlay_size
+                    vm, app, target, run_as, overlay_size, no_net
                 } => {
                     if app::init(Some(app)) {
                         let mut ok = app::register(
@@ -81,7 +92,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 Some(app),
                                 target.as_ref(),
                                 run_as.as_ref(),
-                                overlay_size.as_ref()
+                                overlay_size.as_ref(),
+                                *no_net
                             );
                         }
                         if ! ok {

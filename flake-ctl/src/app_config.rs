@@ -173,7 +173,8 @@ impl AppConfig {
         target_app_path: &String,
         host_app_path: &String,
         run_as: Option<&String>,
-        overlay_size: Option<&String>
+        overlay_size: Option<&String>,
+        no_net: bool
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
@@ -234,11 +235,27 @@ impl AppConfig {
             )
         }
 
-        let initrd_path = format!("{}/{}", image_dir, defaults::FIRECRACKER_INITRD_NAME);
+        let initrd_path = format!(
+            "{}/{}", image_dir, defaults::FIRECRACKER_INITRD_NAME
+        );
         if Path::new(&initrd_path).exists() {
             vm_config.runtime.as_mut().unwrap()
                 .firecracker.as_mut().unwrap()
                 .initrd_path = Some(initrd_path);
+        }
+
+        if no_net {
+            let mut boot_args: Vec<String> = Vec::new();
+            let firecracker_section = vm_config.runtime.as_mut().unwrap()
+                .firecracker.as_mut().unwrap();
+            for boot_arg in
+                firecracker_section.boot_args.as_mut().unwrap().to_vec()
+            {
+                if ! boot_arg.starts_with("ip=") {
+                    boot_args.push(boot_arg);
+                }
+            }
+            firecracker_section.boot_args = Some(boot_args);
         }
 
         let config = std::fs::OpenOptions::new()

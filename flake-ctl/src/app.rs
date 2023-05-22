@@ -155,7 +155,8 @@ pub fn create_vm_config(
     app: Option<&String>,
     target: Option<&String>,
     run_as: Option<&String>,
-    overlay_size: Option<&String>
+    overlay_size: Option<&String>,
+    no_net: bool
 ) -> bool {
     /*!
     Create app configuration for the firecracker engine.
@@ -182,7 +183,8 @@ pub fn create_vm_config(
         &target_app_path,
         &host_app_path,
         run_as,
-        overlay_size
+        overlay_size,
+        no_net
     ) {
         Ok(_) => { result = true },
         Err(error) => {

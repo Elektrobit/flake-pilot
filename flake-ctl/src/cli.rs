@@ -57,6 +57,24 @@ pub enum Firecracker {
             ArgGroup::new("pull")
                 .required(false).args(&["force"])
         ),
+        group(
+            ArgGroup::new("pullkis")
+                .required(false).args(&["kis-image"])
+                .conflicts_with("rootfs")
+                .conflicts_with("kernel")
+                .conflicts_with("initrd")
+        ),
+        group(
+            ArgGroup::new("pullrootfs")
+                .required(false).args(&["rootfs", "kernel"])
+                .multiple(true)
+                .conflicts_with("kis-image")
+        ),
+        group(
+            ArgGroup::new("action")
+                .required(true).args(&["kis-image", "rootfs", "kernel"])
+                .multiple(true)
+        ),
     )]
     Pull {
         /// Image name used as local identifier
@@ -66,7 +84,19 @@ pub enum Firecracker {
         /// Firecracker image built by KIWI as kis image type
         /// to pull into local image store
         #[clap(long)]
-        kis_image: String,
+        kis_image: Option<String>,
+
+        /// Single rootfs image to pull into local image store
+        #[clap(long, requires = "kernel")]
+        rootfs: Option<String>,
+
+        /// Single kernel image to pull into local image store
+        #[clap(long, requires = "rootfs")]
+        kernel: Option<String>,
+
+        /// Single initrd image to pull into local image store
+        #[clap(long)]
+        initrd: Option<String>,
 
         /// Force pulling the image even if it already exists
         /// This will wipe existing data for the provided
@@ -75,6 +105,12 @@ pub enum Firecracker {
         force: bool,
     },
     /// Register VM application
+    #[clap(
+        group(
+            ArgGroup::new("register")
+                .required(false).args(&["no-net"])
+        )
+    )]
     Register {
         /// A virtual machine name. The name must match with a
         /// name in the local firecracker registry
@@ -103,6 +139,10 @@ pub enum Firecracker {
         /// Optional suffixes: KiB/MiB/GiB/TiB (1024) or KB/MB/GB/TB (1000)
         #[clap(long)]
         overlay_size: Option<String>,
+
+        /// Disable networking
+        #[clap(long)]
+        no_net: bool
     },
     /// Remove application registration or entire VM
     #[clap(group(

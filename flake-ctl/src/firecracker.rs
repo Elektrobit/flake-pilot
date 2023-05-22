@@ -25,9 +25,11 @@ use std::ffi::OsStr;
 use std::process::Command;
 use tempfile::tempdir;
 use std::path::Path;
+use std::borrow::Cow;
+use std::fs;
+
 use crate::defaults;
 use crate::{app, app_config};
-use std::fs;
 
 use crate::fetch::{fetch_file, send_request};
 
@@ -49,7 +51,129 @@ pub fn init_toplevel_image_dir(image_dir: &str) -> bool {
     ok
 }
 
-pub async fn pull_kis_image(name: &String, uri: &String, force: bool) -> i32 {
+pub async fn pull_component_image(
+    name: &String, rootfs_uri: Option<&String>, kernel_uri: Option<&String>,
+    initrd_uri: Option<&String>, force: bool
+) -> i32 {
+    /*!
+    Fetch components image consisting out of rootfs, kernel and
+    optional initrd.
+    !*/
+    let mut result = 255;
+    let image_dir = format!("{}/{}", defaults::FIRECRACKER_IMAGES_DIR, name);
+    struct Component<'a> {
+        uri: String,
+        file: Cow<'a, str>
+    }
+    info!("Fetching Component image...");
+    if ! pull_new(&name, force) {
+        return result
+    }
+    match tempdir() {
+        Ok(tmp_dir) => {
+            let mut download_files: Vec<Component> = Vec::new();
+            let rootfs_file = tmp_dir.path().join("rootfs")
+                .into_os_string().into_string().unwrap();
+            let kernel_file = tmp_dir.path().join("kernel")
+                .into_os_string().into_string().unwrap();
+            let initrd_file = tmp_dir.path().join("initrd")
+                .into_os_string().into_string().unwrap();
+            download_files.push(
+                Component {
+                    uri: rootfs_uri.unwrap().to_string(),
+                    file: Cow::Borrowed(&rootfs_file),
+                }
+            );
+            download_files.push(
+                Component {
+                    uri: kernel_uri.unwrap().to_string(),
+                    file: Cow::Borrowed(&kernel_file),
+                }
+            );
+            if ! initrd_uri.is_none() {
+                download_files.push(
+                    Component {
+                        uri: initrd_uri.unwrap().to_string(),
+                        file: Cow::Borrowed(&initrd_file),
+                    }
+                );
+            }
+            // Download...
+            for component in download_files {
+                match send_request(&component.uri).await {
+                    Ok(response) => {
+                        result = response.status().as_u16().into();
+                        match fetch_file(
+                            response, &component.file.into_owned()).await
+                        {
+                            Ok(_) => { },
+                            Err(error) => {
+                                error!(
+                                    "Download failed with: {}", error
+                                );
+                                return result
+                            }
+                        }
+                    },
+                    Err(error) => {
+                        error!(
+                            "Request to '{}' failed with: {}",
+                            component.uri, error
+                        );
+                        return result
+                    }
+                }
+            }
+            // Check for sci and add it to rootfs image if not present
+            let tmp_dir_path = tmp_dir.path().display().to_string();
+            if mount_fs_image(&rootfs_file, &tmp_dir_path, "root") {
+                let sci_in_image = format!(
+                    "{}/{}", tmp_dir_path, "/usr/sbin/sci"
+                );
+                let overlay_root_in_image = format!(
+                    "{}/{}", tmp_dir_path, "/overlayroot"
+                );
+                if ! Path::new(&sci_in_image).exists() {
+                    info!("Copying sci to rootfs...");
+                    if ! copy(
+                        &defaults::FIRECRACKER_SCI, &sci_in_image, "root"
+                    ) {
+                        umount(&tmp_dir_path, "root");
+                        return result
+                    }
+                }
+                if ! Path::new(&overlay_root_in_image).exists() {
+                    if ! mkdir(&overlay_root_in_image, "root") {
+                        umount(&tmp_dir_path, "root");
+                        return result
+                    }
+                }
+                umount(&tmp_dir_path, "root");
+            }
+
+            // Move to final firecracker image store
+            match fs::rename(&tmp_dir.path(), &image_dir) {
+                Ok(_) => { },
+                Err(error) => {
+                    error!(
+                        "Failed to rename {} -> {}: {:?}",
+                        tmp_dir.path().display(), image_dir, error
+                    );
+                    return result
+                }
+            }
+        },
+        Err(error) => {
+            error!("Failed to create tempdir: {}", error);
+            return result
+        }
+    }
+    result
+}
+
+pub async fn pull_kis_image(
+    name: &String, uri: Option<&String>, force: bool
+) -> i32 {
     /*!
     Fetch the data provided in uri and treat it as a KIWI
     built KIS image type. This means the file behind uri
@@ -57,27 +181,14 @@ pub async fn pull_kis_image(name: &String, uri: &String, force: bool) -> i32 {
     components; rootfs-image, kernel and optional initrd
     !*/
     let mut result = 255;
+    let image_dir = format!("{}/{}", defaults::FIRECRACKER_IMAGES_DIR, name);
 
     info!("Fetching KIS image...");
 
-    if ! init_toplevel_image_dir(defaults::FIRECRACKER_IMAGES_DIR) {
+    if ! pull_new(&name, force) {
         return result
     }
 
-    let image_dir = format!("{}/{}", defaults::FIRECRACKER_IMAGES_DIR, name);
-    if force && Path::new(&image_dir).exists() {
-        match fs::remove_dir_all(&image_dir) {
-            Ok(_) => { },
-            Err(error) => {
-                error!("Error removing directory {}: {}", image_dir, error);
-                return result
-            }
-        }
-    }
-    if Path::new(&image_dir).exists() {
-        error!("Image directory '{}' already exists", image_dir);
-        return result
-    }
     match tempdir() {
         Ok(tmp_dir) => {
             let work_dir = tmp_dir.path().join("work")
@@ -88,7 +199,7 @@ pub async fn pull_kis_image(name: &String, uri: &String, force: bool) -> i32 {
             // Download...
             match fs::create_dir_all(&work_dir) {
                 Ok(_) => {
-                    match send_request(&uri).await {
+                    match send_request(&uri.unwrap()).await {
                         Ok(response) => {
                             result = response.status().as_u16().into();
                             match fetch_file(response, &kis_tar).await {
@@ -101,7 +212,8 @@ pub async fn pull_kis_image(name: &String, uri: &String, force: bool) -> i32 {
                         },
                         Err(error) => {
                             error!(
-                                "Request to '{}' failed with: {}", uri, error
+                                "Request to '{}' failed with: {}",
+                                uri.unwrap(), error
                             );
                             return result
                         }
@@ -180,6 +292,109 @@ pub async fn pull_kis_image(name: &String, uri: &String, force: bool) -> i32 {
         }
     }
     result
+}
+
+pub fn mkdir(dirname: &String, user: &str) -> bool {
+    /*!
+    Make directory via sudo
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("mkdir").arg("-p").arg(&dirname);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to mkdir: {}: {:?}", dirname, error);
+            return false
+        }
+    }
+    true
+}
+
+pub fn copy(source: &str, target: &String, user: &str) -> bool {
+    /*!
+    Copy file via sudo
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("cp").arg(&source).arg(&target);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to cp: {} -> {}: {:?}", source, target, error);
+            return false
+        }
+    }
+    true
+}
+
+pub fn mount_fs_image(
+    fs_name: &str, mount_point: &String, user: &str
+) -> bool {
+    /*!
+    Mount filesystem image
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("mount").arg(&fs_name).arg(&mount_point);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to execute mount: {:?}", error);
+            return false
+        }
+    }
+    true
+}
+
+pub fn umount(mount_point: &str, user: &str) -> bool {
+    /*!
+    Umount given mount_point
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("umount").arg(&mount_point);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to execute mount: {:?}", error);
+            return false
+        }
+    }
+    true
+}
+
+
+pub fn pull_new(name: &String, force: bool) -> bool {
+    /*!
+    Initialize new pull
+    !*/
+    if ! init_toplevel_image_dir(defaults::FIRECRACKER_IMAGES_DIR) {
+        return false
+    }
+    let image_dir = format!("{}/{}", defaults::FIRECRACKER_IMAGES_DIR, name);
+    if force && Path::new(&image_dir).exists() {
+        match fs::remove_dir_all(&image_dir) {
+            Ok(_) => { },
+            Err(error) => {
+                error!("Error removing directory {}: {}", image_dir, error);
+                return false
+            }
+        }
+    }
+    if Path::new(&image_dir).exists() {
+        error!("Image directory '{}' already exists", image_dir);
+        return false
+    }
+    true
 }
 
 pub fn purge_vm(vm: &str) {

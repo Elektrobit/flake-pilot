@@ -5,7 +5,8 @@
 3. [Quick Start OCI containers](#oci)
     1. [Use Cases](#usecases)
 4. [Quick Start FireCracker VMs](#fire)
-    1. [Networking](#networking)
+    1. [Use FireCracker VM image from components](#components)
+    2. [Networking](#networking)
 5. [Application Setup](#setup)
 
 ## Introduction <a name="introduction"/>
@@ -106,21 +107,23 @@ Open Build Service project was created: https://build.opensuse.org/package/show/
 Feel free to browse through the project and have some fun testing. There
 is a short description in each package how to use them.
 
-**_NOTE:_** Key to success is also the ability to build the individual containers
-and VM images. This is achieved by using the [KIWI](https://github.com/OSInside/kiwi)
-appliance builder which is supported by the Open Build Service backend
-and allows to build all the images in a nice way.
+**_NOTE:_** Key to success is also the ability to build the
+individual containers and VM images. This is achieved by using
+the [KIWI](https://github.com/OSInside/kiwi) appliance builder which is
+supported by the Open Build Service backend and allows to build all the
+images in a maintainable way.
 
 ## Quick Start FireCracker VMs <a name="fire"/>
 
-Using containers to isolate applications from the host system is a common approach.
-The limitation comes on the level of the kernel. Each container shares the kernel
-with the host and if applications requires to run privileged, requires direct access
-to device nodes or kernel interfaces like the device mapper, a deeper level of
-isolation might be needed. At this point full virtual system instances running its
-own kernel, optional initrd and processes inside provides a solution. The price
-to pay is on the performance side but projects like KVM and FireCracker offers
-a nice concept to run virtual machines accelerated through KVM as competitive
+Using containers to isolate applications from the host system is a common
+approach. The limitation comes on the level of the kernel. Each container
+shares the kernel with the host and if applications requires to run
+privileged, requires direct access to device nodes or kernel interfaces
+like the device mapper, a deeper level of isolation might be needed.
+At this point full virtual system instances running its own kernel, optional
+initrd and processes inside provides a solution. The price to pay is on
+the performance side but projects like KVM and FireCracker offers a nice
+concept to run virtual machines accelerated through KVM as competitive
 alternative to containers. Thus flake-pilot also implements support for the
 firecracker engine.
 
@@ -129,18 +132,21 @@ Start an application as virtual machine (VM) instance as follows:
 1. Pull a firecracker compatible VM
 
    ```bash 
-   flake-ctl firecracker pull --name leap --kis-image https://download.opensuse.org/repositories/home:/marcus.schaefer:/delta_containers/images/firecracker-basesystem.x86_64.tar.xz
+   flake-ctl firecracker pull --name leap \
+       --kis-image https://download.opensuse.org/repositories/home:/marcus.schaefer:/delta_containers/images/firecracker-basesystem.x86_64.tar.xz
    ```
 
 2. Register the ```mybash``` application
   
    ```bash
-   flake-ctl firecracker register --vm leap --app /usr/bin/mybash --target /bin/bash --overlay-size 20g
+   flake-ctl firecracker register --vm leap \
+       --app /usr/bin/mybash --target /bin/bash --overlay-size 20GiB
    ```
 
-   This registers an app named ```mybash``` to the system. Once called a firecracker VM based on
-   the pulled ```leap``` image is started and the ```/bin/bash``` program is called inside of
-   the VM instance. In addition some write space of 20GB is added to the instance
+   This registers an app named ```mybash``` to the system. Once called a
+   firecracker VM based on the pulled ```leap``` image is started and
+   the ```/bin/bash``` program is called inside of the VM instance.
+   In addition some write space of 20GB is added to the instance
 
 3. Launch the application
 
@@ -151,6 +157,40 @@ Start an application as virtual machine (VM) instance as follows:
    ```
 
    Drops you into a bash shell inside of the VM
+
+### Use FireCracker VM image from components <a name="components"/>
+
+In the quickstart for FireCracker a special image type called ```kis-image```
+was used. This image type is specific to the KIWI appliance builder and
+it provides the required components to boot up a FireCracker VM in one
+archive. However, it's also possible to pull a FireCracker VM image from
+its single components. Mandatory components are the kernel image and the
+rootfs image, whereas the initrd is optional. The FireCracker project
+itself provides its images in single components and you can use them
+as follows:
+
+1. Pull a firecracker compatible VM
+
+   ```bash
+   flake-ctl firecracker pull --name firecore \
+       --rootfs https://s3.amazonaws.com/spec.ccfc.min/ci-artifacts/disks/x86_64/ubuntu-18.04.ext4 \
+       --kernel https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/x86_64/kernels/vmlinux.bin
+    ```
+
+2. Register the ```fireshell``` application
+
+   ```bash
+   flake-ctl firecracker register \
+       --app /usr/bin/fireshell --target /bin/bash --vm firecore --no-net
+   ```
+
+3. Launch the application
+
+   To run ```fireshell``` just call for example:
+
+   ```bash
+   fireshell -c "'ls -l'"
+   ```
 
 ### Networking <a name="networking"/>
 
