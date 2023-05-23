@@ -37,6 +37,8 @@ pub const FLAKE_TEMPLATE_CONTAINER:&str =
     "/etc/flakes/container-flake.yaml";
 pub const FLAKE_TEMPLATE_FIRECRACKER:&str =
     "/etc/flakes/firecracker-flake.yaml";
+pub const FIRECRACKER_REGISTRY_DIR:&str =
+    "/var/lib/firecracker";
 pub const FIRECRACKER_IMAGES_DIR:&str =
     "/var/lib/firecracker/images";
 pub const FIRECRACKER_INITRD_NAME:&str =
