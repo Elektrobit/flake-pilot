@@ -22,6 +22,7 @@
 // SOFTWARE.
 //
 use std::ffi::OsStr;
+use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use tempfile::tempdir;
 use std::path::Path;
@@ -33,20 +34,59 @@ use crate::{app, app_config};
 
 use crate::fetch::{fetch_file, send_request};
 
-pub fn init_toplevel_image_dir(image_dir: &str) -> bool {
+pub fn init_toplevel_image_dir(registry_dir: &str) -> bool {
     /*!
-    Create toplevel firecracker image storage directory
+    Create firecracker registry directory layout
     !*/
-    let mut ok = false;
-    if ! Path::new(&image_dir).exists() {
-        match fs::create_dir_all(&image_dir) {
-            Ok(_) => { ok = true },
+    let mut ok = true;
+    let mut real_registry_dir = String::new();
+    match fs::read_link(&registry_dir) {
+        Ok(target) => {
+            real_registry_dir.push_str(
+                &target.into_os_string().into_string().unwrap()
+            );
+        },
+        Err(_) => {
+            real_registry_dir.push_str(&registry_dir);
+        }
+    }
+    let mut subdirs: Vec<String> = Vec::new();
+    subdirs.push(format!("{}/images", real_registry_dir));
+    subdirs.push(format!("{}/storage", real_registry_dir));
+    for subdir in subdirs {
+        if Path::new(&subdir).exists() {
+            continue
+        }
+        match fs::create_dir_all(&subdir) {
+            Ok(_) => {
+                match fs::metadata(&subdir) {
+                    Ok(attr) => {
+                        let mut permissions = attr.permissions();
+                        permissions.set_mode(0o777);
+                        match fs::set_permissions(&subdir, permissions) {
+                            Ok(_) => { },
+                            Err(error) => {
+                                error!(
+                                    "Failed to set 0o777 bits: {} {}",
+                                    &subdir, error
+                                );
+                                ok = false
+                            }
+                        }
+                    },
+                    Err(error) => {
+                        error!(
+                            "Failed to fetch attributes: {} {}", &subdir, error
+                        );
+                        ok = false
+                    }
+                }
+            },
             Err(error) => {
-                error!("Error creating directory {}: {}", image_dir, error);
+                error!("Error creating directory {}: {}", &subdir, error);
+                ok = false
             }
         }
-    } else {
-        ok = true
     }
     ok
 }
@@ -152,15 +192,8 @@ pub async fn pull_component_image(
             }
 
             // Move to final firecracker image store
-            match fs::rename(&tmp_dir.path(), &image_dir) {
-                Ok(_) => { },
-                Err(error) => {
-                    error!(
-                        "Failed to rename {} -> {}: {:?}",
-                        tmp_dir.path().display(), image_dir, error
-                    );
-                    return result
-                }
+            if ! mv(&tmp_dir_path, &image_dir, "root") {
+                return result
             }
         },
         Err(error) => {
@@ -275,15 +308,8 @@ pub async fn pull_kis_image(
             }
 
             // Move to final firecracker image store
-            match fs::rename(&work_dir, &image_dir) {
-                Ok(_) => { },
-                Err(error) => {
-                    error!(
-                        "Failed to rename {} -> {}: {:?}",
-                        work_dir, image_dir, error
-                    );
-                    return result
-                }
+            if ! mv(&work_dir, &image_dir, "root") {
+                return result
             }
         },
         Err(error) => {
@@ -307,6 +333,25 @@ pub fn mkdir(dirname: &String, user: &str) -> bool {
         Ok(_) => { },
         Err(error) => {
             error!("Failed to mkdir: {}: {:?}", dirname, error);
+            return false
+        }
+    }
+    true
+}
+
+pub fn mv(source: &str, target: &String, user: &str) -> bool {
+    /*!
+    Move file via sudo
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("mv").arg(&source).arg(&target);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to mv: {} -> {}: {:?}", source, target, error);
             return false
         }
     }
@@ -377,7 +422,7 @@ pub fn pull_new(name: &String, force: bool) -> bool {
     /*!
     Initialize new pull
     !*/
-    if ! init_toplevel_image_dir(defaults::FIRECRACKER_IMAGES_DIR) {
+    if ! init_toplevel_image_dir(defaults::FIRECRACKER_REGISTRY_DIR) {
         return false
     }
     let image_dir = format!("{}/{}", defaults::FIRECRACKER_IMAGES_DIR, name);
