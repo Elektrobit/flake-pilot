@@ -179,7 +179,9 @@ pub fn purge_container(container: &str) {
         );
         match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
             Ok(mut app_conf) => {
-                if container == app_conf.container.as_mut().unwrap().name {
+                if ! app_conf.container.is_none() &&
+                    container == app_conf.container.as_mut().unwrap().name
+                {
                     app::remove(
                         &app_conf.container.as_mut().unwrap().host_app_path,
                         defaults::PODMAN_PILOT, false

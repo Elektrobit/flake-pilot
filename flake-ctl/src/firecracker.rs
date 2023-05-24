@@ -454,7 +454,9 @@ pub fn purge_vm(vm: &str) {
         );
         match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
             Ok(mut app_conf) => {
-                if vm == app_conf.vm.as_mut().unwrap().name {
+                if ! app_conf.vm.is_none() &&
+                    vm == app_conf.vm.as_mut().unwrap().name
+                {
                     app::remove(
                         &app_conf.vm.as_mut().unwrap().host_app_path,
                         defaults::FIRECRACKER_PILOT, false
