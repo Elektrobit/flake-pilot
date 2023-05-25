@@ -345,7 +345,7 @@ For demo purposes and to showcase the mentioned <a name="usecases"/>
 some example images were created and could be considered as a simple
 ```flake store```. Please find them here:
 
-* https://build.opensuse.org/package/show/home:marcus.schaefer:delta_containers
+* https://build.opensuse.org/project/show/home:marcus.schaefer:delta_containers
 
 Feel free to browse through the project and have some fun testing. There
 is a short description in each application build how to use them.
