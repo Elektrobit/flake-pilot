@@ -8,6 +8,7 @@
     1. [Use FireCracker VM image from components](#components)
     2. [Networking](#networking)
 5. [Application Setup](#setup)
+6. [How To Build Your Own App Images](#images)
 
 ## Introduction <a name="introduction"/>
 
@@ -77,7 +78,7 @@ connected to the ```aws-cli``` container provided by Amazon on
 Apart from this very simple example you can do a lot more. The main
 idea for flake-pilot was not only to launch container based apps but
 also allow to run a provision step prior calling the application.
-This concept then allows for use cases like
+This concept then allows for use cases like:
 
 * delta containers used together with a base container such that
   only small delta containers gets pulled to the registry used with
@@ -102,16 +103,8 @@ learned the world is not an ideal place and there might be a spot for
 this project to be useful, supporting users with "special" needs and
 adding an adaptive feature to the OS.
 
-For demo purposes and to showcase the mentioned use cases, the following
-Open Build Service project was created: https://build.opensuse.org/package/show/home:marcus.schaefer:delta_containers
-Feel free to browse through the project and have some fun testing. There
-is a short description in each package how to use them.
-
-**_NOTE:_** Key to success is also the ability to build the
-individual containers and VM images. This is achieved by using
-the [KIWI](https://github.com/OSInside/kiwi) appliance builder which is
-supported by the Open Build Service backend and allows to build all the
-images in a maintainable way.
+For demo purposes and to showcase the mentioned use cases, some
+example images were created. See <a name="images"/> for further details
 
 ## Quick Start FireCracker VMs <a name="fire"/>
 
@@ -157,6 +150,16 @@ Start an application as virtual machine (VM) instance as follows:
    ```
 
    Drops you into a bash shell inside of the VM
+
+   **_NOTE:_** The data transfer from the virtual machine to the host
+   is done through the serial console. As the process of calling the
+   application includes the boot of the virtual machine, it might happen
+   that kernel messages are intermixed with the output of the application.
+   Our default setting prevents kernel messages from being printed to
+   the console as much as possible but there are message that can hardly
+   be prevented or requires a customized kernel build to be suppressed.
+   As all messages are fetched from the serial console there is also
+   no differentiation between *stdout* and *stderr* anymore.
 
 ### Use FireCracker VM image from components <a name="components"/>
 
@@ -330,8 +333,34 @@ about the contents of the flake setup.
 
 https://github.com/Elektrobit/flake-pilot/tree/master/doc
 
+## How To Build Your Own App Images <a name="images"/>
+
+Building images as container- or VM images can be done in different ways.
+One option is to use the *Open Build Service* which is able to build
+software packages and images and therefore allows to maintain the
+complete application stack. 
+
+For demo purposes and to showcase the mentioned <a name="usecases"/>
+some example images were created and could be considered as a simple
+```flake store```. Please find them here:
+
+* https://build.opensuse.org/package/show/home:marcus.schaefer:delta_containers
+
+Feel free to browse through the project and have some fun testing. There
+is a short description in each application build how to use them.
+
+**_NOTE:_** All images are build using the
+[KIWI](https://github.com/OSInside/kiwi) appliance builder which is
+supported by the Open Build Service backend and allows to build all the
+images in a maintainable way. KIWI uses an image description format
+to describe the image in a declarative way. Reading the above
+examples should give you an idea how things fits together. In case
+of questions regarding KIWI and the image builds please don't hesitate
+to get in contact with us.
+
 Flake pilot is a project in its early stages and the result of
 a fun conversation over beer on a conference. Feedback
 is very much welcome.
 
 Remember to have fun :)
+
