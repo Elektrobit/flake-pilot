@@ -104,7 +104,7 @@ this project to be useful, supporting users with "special" needs and
 adding an adaptive feature to the OS.
 
 For demo purposes and to showcase the mentioned use cases, some
-example images were created. See <a name="images"/> for further details
+example images were created. See #images for further details
 
 ## Quick Start FireCracker VMs <a name="fire"/>
 
@@ -159,7 +159,7 @@ Start an application as virtual machine (VM) instance as follows:
    the console as much as possible but there are message that can hardly
    be prevented or requires a customized kernel build to be suppressed.
    As all messages are fetched from the serial console there is also
-   no differentiation between *stdout* and *stderr* anymore.
+   no differentiation between **stdout** and **stderr** anymore.
 
 ### Use FireCracker VM image from components <a name="components"/>
 
@@ -336,7 +336,7 @@ https://github.com/Elektrobit/flake-pilot/tree/master/doc
 ## How To Build Your Own App Images <a name="images"/>
 
 Building images as container- or VM images can be done in different ways.
-One option is to use the *Open Build Service* which is able to build
+One option is to use the **Open Build Service** which is able to build
 software packages and images and therefore allows to maintain the
 complete application stack. 
 
