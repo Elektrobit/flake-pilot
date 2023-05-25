@@ -104,7 +104,8 @@ this project to be useful, supporting users with "special" needs and
 adding an adaptive feature to the OS.
 
 For demo purposes and to showcase the mentioned use cases, some
-example images were created. See #images for further details
+example images were created. See [How To Build Your Own App Images](#images)
+for further details
 
 ## Quick Start FireCracker VMs <a name="fire"/>
 
