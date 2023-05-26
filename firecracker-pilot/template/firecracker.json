@@ -23,5 +23,9 @@
   "machine-config": {
     "vcpu_count": 2,
     "mem_size_mib": 4096
+  },
+  "vsock": {
+    "guest_cid": 3,
+    "uds_path": "/run/sci_cmd.sock"
   }
 }

@@ -21,6 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
+use std::process;
 use spinoff::{Spinner, spinners, Color};
 use yaml_rust::Yaml;
 use std::path::Path;
@@ -47,7 +48,8 @@ pub struct FireCrackerConfig {
     #[serde(rename = "network-interfaces")]
     pub network_interfaces: Vec<FireCrackerNetworkInterface>,
     #[serde(rename = "machine-config")]
-    pub machine_config: FireCrackerMachine
+    pub machine_config: FireCrackerMachine,
+    pub vsock: FireCrackerVsock
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FireCrackerBootSource {
@@ -74,6 +76,11 @@ pub struct FireCrackerNetworkInterface {
 pub struct FireCrackerMachine {
     pub vcpu_count: i64,
     pub mem_size_mib: i64
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FireCrackerVsock {
+    pub guest_cid: u32,
+    pub uds_path: String
 }
 
 pub fn create(
@@ -539,6 +546,11 @@ pub fn create_firecracker_config(
                     // set tap device name
                     firecracker_config.network_interfaces[0].host_dev_name =
                         format!("tap-{}", get_meta_name(&program_name));
+
+                    // set vsock name
+                    firecracker_config.vsock.guest_cid = process::id();
+                    firecracker_config.vsock.uds_path =
+                        format!("/run/sci_cmd_{}.sock", process::id());
 
                     // set mem_size_mib
                     if ! &engine_section["mem_size_mib"].as_i64().is_none() {
