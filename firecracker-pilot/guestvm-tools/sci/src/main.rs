@@ -242,7 +242,7 @@ fn main() {
     // Stay tuned...
 
     // are we in resume state
-    match env::var("resume").ok() {
+    match env::var("sci_resume").ok() {
         Some(_) => {
             // start vsock listener, wait for command, execute it and send back the stdout 
             // and stderr
