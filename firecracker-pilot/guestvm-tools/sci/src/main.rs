@@ -31,12 +31,15 @@ use std::env;
 use std::os::unix::fs::symlink;
 use std::path::Path;
 use std::process::Command;
-use std::os::unix::process::CommandExt;
+use std::os::unix::process::{CommandExt, ExitStatusExt};
 use system_shutdown::force_reboot;
 use std::fs;
 use sys_mount::Mount;
 use env_logger::Env;
 use std::{thread, time};
+use vsock::{VsockListener};
+use std::io::{Read, Write};
+use std::process::{Stdio, Output, ExitStatus};
 
 use crate::defaults::debug;
 
@@ -237,21 +240,93 @@ fn main() {
     // Also see: https://github.com/Elektrobit/flake-pilot/issues/75
     //
     // Stay tuned...
-    if ok {
-        if do_exec {
-            // replace ourselves
-            debug(&format!("EXEC: {} -> {:?}", &args[0], call.get_args()));
-            call.exec();
-        } else {
-            // call a command and keep control
-            debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
-            match call.status() {
-                Ok(_) => { },
-                Err(_) => { }
+
+    // are we in resume state
+    match env::var("resume").ok() {
+        Some(_) => {
+            // start vsock listener, wait for command, execute it and send back the stdout 
+            // and stderr
+            match VsockListener::bind_with_cid_port(vsock::VMADDR_CID_HOST, defaults::VM_PORT){
+                Ok(listener)=>{
+                    // main loop
+                    loop {
+                        match listener.accept(){
+                            Ok((mut stream, addr)) =>{
+                                debug(&format!("Accepted incoming connection from : {}:{}", addr.cid(), addr.port()));
+
+                                let mut buf: String = "".to_string();
+                                match stream.read_to_string(&mut buf){
+                                    Ok(_)=>{},
+                                    Err(e)=>{
+                                        debug(&format!("Failed to read data {}", e));
+                                    }
+                                };
+                                // call a command and keep control
+                                if buf == defaults::VM_QUIT {
+                                    break;
+                                }
+                                match shell_words::split(&buf) {
+                                    Ok(call_params) => {
+                                        args = call_params
+                                    },
+                                    Err(error) => {
+                                        debug(&format!("Failed to parse {}: {}", buf, error));
+                                    }
+                                }
+                                debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
+                                call.stdout(Stdio::piped())
+                                    .stderr(Stdio::piped());
+                                match call.spawn() {
+                                    Ok(child) => { 
+                                        let output = match child.wait_with_output(){
+                                            Ok( out) => out,
+                                            Err(e) => {
+                                                stream.write_all(&format!("Failed to run command {}: {}", buf, e).as_bytes()).unwrap();
+                                                Output{status:ExitStatus::from_raw(-1) , stdout: Vec::new(), stderr: Vec::new()}
+                                            }
+                                        };
+                                        stream.write_all(&output.stderr).unwrap();
+                                        stream.write_all(&output.stdout).unwrap();
+                                    },
+                                    Err(e) => {
+                                        stream.write_all(&format!("Failed to run command {}: {}", buf, e).as_bytes()).unwrap();
+                                     }
+                                }
+
+                            },
+                            Err(e) =>{
+                                debug(&format!("Failed to accept incoming connection: {}", e));
+                            }
+                        }
+                    }
+                },
+                Err(e)=>{
+                    debug(&format!("Failed to bind vsock: {}", e));
+                }
+            }
+
+
+        },
+        None => {
+            // run regular command and close vm
+            if ok {
+                if do_exec {
+                    // replace ourselves
+                    debug(&format!("EXEC: {} -> {:?}", &args[0], call.get_args()));
+                    call.exec();
+                } else {
+                    // call a command and keep control
+                    debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
+                    match call.status() {
+                        Ok(_) => { },
+                        Err(_) => { }
+                    }
+                }
             }
         }
-    }
 
+    }
+    
     // Close firecracker session
     do_reboot(ok)
 }
