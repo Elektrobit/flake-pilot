@@ -38,7 +38,7 @@ pub const PROBE_MODULE: &str =
 pub const SYSTEMD_NETWORK_RESOLV_CONF: &str =
     "/run/systemd/resolve/resolv.conf";
 pub const VM_QUIT: &str =
-    "quit";
+    "sci_quit";
 pub const VM_PORT: u32 = 
     52;
 
