@@ -40,8 +40,11 @@ use std::{thread, time};
 use vsock::{VsockListener};
 use std::io::{Read, Write};
 use std::process::{Stdio, Output, ExitStatus};
+use std::net::Shutdown;
 
 use crate::defaults::debug;
+
+
 
 fn main() {
     /*!
@@ -244,35 +247,61 @@ fn main() {
     // are we in resume state
     match env::var("sci_resume").ok() {
         Some(_) => {
+            // check if vhost is loaded
+            let mut modprobe = Command::new(defaults::PROBE_MODULE);
+            modprobe.arg("vhost");
+            debug(&format!(
+                "CALL: {} -> {:?}", defaults::PROBE_MODULE, modprobe.get_args()
+            ));
+            match modprobe.status() {
+                Ok(_) => { },
+                Err(error) => {
+                    debug(&format!("Loading vhost module failed: {}", error));
+                }
+            }
             // start vsock listener, wait for command, execute it and send back the stdout 
             // and stderr
-            match VsockListener::bind_with_cid_port(vsock::VMADDR_CID_HOST, defaults::VM_PORT){
+            debug(&format!("Binding socket "));
+            match VsockListener::bind_with_cid_port(3, defaults::VM_PORT){
                 Ok(listener)=>{
                     // main loop
+                    let mut cnt=1;
                     loop {
+                        cnt=cnt+1;
                         match listener.accept(){
                             Ok((mut stream, addr)) =>{
                                 debug(&format!("Accepted incoming connection from : {}:{}", addr.cid(), addr.port()));
-
+                                args = vec!();
                                 let mut buf: String = "".to_string();
-                                match stream.read_to_string(&mut buf){
-                                    Ok(_)=>{},
+                                let mut bytes = [0;4096];
+                                match stream.read(&mut bytes){
+                                    Ok(_)=>{
+                                        buf=String::from_utf8(bytes.to_vec()).unwrap();
+                                        debug(&format!("Read from string: {}",&buf));
+                                    },
                                     Err(e)=>{
                                         debug(&format!("Failed to read data {}", e));
                                     }
                                 };
                                 // call a command and keep control
-                                if buf == defaults::VM_QUIT {
-                                    break;
-                                }
                                 match shell_words::split(&buf) {
                                     Ok(call_params) => {
-                                        args = call_params
+                                        args = call_params;
                                     },
                                     Err(error) => {
-                                        debug(&format!("Failed to parse {}: {}", buf, error));
+                                        debug(&format!("Failed to parse {}: {}", &buf, error));
                                     }
                                 }
+                                call = Command::new(&args[0]);
+                                for arg in &args[1..args.len()-1] {
+                                    call.arg(arg);
+                                }
+
+                                if args[0].eq(defaults::VM_QUIT) {
+                                    debug(&format!("Quit command called"));
+                                    break;
+                                }
+
                                 debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
                                 call.stdout(Stdio::piped())
                                     .stderr(Stdio::piped());
@@ -287,9 +316,11 @@ fn main() {
                                         };
                                         stream.write_all(&output.stderr).unwrap();
                                         stream.write_all(&output.stdout).unwrap();
+                                        stream.shutdown(Shutdown::Both).unwrap();
                                     },
                                     Err(e) => {
                                         stream.write_all(&format!("Failed to run command {}: {}", buf, e).as_bytes()).unwrap();
+                                        stream.shutdown(Shutdown::Both).unwrap();
                                      }
                                 }
 
@@ -301,7 +332,7 @@ fn main() {
                     }
                 },
                 Err(e)=>{
-                    debug(&format!("Failed to bind vsock: {}", e));
+                    debug(&format!("Failed to bind vsock: CID: 3 {}", e));
                 }
             }
 
@@ -328,6 +359,8 @@ fn main() {
     }
     
     // Close firecracker session
+    debug(&format!("============= resetting ==========="));
+
     do_reboot(ok)
 }
 
@@ -335,7 +368,7 @@ fn do_reboot(ok: bool) {
     debug("Rebooting...");
     if ! ok {
         // give potential error messages some time to settle
-        let some_time = time::Duration::from_millis(1000);
+        let some_time = time::Duration::from_millis(10);
         thread::sleep(some_time);
     }
     match force_reboot() {
