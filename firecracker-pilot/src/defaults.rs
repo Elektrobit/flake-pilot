@@ -32,6 +32,7 @@ pub const FIRECRACKER_FLAKE_DIR: &str =
 pub const FIRECRACKER_VMID_DIR: &str =
     "/tmp/flakes";
 pub const GC_THRESHOLD: i32 = 20;
+pub const VM_CID: u32 = 3;
 
 pub fn is_debug() -> bool {
     let debug_set;
