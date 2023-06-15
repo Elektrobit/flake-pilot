@@ -359,8 +359,6 @@ fn main() {
     }
     
     // Close firecracker session
-    debug(&format!("============= resetting ==========="));
-
     do_reboot(ok)
 }
 
