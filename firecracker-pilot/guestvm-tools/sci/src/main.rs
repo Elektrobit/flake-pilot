@@ -265,9 +265,7 @@ fn main() {
             match VsockListener::bind_with_cid_port(3, defaults::VM_PORT){
                 Ok(listener)=>{
                     // main loop
-                    let mut cnt=1;
                     loop {
-                        cnt=cnt+1;
                         match listener.accept(){
                             Ok((mut stream, addr)) =>{
                                 debug(&format!("Accepted incoming connection from : {}:{}", addr.cid(), addr.port()));
