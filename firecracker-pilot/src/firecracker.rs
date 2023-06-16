@@ -548,7 +548,7 @@ pub fn create_firecracker_config(
                         format!("tap-{}", get_meta_name(&program_name));
 
                     // set vsock name
-                    firecracker_config.vsock.guest_cid = process::id();
+                    firecracker_config.vsock.guest_cid = defaults::VM_CID;
                     firecracker_config.vsock.uds_path =
                         format!("/run/sci_cmd_{}.sock", process::id());
 
