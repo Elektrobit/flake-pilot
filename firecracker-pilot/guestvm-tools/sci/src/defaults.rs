@@ -41,6 +41,8 @@ pub const VM_QUIT: &str =
     "sci_quit";
 pub const VM_PORT: u32 = 
     52;
+pub const GUEST_CID: u32 =
+    3;
 
 pub fn debug(message: &str) {
     match env::var("PILOT_DEBUG") {

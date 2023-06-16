@@ -44,8 +44,6 @@ use std::net::Shutdown;
 
 use crate::defaults::debug;
 
-
-
 fn main() {
     /*!
     Simple Command Init (sci) is a tool which executes the provided
@@ -233,21 +231,10 @@ fn main() {
         call.arg(arg);
     }
 
-    // Execute command
-    // TODO: At this point we want to redirect the command output
-    // maybe to a vsoc. At the moment this will output to whatever
-    // /dev/console is but is intermixed with any other message
-    // on that console, e.g the kernel log. This is also the reason
-    // why no action on the status is implemented so far.
-    //
-    // Also see: https://github.com/Elektrobit/flake-pilot/issues/75
-    //
-    // Stay tuned...
-
-    // are we in resume state
+    // Perform execution tasks
     match env::var("sci_resume").ok() {
         Some(_) => {
-            // check if vhost is loaded
+            // resume mode; check if vhost is loaded
             let mut modprobe = Command::new(defaults::PROBE_MODULE);
             modprobe.arg("vhost");
             debug(&format!(
@@ -259,82 +246,122 @@ fn main() {
                     debug(&format!("Loading vhost module failed: {}", error));
                 }
             }
-            // start vsock listener, wait for command, execute it and send back the stdout 
-            // and stderr
-            debug(&format!("Binding socket "));
-            match VsockListener::bind_with_cid_port(3, defaults::VM_PORT){
+            // start vsock listener, wait for command(s) in a loop
+            // and execute them as a child process. Stay in this mode
+            // until defaults::VM_QUIT is received. stdout and stderr
+            // from the child is being written to the parent
+            debug(&format!(
+                "Binding vsock CID={} on port={}",
+                defaults::GUEST_CID, defaults::VM_PORT
+            ));
+            match VsockListener::bind_with_cid_port(defaults::GUEST_CID, defaults::VM_PORT) {
                 Ok(listener)=>{
-                    // main loop
+                    // Enter main loop
                     loop {
                         match listener.accept(){
                             Ok((mut stream, addr)) =>{
-                                debug(&format!("Accepted incoming connection from : {}:{}", addr.cid(), addr.port()));
+                                debug(&format!(
+                                    "Accepted incoming connection from: {}:{}",
+                                    addr.cid(), addr.port()
+                                ));
                                 args = vec!();
                                 let mut buf: String = "".to_string();
                                 let mut bytes = [0;4096];
-                                match stream.read(&mut bytes){
-                                    Ok(_)=>{
-                                        buf=String::from_utf8(bytes.to_vec()).unwrap();
-                                        debug(&format!("Read from string: {}",&buf));
+                                match stream.read(&mut bytes) {
+                                    Ok(_) => {
+                                        buf = String::from_utf8(
+                                            bytes.to_vec()
+                                        ).unwrap();
+                                        debug(&format!(
+                                            "Read from string: {}", &buf
+                                        ))
                                     },
-                                    Err(e)=>{
-                                        debug(&format!("Failed to read data {}", e));
+                                    Err(error) => {
+                                        debug(&format!(
+                                            "Failed to read data {}", error
+                                        ));
+                                        ok = false
                                     }
                                 };
-                                // call a command and keep control
+                                // parse data as a command line
                                 match shell_words::split(&buf) {
                                     Ok(call_params) => {
                                         args = call_params;
                                     },
                                     Err(error) => {
-                                        debug(&format!("Failed to parse {}: {}", &buf, error));
+                                        debug(&format!(
+                                            "Failed to parse as command {}: {}",
+                                            &buf, error
+                                        ));
+                                        ok = false
                                     }
                                 }
                                 call = Command::new(&args[0]);
                                 for arg in &args[1..args.len()-1] {
                                     call.arg(arg);
                                 }
-
+                                // exit on defaults::VM_QUIT
                                 if args[0].eq(defaults::VM_QUIT) {
                                     debug(&format!("Quit command called"));
                                     break;
                                 }
-
-                                debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
+                                // call command in a new process
+                                debug(&format!(
+                                    "CALL: {} -> {:?}",
+                                    &args[0], call.get_args()
+                                ));
                                 call.stdout(Stdio::piped())
                                     .stderr(Stdio::piped());
                                 match call.spawn() {
                                     Ok(child) => { 
-                                        let output = match child.wait_with_output(){
-                                            Ok( out) => out,
-                                            Err(e) => {
-                                                stream.write_all(&format!("Failed to run command {}: {}", buf, e).as_bytes()).unwrap();
-                                                Output{status:ExitStatus::from_raw(-1) , stdout: Vec::new(), stderr: Vec::new()}
+                                        let output = match child.wait_with_output() {
+                                            Ok(output) => { output },
+                                            Err(error) => {
+                                                stream.write_all(&format!(
+                                                    "Command failed with: {}",
+                                                    error
+                                                ).as_bytes()).unwrap();
+                                                Output {
+                                                    status:ExitStatus::from_raw(-1),
+                                                    stdout: Vec::new(),
+                                                    stderr: Vec::new()
+                                                }
                                             }
                                         };
-                                        stream.write_all(&output.stderr).unwrap();
-                                        stream.write_all(&output.stdout).unwrap();
-                                        stream.shutdown(Shutdown::Both).unwrap();
+                                        stream.write_all(
+                                            &output.stderr
+                                        ).unwrap();
+                                        stream.write_all(
+                                            &output.stdout
+                                        ).unwrap();
                                     },
-                                    Err(e) => {
-                                        stream.write_all(&format!("Failed to run command {}: {}", buf, e).as_bytes()).unwrap();
-                                        stream.shutdown(Shutdown::Both).unwrap();
-                                     }
+                                    Err(error) => {
+                                        stream.write_all(&format!(
+                                            "Failed to run command: {}", error
+                                        ).as_bytes()).unwrap();
+                                        ok = false
+                                    }
                                 }
-
+                                stream.shutdown(Shutdown::Both).unwrap()
                             },
-                            Err(e) =>{
-                                debug(&format!("Failed to accept incoming connection: {}", e));
+                            Err(error) => {
+                                debug(&format!(
+                                    "Failed to accept incoming connection: {}",
+                                    error
+                                ));
+                                ok = false
                             }
                         }
                     }
                 },
-                Err(e)=>{
-                    debug(&format!("Failed to bind vsock: CID: 3 {}", e));
+                Err(error) => {
+                    debug(&format!(
+                        "Failed to bind vsock: CID: {}: {}",
+                        defaults::GUEST_CID, error
+                    ));
+                    ok = false
                 }
             }
-
-
         },
         None => {
             // run regular command and close vm
