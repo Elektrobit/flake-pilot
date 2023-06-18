@@ -39,6 +39,8 @@ pub const SYSTEMD_NETWORK_RESOLV_CONF: &str =
     "/run/systemd/resolve/resolv.conf";
 pub const VM_QUIT: &str =
     "sci_quit";
+pub const VHOST_TRANSPORT: &str =
+    "vmw_vsock_virtio_transport";
 pub const VM_PORT: u32 = 
     52;
 pub const GUEST_CID: u32 =

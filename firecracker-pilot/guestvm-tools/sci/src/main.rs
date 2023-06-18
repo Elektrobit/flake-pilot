@@ -236,7 +236,7 @@ fn main() {
         Some(_) => {
             // resume mode; check if vhost is loaded
             let mut modprobe = Command::new(defaults::PROBE_MODULE);
-            modprobe.arg("vhost");
+            modprobe.arg(defaults::VHOST_TRANSPORT);
             debug(&format!(
                 "CALL: {} -> {:?}", defaults::PROBE_MODULE, modprobe.get_args()
             ));
