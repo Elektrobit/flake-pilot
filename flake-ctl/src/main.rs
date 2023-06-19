@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 // register
                 cli::Firecracker::Register {
-                    vm, app, target, run_as, overlay_size, no_net
+                    vm, app, target, run_as, overlay_size, no_net, resume
                 } => {
                     if app::init(Some(app)) {
                         let mut ok = app::register(
@@ -93,7 +93,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 target.as_ref(),
                                 run_as.as_ref(),
                                 overlay_size.as_ref(),
-                                *no_net
+                                *no_net,
+                                *resume
                             );
                         }
                         if ! ok {

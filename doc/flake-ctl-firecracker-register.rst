@@ -18,6 +18,7 @@ SYNOPSIS
    OPTIONS:
        --app <APP>
        --no-net
+       --resume
        --overlay-size <OVERLAY_SIZE>
        --run-as <RUN_AS>
        --target <TARGET>
@@ -56,6 +57,11 @@ OPTIONS
 
   Size of overlay write space in bytes. Optional suffixes are:
   KiB/MiB/GiB/TiB (1024) or KB/MB/GB/TB (1000)
+
+--resume
+
+  Resume the VM from previous execution. If the VM is still running,
+  the app will be executed inside of this VM instance
 
 --run-as <RUN_AS>
 
