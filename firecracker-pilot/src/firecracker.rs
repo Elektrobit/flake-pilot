@@ -21,7 +21,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-use std::process;
 use spinoff::{Spinner, spinners, Color};
 use yaml_rust::Yaml;
 use std::path::Path;
@@ -549,8 +548,9 @@ pub fn create_firecracker_config(
 
                     // set vsock name
                     firecracker_config.vsock.guest_cid = defaults::VM_CID;
-                    firecracker_config.vsock.uds_path =
-                        format!("/run/sci_cmd_{}.sock", process::id());
+                    firecracker_config.vsock.uds_path = format!(
+                        "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+                    );
 
                     // set mem_size_mib
                     if ! &engine_section["mem_size_mib"].as_i64().is_none() {
