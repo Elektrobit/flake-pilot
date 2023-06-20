@@ -135,6 +135,12 @@ pub enum Firecracker {
         #[clap(long)]
         run_as: Option<String>,
 
+        /// Resume the VM from previous execution.
+        /// If the VM is still running, the app will be
+        /// executed inside of this VM instance.
+        #[clap(long)]
+        resume: bool,
+
         /// Size of overlay write space in bytes.
         /// Optional suffixes: KiB/MiB/GiB/TiB (1024) or KB/MB/GB/TB (1000)
         #[clap(long)]

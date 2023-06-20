@@ -174,7 +174,8 @@ impl AppConfig {
         host_app_path: &String,
         run_as: Option<&String>,
         overlay_size: Option<&String>,
-        no_net: bool
+        no_net: bool,
+        resume: bool
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
@@ -193,6 +194,10 @@ impl AppConfig {
         vm_config.target_app_path = target_app_path.to_string();
         vm_config.host_app_path = host_app_path.to_string();
 
+        if resume {
+            vm_config.runtime.as_mut().unwrap()
+                .resume = Some(resume);
+        }
         if ! run_as.is_none() {
             vm_config.runtime.as_mut().unwrap()
                 .runas = Some(run_as.unwrap().to_string());
@@ -256,6 +261,13 @@ impl AppConfig {
                 }
             }
             firecracker_section.boot_args = Some(boot_args);
+        }
+
+        if resume {
+            let firecracker_section = vm_config.runtime.as_mut().unwrap()
+                .firecracker.as_mut().unwrap();
+            firecracker_section.boot_args.as_mut().unwrap()
+                .push(format!("sci_resume=1"));
         }
 
         let config = std::fs::OpenOptions::new()

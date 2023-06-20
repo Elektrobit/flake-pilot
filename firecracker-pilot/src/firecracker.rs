@@ -115,6 +115,13 @@ pub fn create(
         # file /etc/sudoers
         runas: root
 
+        # Resume the VM from previous execution.
+        # If the VM is still running, the app will be
+        # executed inside of this VM instance.
+        #
+        # Default: false
+        resume: true|false
+
         firecracker:
           # Currently fixed settings through app registration
           boot_args:
