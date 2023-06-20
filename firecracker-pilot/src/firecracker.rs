@@ -36,6 +36,7 @@ use std::fs::File;
 use ubyte::ByteUnit;
 use serde::{Serialize, Deserialize};
 use serde_json::{self};
+use rand::Rng;
 
 use crate::defaults;
 
@@ -349,8 +350,8 @@ pub fn start(
 
     if is_running {
         // 1. Execute app in running VM
-        status_code = send_command_to_instance(
-            &program_name, &runtime_config
+        status_code = execute_command_at_instance(
+            &program_name, &runtime_config, &runas, get_exec_port()
         );
     } else {
         match NamedTempFile::new() {
@@ -364,8 +365,8 @@ pub fn start(
                     call_instance(
                         &firecracker_config, vm_id_file, &runas, is_blocking
                     );
-                    status_code = send_command_to_instance(
-                        &program_name, &runtime_config
+                    status_code = execute_command_at_instance(
+                        &program_name, &runtime_config, &runas, get_exec_port()
                     );
                 } else {
                     // 3. Startup VM and execute app
@@ -397,6 +398,11 @@ pub fn call_instance(
     }
     if ! is_debug() {
         firecracker.stderr(Stdio::null());
+    }
+    if ! is_debug() && ! is_blocking {
+        firecracker
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped());
     }
     firecracker
         .arg("firecracker")
@@ -444,28 +450,206 @@ pub fn call_instance(
     status_code
 }
 
+pub fn get_exec_port() -> u32 {
+    /*!
+    Create random execution port
+    !*/
+    let mut random = rand::thread_rng();
+    // FIXME: A more stable version
+    // should check for already running socket connections
+    // and if the same number is used for an already running one
+    // another rand should be called
+    let exec_port = random.gen_range(49200..60000);
+    exec_port
+}
+
+pub fn check_connected(program_name: &String, user: &String) -> i32 {
+    /*!
+    Check if instance connection is OK
+    !*/
+    let mut status_code;
+    let mut retry_count = 0;
+    let vsock_uds_path = format!(
+        "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+    );
+    loop {
+        if retry_count == defaults::RETRIES {
+            debug("Max retries for VM connection check exceeded");
+            status_code = 1;
+            return status_code
+        }
+        let mut vm_command = Command::new("sudo");
+        if ! user.is_empty() {
+            vm_command.arg("--user").arg(user);
+        }
+        vm_command
+            .arg("bash")
+            .arg("-c")
+            .arg(&format!(
+                "echo -e 'CONNECT {}'|{} UNIX-CONNECT:{} -",
+                defaults::VM_PORT,
+                defaults::SOCAT,
+                vsock_uds_path
+            ));
+        debug(&format!("sudo {:?}", vm_command.get_args()));
+        match vm_command.output() {
+            Ok(output) => {
+                if String::from_utf8_lossy(&output.stdout).starts_with("OK") {
+                    status_code = 0
+                } else {
+                    status_code = 1
+                }
+            },
+            Err(error) => {
+                error!("UNIX-CONNECT failed with: {:?}", error);
+                status_code = 1
+            }
+        }
+        if status_code == 0 {
+            // connection OK
+            break
+        } else {
+            // VM not ready for connections
+            let some_time = time::Duration::from_millis(
+                defaults::VM_WAIT_TIMEOUT_MSEC
+            );
+            thread::sleep(some_time);
+        }
+        retry_count = retry_count + 1
+    }
+    status_code
+}
+
 pub fn send_command_to_instance(
-    program_name: &String, runtime_config: &Vec<Yaml>
+    program_name: &String, runtime_config: &Vec<Yaml>,
+    user: &String, exec_port: u32
 ) -> i32 {
     /*!
-    Send command to a vsoc connected to a running instance
+    Send command to the VM via a vsock
     !*/
-    let status_code = 0;
+    let mut status_code;
+    let mut retry_count = 0;
     let run = get_run_cmdline(&program_name, &runtime_config);
     let vsock_uds_path = format!(
         "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
     );
+    loop {
+        if retry_count == defaults::RETRIES {
+            debug("Max retries for VM command transfer exceeded");
+            status_code = 1;
+            return status_code
+        }
+        let mut vm_command = Command::new("sudo");
+        if ! user.is_empty() {
+            vm_command.arg("--user").arg(user);
+        }
+        vm_command
+            .arg("bash")
+            .arg("-c")
+            .arg(&format!(
+                "echo -e 'CONNECT {}\n{} {}\n'|{} UNIX-CONNECT:{} -",
+                defaults::VM_PORT,
+                run.join(" "),
+                exec_port,
+                defaults::SOCAT,
+                vsock_uds_path
+            ));
+        debug(&format!("sudo {:?}", vm_command.get_args()));
+        match vm_command.output() {
+            Ok(output) => {
+                if String::from_utf8_lossy(&output.stdout).starts_with("OK") {
+                    status_code = 0
+                } else {
+                    status_code = 1
+                }
+            },
+            Err(error) => {
+                error!("UNIX-CONNECT failed with: {:?}", error);
+                status_code = 1
+            }
+        }
+        if status_code == 0 {
+            // command transfered
+            break
+        } else {
+            // VM not ready for connections
+            let some_time = time::Duration::from_millis(
+                defaults::VM_WAIT_TIMEOUT_MSEC
+            );
+            thread::sleep(some_time);
+        }
+        retry_count = retry_count + 1
+    }
+    status_code
+}
 
-    // NOTE: Needs implementation as shown by debug messages
-    debug(&format!("TODO: Open connection to {}", vsock_uds_path));
-    debug(&format!("TODO: Send command: {:?}", run));
-    debug(&format!("TODO: Close connection"));
-    debug(&format!("TODO: Command return code handling"));
+pub fn execute_command_at_instance(
+    program_name: &String, runtime_config: &Vec<Yaml>,
+    user: &String, exec_port: u32
+) -> i32 {
+    /*!
+    Send command to a vsoc connected to a running instance
+    !*/
+    let mut status_code;
+    let mut retry_count = 0;
+    let vsock_uds_path = format!(
+        "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+    );
 
-    // NOTE: Needs implementation wait and see when we can connection
-    let some_time = time::Duration::from_millis(100);
-    thread::sleep(some_time);
+    // wait for UDS socket to appear
+    loop {
+        if retry_count == defaults::RETRIES {
+            debug("Max retries for UDS socket lookup exceeded");
+            status_code = 1;
+            return status_code
+        }
+        if Path::new(&vsock_uds_path).exists() {
+            break
+        }
+        let some_time = time::Duration::from_millis(100);
+        thread::sleep(some_time);
+        retry_count = retry_count + 1
+    }
 
+    // make sure instance can be contacted
+    if check_connected(&program_name, &user) != 0 {
+        return 1
+    }
+
+    // spawn the listener and wait for sci to run the command
+    let mut vm_exec = Command::new("sudo");
+    if ! user.is_empty() {
+        vm_exec.arg("--user").arg(user);
+    }
+    vm_exec
+        .arg(defaults::SOCAT)
+        .arg("-t")
+        .arg("0")
+        .arg("-")
+        .arg(
+            &format!("UNIX-LISTEN:{}_{}",
+            vsock_uds_path, exec_port
+        ));
+    debug(&format!("sudo {:?}", vm_exec.get_args()));
+    match vm_exec.spawn() {
+        Ok(mut child) => {
+            status_code = send_command_to_instance(
+                &program_name, &runtime_config, &user, exec_port
+            );
+            match child.wait() {
+                Ok(ecode) => {
+                    status_code = ecode.code().unwrap();
+                },
+                Err(error) => {
+                    error!("command failed with: {}", error);
+                }
+            }
+        },
+        Err(error) => {
+            error!("UNIX-LISTEN failed with: {:?}", error);
+            status_code = 1
+        }
+    }
     status_code
 }
 
@@ -500,6 +684,14 @@ pub fn create_firecracker_config(
                     // setup run commandline for the command call
                     let run = get_run_cmdline(&program_name, &runtime_config);
 
+                    // lookup resume mode
+                    let mut resume: bool = false;
+                    if ! runtime_section.as_hash().is_none() {
+                        if ! &runtime_section["resume"].as_bool().is_none() {
+                            resume = runtime_section["resume"].as_bool().unwrap();
+                        }
+                    }
+
                     // set boot_args
                     if is_debug() {
                         boot_args.push("PILOT_DEBUG=1".to_string());
@@ -511,9 +703,15 @@ pub fn create_firecracker_config(
                         for boot_arg in
                             engine_section["boot_args"].as_vec().unwrap()
                         {
-                            boot_args.push(
-                                boot_arg.as_str().unwrap().to_string()
-                            );
+                            let boot_option = boot_arg.as_str().unwrap().to_string();
+                            if resume && ! is_debug() && boot_option.starts_with("console=") {
+                                // in resume mode the communication is handled through
+                                // vsocks. Thus we don't need a serial console and only
+                                // provide one in debug mode
+                                boot_args.push(format!("console="));
+                            } else {
+                                boot_args.push(boot_option);
+                            }
                         }
                     }
                     firecracker_config.boot_source.boot_args =
