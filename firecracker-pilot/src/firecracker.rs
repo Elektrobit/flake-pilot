@@ -21,6 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
+use std::{thread, time};
 use spinoff::{Spinner, spinners, Color};
 use yaml_rust::Yaml;
 use std::path::Path;
@@ -174,7 +175,7 @@ pub fn create(
 
     // Check early return condition
     if Path::new(&vm_id_file).exists() &&
-        gc_meta_files(&vm_id_file, &runas, resume)
+        gc_meta_files(&vm_id_file, &runas, &program_name, resume)
     {
         if resume {
             // VM exists
@@ -194,7 +195,7 @@ pub fn create(
     }
 
     // Garbage collect occasionally
-    gc(&runas);
+    gc(&runas, &program_name);
 
     // Sanity check
     if Path::new(&vm_id_file).exists() {
@@ -323,6 +324,7 @@ pub fn start(
     let status_code;
     let mut resume: bool = false;
     let mut is_running: bool = false;
+    let mut is_blocking: bool = true;
     let mut runas = String::new();
 
     if ! runtime_section.as_hash().is_none() {
@@ -340,7 +342,9 @@ pub fn start(
 
     if is_running {
         // 1. Execute app in running VM
-        status_code = send_command_to_instance();
+        status_code = send_command_to_instance(
+            &program_name, &runtime_config
+        );
     } else {
         match NamedTempFile::new() {
             Ok(firecracker_config) => {
@@ -349,14 +353,17 @@ pub fn start(
                 );
                 if resume {
                     // 2. Startup resume type VM and execute app
+                    is_blocking = false;
                     call_instance(
-                        &firecracker_config, vm_id_file, &runas
+                        &firecracker_config, vm_id_file, &runas, is_blocking
                     );
-                    status_code = send_command_to_instance();
+                    status_code = send_command_to_instance(
+                        &program_name, &runtime_config
+                    );
                 } else {
                     // 3. Startup VM and execute app
                     status_code = call_instance(
-                        &firecracker_config, vm_id_file, &runas
+                        &firecracker_config, vm_id_file, &runas, is_blocking
                     );
                 }
             },
@@ -369,12 +376,13 @@ pub fn start(
 }
 
 pub fn call_instance(
-    config_file: &NamedTempFile, vm_id_file: &String, user: &String
+    config_file: &NamedTempFile, vm_id_file: &String,
+    user: &String, is_blocking: bool
 ) -> i32 {
     /*!
     Run firecracker with specified configuration
     !*/
-    let status_code;
+    let mut status_code = 0;
 
     let mut firecracker = Command::new("sudo");
     if ! user.is_empty() {
@@ -411,12 +419,14 @@ pub fn call_instance(
                     panic!("Failed to open {}: {}", vm_id_file, error)
                 }
             }
-            match child.wait() {
-                Ok(ecode) => {
-                    status_code = ecode.code().unwrap();
-                },
-                Err(error) => {
-                    panic!("firecracker failed with: {}", error);
+            if is_blocking {
+                match child.wait() {
+                    Ok(ecode) => {
+                        status_code = ecode.code().unwrap();
+                    },
+                    Err(error) => {
+                        panic!("firecracker failed with: {}", error);
+                    }
                 }
             }
         },
@@ -427,14 +437,28 @@ pub fn call_instance(
     status_code
 }
 
-pub fn send_command_to_instance() -> i32 {
+pub fn send_command_to_instance(
+    program_name: &String, runtime_config: &Vec<Yaml>
+) -> i32 {
     /*!
     Send command to a vsoc connected to a running instance
     !*/
     let status_code = 0;
-    // NOTE:
-    // This requires the vsoc and reading from it
-    // implementation in sci first
+    let run = get_run_cmdline(&program_name, &runtime_config);
+    let vsock_uds_path = format!(
+        "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+    );
+
+    // NOTE: Needs implementation as shown by debug messages
+    debug(&format!("TODO: Open connection to {}", vsock_uds_path));
+    debug(&format!("TODO: Send command: {:?}", run));
+    debug(&format!("TODO: Close connection"));
+    debug(&format!("TODO: Command return code handling"));
+
+    // NOTE: Needs implementation wait and see when we can connection
+    let some_time = time::Duration::from_millis(100);
+    thread::sleep(some_time);
+
     status_code
 }
 
@@ -449,21 +473,10 @@ pub fn create_firecracker_config(
         Ok(template) => {
             match serde_json::from_reader::<File, FireCrackerConfig>(template) {
                 Ok(mut firecracker_config) => {
-                    let args: Vec<String> = env::args().collect();
-                    let mut run: Vec<String> = Vec::new();
                     let mut boot_args: Vec<String> = Vec::new();
                     let vm_section = &runtime_config[0]["vm"];
                     let runtime_section = &vm_section["runtime"];
                     let engine_section = &runtime_section["firecracker"];
-                    let mut resume: bool = false;
-
-                    // check for resume mode
-                    if ! runtime_section.as_hash().is_none() {
-                        if ! &runtime_section["resume"].as_bool().is_none() {
-                            resume = runtime_section["resume"]
-                                .as_bool().unwrap();
-                        }
-                    }
 
                     // set kernel_image_path
                     firecracker_config.boot_source.kernel_image_path =
@@ -478,22 +491,11 @@ pub fn create_firecracker_config(
                     }
 
                     // setup run commandline for the command call
-                    let target_app_path = get_target_app_path(
-                        &program_name, &runtime_config
-                    );
-                    run.push(target_app_path);
-                    for arg in &args[1..] {
-                        if ! arg.starts_with("@") {
-                            run.push(arg.replace("-", "\\-").to_string());
-                        }
-                    }
+                    let run = get_run_cmdline(&program_name, &runtime_config);
 
                     // set boot_args
                     if is_debug() {
                         boot_args.push("PILOT_DEBUG=1".to_string());
-                    }
-                    if resume {
-                        boot_args.push("sci_resume=1".to_string());
                     }
                     if ! &engine_section["overlay_size"].as_str().is_none() {
                         boot_args.push("overlay_root=/dev/vdb".to_string());
@@ -629,6 +631,26 @@ pub fn init_meta_dirs() {
     }
 }
 
+pub fn get_run_cmdline(
+    program_name: &String, runtime_config: &Vec<Yaml>
+) -> Vec<String> {
+    /*!
+    setup run commandline for the command call
+    !*/
+    let args: Vec<String> = env::args().collect();
+    let mut run: Vec<String> = Vec::new();
+    let target_app_path = get_target_app_path(
+        &program_name, &runtime_config
+    );
+    run.push(target_app_path);
+    for arg in &args[1..] {
+        if ! arg.starts_with("@") {
+            run.push(arg.replace("-", "\\-").to_string());
+        }
+    }
+    run
+}
+
 pub fn vm_running(vmid: &String, user: &String) -> bool {
     /*!
     Check if VM with specified vmid is running
@@ -680,11 +702,11 @@ pub fn get_meta_name(program_name: &String) -> String {
 }
 
 pub fn gc_meta_files(
-    vm_id_file: &String, user: &String, resume: bool
+    vm_id_file: &String, user: &String, program_name: &String, resume: bool
 ) -> bool {
     /*!
     Check if VM exists according to the specified
-    vm_id_file. Garbage cleanup the vm_id_file
+    vm_id_file. Garbage cleanup the vm_id_file and the vsock socket
     if no longer present. Return a true value if the VM
     exists, in any other case return false.
     !*/
@@ -698,6 +720,13 @@ pub fn gc_meta_files(
                     Err(error) => {
                         error!("Failed to remove VMID: {:?}", error)
                     }
+                }
+                let vsock_uds_path = format!(
+                    "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+                );
+                if Path::new(&vsock_uds_path).exists() {
+                    debug(&format!("Deleting {}", vsock_uds_path));
+                    delete_file(&vsock_uds_path, &user);
                 }
                 let vm_overlay_file = format!(
                     "{}/{}", defaults::FIRECRACKER_OVERLAY_DIR,
@@ -725,7 +754,7 @@ pub fn gc_meta_files(
     vmid_status
 }
 
-pub fn gc(user: &String) {
+pub fn gc(user: &String, program_name: &String) {
     /*!
     Garbage collect VMID files for which no VM exists anymore
     !*/
@@ -745,6 +774,25 @@ pub fn gc(user: &String) {
         // The cleanup of overlay images from resume type instances
         // must be done by an explicit user action to avoid deleting
         // user data in overlay images eventually preserved for later.
-        gc_meta_files(&vm_id_file, &user, true);
+        gc_meta_files(&vm_id_file, &user, &program_name, true);
     }
+}
+
+pub fn delete_file(filename: &String, user: &str) -> bool {
+    /*!
+    Delete file via sudo
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("rm").arg("-f").arg(&filename);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to rm: {}: {:?}", filename, error);
+            return false
+        }
+    }
+    true
 }
