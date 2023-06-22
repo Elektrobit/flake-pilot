@@ -104,6 +104,7 @@ Requires:       rsync
 Requires:       firecracker
 Requires:       xz
 Requires:       e2fsprogs
+Requires:       socat
 
 %description -n flake-pilot-firecracker
 Launcher and service tools for KVM VM based applications
@@ -127,6 +128,7 @@ execution interface
 %package -n flake-pilot-firecracker-guestvm-tools
 Summary:        FireCracker guest VM tools
 Group:          System/Management
+Requires:       socat
 
 %description -n flake-pilot-firecracker-guestvm-tools
 Guest VM tools to help with firecracker workloads
