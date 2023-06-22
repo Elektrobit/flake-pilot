@@ -41,6 +41,8 @@ pub const VM_QUIT: &str =
     "sci_quit";
 pub const VHOST_TRANSPORT: &str =
     "vmw_vsock_virtio_transport";
+pub const SOCAT: &str =
+    "/usr/bin/socat";
 pub const VM_PORT: u32 = 
     52;
 pub const GUEST_CID: u32 =

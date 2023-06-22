@@ -31,15 +31,14 @@ use std::env;
 use std::os::unix::fs::symlink;
 use std::path::Path;
 use std::process::Command;
-use std::os::unix::process::{CommandExt, ExitStatusExt};
+use std::os::unix::process::CommandExt;
 use system_shutdown::force_reboot;
 use std::fs;
 use sys_mount::Mount;
 use env_logger::Env;
 use std::{thread, time};
 use vsock::{VsockListener};
-use std::io::{Read, Write};
-use std::process::{Stdio, Output, ExitStatus};
+use std::io::Read;
 use std::net::Shutdown;
 
 use crate::defaults::debug;
@@ -232,9 +231,12 @@ fn main() {
     }
 
     // Perform execution tasks
+    if ! ok {
+        do_reboot(ok)
+    }
     match env::var("sci_resume").ok() {
         Some(_) => {
-            // resume mode; check if vhost is loaded
+            // resume mode; check if vhost transport is loaded
             let mut modprobe = Command::new(defaults::PROBE_MODULE);
             modprobe.arg(defaults::VHOST_TRANSPORT);
             debug(&format!(
@@ -243,28 +245,44 @@ fn main() {
             match modprobe.status() {
                 Ok(_) => { },
                 Err(error) => {
-                    debug(&format!("Loading vhost module failed: {}", error));
+                    debug(&format!(
+                        "Loading {} module failed: {}",
+                        defaults::VHOST_TRANSPORT, error
+                    ));
                 }
             }
-            // start vsock listener, wait for command(s) in a loop
-            // and execute them as a child process. Stay in this mode
-            // until defaults::VM_QUIT is received. stdout and stderr
-            // from the child is being written to the parent
+            // start vsock listener on VM_PORT, wait for command(s) in a loop
+            // A received command turns into an socat process calling
+            // the command with an expected listener
+            // Example:
+            //
+            // sudo socat UNIX-CONNECT:/run/sci_cmd_XXX.sock -
+            // CONNECT defaults::VM_PORT(52)
+            // --> send the command to call and quit
+            //
+            // sudo socat VSOCK-CONNECT:2:exec_port EXEC:cmd
+            // --> connects to the listener instance on the host (pilot)
+            //
+            // The above procedure needs to be implemeted as
+            // part of the firecracker-pilot resume code
+            //
             debug(&format!(
                 "Binding vsock CID={} on port={}",
                 defaults::GUEST_CID, defaults::VM_PORT
             ));
-            match VsockListener::bind_with_cid_port(defaults::GUEST_CID, defaults::VM_PORT) {
-                Ok(listener)=>{
+            match VsockListener::bind_with_cid_port(
+                defaults::GUEST_CID, defaults::VM_PORT
+            ) {
+                Ok(listener) => {
                     // Enter main loop
                     loop {
                         match listener.accept(){
-                            Ok((mut stream, addr)) =>{
+                            Ok((mut stream, addr)) => {
+                                // read command string from incoming connection
                                 debug(&format!(
                                     "Accepted incoming connection from: {}:{}",
                                     addr.cid(), addr.port()
                                 ));
-                                args = vec!();
                                 let mut buf: String = "".to_string();
                                 let mut bytes = [0;4096];
                                 match stream.read(&mut bytes) {
@@ -272,84 +290,74 @@ fn main() {
                                         buf = String::from_utf8(
                                             bytes.to_vec()
                                         ).unwrap();
-                                        debug(&format!(
-                                            "Read from string: {}", &buf
-                                        ))
                                     },
                                     Err(error) => {
                                         debug(&format!(
                                             "Failed to read data {}", error
                                         ));
-                                        ok = false
                                     }
                                 };
-                                // parse data as a command line
+                                stream.shutdown(Shutdown::Both).unwrap();
                                 match shell_words::split(&buf) {
-                                    Ok(call_params) => {
-                                        args = call_params;
+                                    Ok(mut call_params) => {
+                                        // start a socat executor for this
+                                        // command on a pts. A listener on the
+                                        // host is required
+
+                                        // drop nul terminator
+                                        call_params.pop();
+                                        let call_str = call_params.join(" ");
+
+                                        // get port
+                                        let mut call_stack: Vec<&str> =
+                                            call_str.split(" ").collect();
+                                        let exec_port = call_stack
+                                            .pop().unwrap();
+
+                                        call = Command::new(defaults::SOCAT);
+                                        call
+                                            .arg(&format!(
+                                                "VSOCK-CONNECT:2:{}",
+                                                exec_port
+                                            ))
+                                            .arg(&format!(
+                                                "EXEC:'{}',{},{},{},{},{},{},{}",
+                                                call_stack.join(" "),
+                                                "pty",
+                                                "stderr",
+                                                "setsid",
+                                                "sigint",
+                                                "sane",
+                                                "ctty",
+                                                "echo=0"
+                                            ));
+                                        debug(&format!(
+                                            "CALL: {} -> {:?}",
+                                            defaults::SOCAT, call.get_args()
+                                        ));
+                                        match call.spawn() {
+                                            Ok(_) => { },
+                                            Err(error) => {
+                                                debug(&format!(
+                                                    "VSOCK-CONNECT failed with: {}",
+                                                    error
+                                                ));
+                                            }
+                                        }
                                     },
                                     Err(error) => {
                                         debug(&format!(
                                             "Failed to parse as command {}: {}",
                                             &buf, error
                                         ));
-                                        ok = false
                                     }
                                 }
-                                call = Command::new(&args[0]);
-                                for arg in &args[1..args.len()-1] {
-                                    call.arg(arg);
-                                }
-                                // exit on defaults::VM_QUIT
-                                if args[0].eq(defaults::VM_QUIT) {
-                                    debug(&format!("Quit command called"));
-                                    break;
-                                }
-                                // call command in a new process
-                                debug(&format!(
-                                    "CALL: {} -> {:?}",
-                                    &args[0], call.get_args()
-                                ));
-                                call.stdout(Stdio::piped())
-                                    .stderr(Stdio::piped());
-                                match call.spawn() {
-                                    Ok(child) => { 
-                                        let output = match child.wait_with_output() {
-                                            Ok(output) => { output },
-                                            Err(error) => {
-                                                stream.write_all(&format!(
-                                                    "Command failed with: {}",
-                                                    error
-                                                ).as_bytes()).unwrap();
-                                                Output {
-                                                    status:ExitStatus::from_raw(-1),
-                                                    stdout: Vec::new(),
-                                                    stderr: Vec::new()
-                                                }
-                                            }
-                                        };
-                                        stream.write_all(
-                                            &output.stderr
-                                        ).unwrap();
-                                        stream.write_all(
-                                            &output.stdout
-                                        ).unwrap();
-                                    },
-                                    Err(error) => {
-                                        stream.write_all(&format!(
-                                            "Failed to run command: {}", error
-                                        ).as_bytes()).unwrap();
-                                        ok = false
-                                    }
-                                }
-                                stream.shutdown(Shutdown::Both).unwrap()
                             },
                             Err(error) => {
                                 debug(&format!(
                                     "Failed to accept incoming connection: {}",
                                     error
                                 ));
-                                ok = false
                             }
                         }
                     }
@@ -365,22 +373,19 @@ fn main() {
         },
         None => {
             // run regular command and close vm
-            if ok {
-                if do_exec {
-                    // replace ourselves
-                    debug(&format!("EXEC: {} -> {:?}", &args[0], call.get_args()));
-                    call.exec();
-                } else {
-                    // call a command and keep control
-                    debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
-                    match call.status() {
-                        Ok(_) => { },
-                        Err(_) => { }
-                    }
+            if do_exec {
+                // replace ourselves
+                debug(&format!("EXEC: {} -> {:?}", &args[0], call.get_args()));
+                call.exec();
+            } else {
+                // call a command and keep control
+                debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
+                match call.status() {
+                    Ok(_) => { },
+                    Err(_) => { }
                 }
             }
         }
-
     }
     
     // Close firecracker session
@@ -463,6 +468,12 @@ fn mount_basic_fs() {
         Ok(_) => debug("Mounted devtmpfs on /dev"),
         Err(error) => {
             debug(&format!("Failed to mount /dev: {}", error));
+        }
+    }
+    match Mount::builder().fstype("devpts").mount("devpts", "/dev/pts") {
+        Ok(_) => debug("Mounted devpts on /dev/pts"),
+        Err(error) => {
+            debug(&format!("Failed to mount /dev/pts: {}", error));
         }
     }
 }
