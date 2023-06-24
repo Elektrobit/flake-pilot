@@ -435,7 +435,9 @@ pub fn call_instance(
             if is_blocking {
                 match child.wait() {
                     Ok(ecode) => {
-                        status_code = ecode.code().unwrap();
+                        if ! ecode.code().is_none() {
+                            status_code = ecode.code().unwrap()
+                        }
                     },
                     Err(error) => {
                         panic!("firecracker failed with: {}", error);
@@ -529,7 +531,7 @@ pub fn send_command_to_instance(
     !*/
     let mut status_code;
     let mut retry_count = 0;
-    let run = get_run_cmdline(&program_name, &runtime_config);
+    let run = get_run_cmdline(&program_name, &runtime_config, false);
     let vsock_uds_path = format!(
         "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
     );
@@ -682,7 +684,9 @@ pub fn create_firecracker_config(
                     }
 
                     // setup run commandline for the command call
-                    let run = get_run_cmdline(&program_name, &runtime_config);
+                    let run = get_run_cmdline(
+                        &program_name, &runtime_config, true
+                    );
 
                     // lookup resume mode
                     let mut resume: bool = false;
@@ -703,24 +707,38 @@ pub fn create_firecracker_config(
                         for boot_arg in
                             engine_section["boot_args"].as_vec().unwrap()
                         {
-                            let boot_option = boot_arg.as_str().unwrap().to_string();
-                            if resume && ! is_debug() && boot_option.starts_with("console=") {
-                                // in resume mode the communication is handled through
-                                // vsocks. Thus we don't need a serial console and only
-                                // provide one in debug mode
+                            let boot_option =
+                                boot_arg.as_str().unwrap().to_string();
+                            if resume
+                                && ! is_debug()
+                                && boot_option.starts_with("console=")
+                            {
+                                // in resume mode the communication is handled
+                                // through vsocks. Thus we don't need a serial
+                                // console and only provide one in debug mode
                                 boot_args.push(format!("console="));
                             } else {
                                 boot_args.push(boot_option);
                             }
                         }
                     }
-                    firecracker_config.boot_source.boot_args =
-                        format!(
-                            "run=\"{}\" {} {}",
-                            run.join(" "),
-                            firecracker_config.boot_source.boot_args,
-                            boot_args.join(" ")
+                    if ! firecracker_config.boot_source.boot_args.is_empty() {
+                        firecracker_config.boot_source.boot_args.push_str(
+                            &format!(" ")
                         );
+                    }
+                    firecracker_config.boot_source.boot_args.push_str(
+                        &boot_args.join(" ")
+                    );
+                    if resume {
+                        firecracker_config.boot_source.boot_args.push_str(
+                            &format!(" run=vsock")
+                        )
+                    } else {
+                        firecracker_config.boot_source.boot_args.push_str(
+                            &format!(" run=\"{}\"", run.join(" "))
+                        )
+                    }
 
                     // set path_on_host for rootfs
                     firecracker_config.drives[0].path_on_host =
@@ -837,7 +855,8 @@ pub fn init_meta_dirs() {
 }
 
 pub fn get_run_cmdline(
-    program_name: &String, runtime_config: &Vec<Yaml>
+    program_name: &String, runtime_config: &Vec<Yaml>,
+    quote_for_kernel_cmdline: bool
 ) -> Vec<String> {
     /*!
     setup run commandline for the command call
@@ -849,8 +868,13 @@ pub fn get_run_cmdline(
     );
     run.push(target_app_path);
     for arg in &args[1..] {
+        debug(&format!("Got Argument: {}", arg));
         if ! arg.starts_with("@") {
-            run.push(arg.replace("-", "\\-").to_string());
+            if quote_for_kernel_cmdline {
+                run.push(arg.replace("-", "\\-").to_string());
+            } else {
+                run.push(arg.to_string());
+            }
         }
     }
     run
