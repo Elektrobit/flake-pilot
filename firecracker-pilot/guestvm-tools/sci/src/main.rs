@@ -46,9 +46,9 @@ use crate::defaults::debug;
 fn main() {
     /*!
     Simple Command Init (sci) is a tool which executes the provided
-    command in the run=... cmdline variable after preparation of an
-    execution environment for the purpose to run a command inside
-    of a firecracker instance.
+    command in the run=... cmdline variable or through a vsock
+    after preparation of an execution environment for the purpose to
+    run a command inside of a firecracker instance.
 
     if provided via the overlay_root=/dev/block_device kernel boot
     parameter, sci also prepares the root filesystem as an overlay
@@ -75,13 +75,13 @@ fn main() {
                 },
                 Err(error) => {
                     debug(&format!("Failed to parse {}: {}", call_cmd, error));
-                    ok = false
+                    do_reboot(false)
                 }
             }
         },
         None => {
             debug(&format!("No run=... cmdline parameter in env"));
-            do_reboot(ok)
+            do_reboot(false)
         }
     }
 
@@ -276,20 +276,24 @@ fn main() {
                 Ok(listener) => {
                     // Enter main loop
                     loop {
-                        match listener.accept(){
+                        match listener.accept() {
                             Ok((mut stream, addr)) => {
                                 // read command string from incoming connection
                                 debug(&format!(
                                     "Accepted incoming connection from: {}:{}",
                                     addr.cid(), addr.port()
                                 ));
-                                let mut buf: String = "".to_string();
-                                let mut bytes = [0;4096];
-                                match stream.read(&mut bytes) {
+                                let mut call_str = String::new();
+                                let mut call_buf = Vec::new();
+                                match stream.read_to_end(&mut call_buf) {
                                     Ok(_) => {
-                                        buf = String::from_utf8(
-                                            bytes.to_vec()
+                                        call_str = String::from_utf8(
+                                            call_buf.to_vec()
                                         ).unwrap();
+                                        let len_to_truncate = call_str
+                                            .trim_end()
+                                            .len();
+                                        call_str.truncate(len_to_truncate);
                                     },
                                     Err(error) => {
                                         debug(&format!(
@@ -298,57 +302,39 @@ fn main() {
                                     }
                                 };
                                 stream.shutdown(Shutdown::Both).unwrap();
-                                match shell_words::split(&buf) {
-                                    Ok(mut call_params) => {
-                                        // start a socat executor for this
-                                        // command on a pts. A listener on the
-                                        // host is required
-
-                                        // drop nul terminator
-                                        call_params.pop();
-                                        let call_str = call_params.join(" ");
-
-                                        // get port
-                                        let mut call_stack: Vec<&str> =
-                                            call_str.split(" ").collect();
-                                        let exec_port = call_stack
-                                            .pop().unwrap();
-
-                                        call = Command::new(defaults::SOCAT);
-                                        call
-                                            .arg(&format!(
-                                                "VSOCK-CONNECT:2:{}",
-                                                exec_port
-                                            ))
-                                            .arg(&format!(
-                                                "EXEC:'{}',{},{},{},{},{},{},{}",
-                                                call_stack.join(" "),
-                                                "pty",
-                                                "stderr",
-                                                "setsid",
-                                                "sigint",
-                                                "sane",
-                                                "ctty",
-                                                "echo=0"
-                                            ));
-                                        debug(&format!(
-                                            "CALL: {} -> {:?}",
-                                            defaults::SOCAT, call.get_args()
-                                        ));
-                                        match call.spawn() {
-                                            Ok(_) => { },
-                                            Err(error) => {
-                                                debug(&format!(
-                                                    "VSOCK-CONNECT failed with: {}",
-                                                    error
-                                                ));
-                                            }
-                                        }
-                                    },
+                                debug(&format!(
+                                    "CALL RAW BUF: {}", call_str
+                                ));
+                                let mut call_stack: Vec<&str> =
+                                    call_str.split(" ").collect();
+                                let exec_port = call_stack.pop().unwrap();
+                                let exec_cmd = call_stack.join(" ");
+                                call = Command::new(defaults::SOCAT);
+                                call
+                                    .arg(&format!(
+                                        "VSOCK-CONNECT:2:{}", exec_port
+                                    ))
+                                    .arg(&format!(
+                                        "EXEC:'{}',{},{},{},{},{},{},{}",
+                                        exec_cmd,
+                                        "pty",
+                                        "stderr",
+                                        "setsid",
+                                        "sigint",
+                                        "sane",
+                                        "ctty",
+                                        "echo=0"
+                                    ));
+                                debug(&format!(
+                                    "CALL: {} -> {:?}",
+                                    defaults::SOCAT, call.get_args()
+                                ));
+                                match call.spawn() {
+                                    Ok(_) => { },
                                     Err(error) => {
                                         debug(&format!(
-                                            "Failed to parse as command {}: {}",
-                                            &buf, error
+                                            "VSOCK-CONNECT failed with: {}",
+                                            error
                                         ));
                                     }
                                 }
