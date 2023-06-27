@@ -9,7 +9,7 @@ panic = "abort"
 name = "firecracker-service-communication"
 version = "2.2.6"
 edition = "2018"
-
+license = "MIT"
 
 [dependencies]
 env_logger = "0.10.0"
