@@ -10,6 +10,7 @@ name = "flake-ctl"
 version = "2.2.6"
 authors = ["Marcus Schäfer <marcus.schaefer@elektrobit.com>"]
 edition = "2018"
+license = "MIT"
 
 [dependencies]
 clap = { version = "3.0.14", features = ["derive"] }
