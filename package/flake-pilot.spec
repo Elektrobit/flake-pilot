@@ -41,7 +41,7 @@ Requires:       sudo
 Requires:       rsync
 Requires:       tar
 BuildRequires:  pandoc
-%if 0%{?fedora} || 0%{?suse_version}
+%if 0%{?suse_version}
 BuildRequires:  rust
 BuildRequires:  cargo
 BuildRequires:  upx
@@ -139,7 +139,7 @@ Guest VM tools to help with firecracker workloads
 %build
 # This is a hack and related to the issue explained here:
 # https://github.com/rust-lang/rust/issues/99382
-%if 0%{?fedora} || 0%{?suse_version}
+%if 0%{?suse_version} && 0%{?suse_version} < 1650
 sudo bash %{SOURCE2}
 %endif
 
