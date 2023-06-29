@@ -17,11 +17,63 @@ jobs:
         run: |
           sudo apt update && sudo apt install cargo
           cargo install cargo-bom
+          cargo install cargo-license
+      # flake-ctl
       - name: Run SPDX Creation for flake-ctl
         run: |
           cd flake-ctl
           cargo bom
+      - name: Get Dependency Licenses of flake-ctl
+        run: |
+          cd flake-ctl
+          cargo license
+
+      # podman-pilot
       - name: Run SPDX Creation for podman-pilot
         run: |
           cd podman-pilot
           cargo bom
+      - name: Get Dependency Licenses of podman-pilot
+        run: |
+          cd podman-pilot
+          cargo license
+
+      # firecracker-pilot
+      - name: Run SPDX Creation for firecracker-pilot
+        run: |
+          cd firecracker-pilot
+          cargo bom
+      - name: Get Dependency Licenses of firecracker-pilot
+        run: |
+          cd firecracker-pilot
+          cargo license
+
+      # guesttvm-tools
+      - name: Run SPDX guesttvm-tools
+        run: |
+          cd firecracker-pilot/guestvm-tools/sci
+          cargo bom
+      - name: Get Dependency Licenses guesttvm-tools
+        run: |
+          cd firecracker-pilot/guestvm-tools/sci
+          cargo license
+
+      # firecracker-service
+      - name: Run SPDX firecracker-service
+        run: |
+          cd firecracker-pilot/firecracker-service/service
+          cargo bom
+      - name: Get Dependency Licenses firecracker-service
+        run: |
+          cd firecracker-pilot/firecracker-service/service
+          cargo license
+
+      # firecracker-service-communication
+      - name: Run SPDX firecracker-service-communication
+        run: |
+          cd firecracker-pilot/firecracker-service/service-communication
+          cargo bom
+      - name: Get Dependency Licenses firecracker-service-communication
+        run: |
+          cd firecracker-pilot/firecracker-service/service-communication
+          cargo license
