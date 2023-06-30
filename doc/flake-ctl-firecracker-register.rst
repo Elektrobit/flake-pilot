@@ -17,6 +17,7 @@ SYNOPSIS
 
    OPTIONS:
        --app <APP>
+       --include-tar <INCLUDE_TAR>...
        --no-net
        --resume
        --overlay-size <OVERLAY_SIZE>
@@ -48,6 +49,11 @@ OPTIONS
   An absolute path to the application on the host. If not specified via
   the target option, the application will be called with that path inside
   of the VM
+
+--include-tar <INCLUDE_TAR>...
+
+  Name of a tar file to be included on top of the VM instance.
+  This option can be specified multiple times
 
 --no-net
 

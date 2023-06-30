@@ -30,7 +30,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::env;
 use std::fs;
 use crate::defaults::{debug, is_debug};
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, tempdir};
 use std::io::{Write, SeekFrom, Seek};
 use std::fs::File;
 use ubyte::ByteUnit;
@@ -161,9 +161,19 @@ pub fn create(
     );
 
     // get flake config sections
+    let include_section = &runtime_config[0]["include"];
     let vm_section = &runtime_config[0]["vm"];
     let runtime_section = &vm_section["runtime"];
     let engine_section = &runtime_section["firecracker"];
+
+    // check for includes
+    let tar_includes = &include_section["tar"];
+    let has_includes;
+    if ! tar_includes.as_vec().is_none() {
+        has_includes = true;
+    } else {
+        has_includes = false;
+    }
 
     // setup VM operation mode
     let mut runas = String::new();
@@ -240,10 +250,11 @@ pub fn create(
     }
 
     // Setup root overlay if configured
+    let mut provision_ok = false;
+    let vm_overlay_file = get_meta_file_name(
+        program_name, defaults::FIRECRACKER_OVERLAY_DIR, "ext2"
+    );
     if ! &engine_section["overlay_size"].as_str().is_none() {
-        let vm_overlay_file = get_meta_file_name(
-            program_name, defaults::FIRECRACKER_OVERLAY_DIR, "ext2"
-        );
         if ! Path::new(&vm_overlay_file).exists() || ! resume {
             let byte_size: u64;
             let string_size = &engine_section["overlay_size"].as_str().unwrap();
@@ -292,27 +303,51 @@ pub fn create(
                     panic!("Failed to execute mkfs {:?}", error)
                 }
             }
+            provision_ok = true;
         }
     }
 
-    // NOTE:
-    // Provision data prior start
-    // The provision code is currently missing in this pilot.
-    // At this point in the code the handling for:
-    //
-    // - include
-    // - layers
-    // - delta
-    //
-    // need to be added. Provisioning is only possible if
-    // an overlay is configured. The provision code needs to
-    // rsync the data into the overlay. The overlay is handled
-    // as an overlayfs which requires the provision code to
-    // mount the overlay using overlayfs and sync the data into
-    // the overlayfs mount point
+    // Provision VM
+    if provision_ok {
+        let vm_image_file = engine_section["rootfs_image_path"]
+            .as_str().unwrap().to_string();
+        match tempdir() {
+            Ok(tmp_dir) => {
+                let vm_mount_point = mount_vm(
+                    tmp_dir.path().to_str().unwrap(),
+                    &vm_image_file,
+                    &vm_overlay_file,
+                    "root"
+                );
+                if ! vm_mount_point.is_empty() {
+                    // Handle includes
+                    if has_includes {
+                        debug("Syncing includes...");
+                        provision_ok = sync_includes(
+                            &vm_mount_point, &runtime_config, "root"
+                        );
+                    }
+                } else {
+                    provision_ok = false
+                }
+                umount_vm(
+                    &tmp_dir.path().to_str().unwrap(),
+                    "root"
+                );
+            },
+            Err(error) => {
+                error!("Failed to create temporary file: {}", error);
+                provision_ok = false
+            }
+        }
+        if ! provision_ok {
+            spinner.fail("Flake launch has failed");
+            panic!("Failed to provision VM")
+        }
+    }
 
     spinner.success("Launching flake");
-    return result;
+    return result
 }
 
 pub fn start(
@@ -910,6 +945,9 @@ pub fn vm_running(vmid: &String, user: &String) -> bool {
 pub fn get_meta_file_name(
     program_name: &String, target_dir: &str, extension: &str
 ) -> String {
+    /*!
+    Construct meta data file name from given program name
+    !*/
     let meta_file = format!(
         "{}/{}.{}", target_dir, get_meta_name(&program_name), extension
     );
@@ -917,6 +955,9 @@ pub fn get_meta_file_name(
 }
 
 pub fn get_meta_name(program_name: &String) -> String {
+    /*!
+    Construct meta data basename from given program name
+    !*/
     let args: Vec<String> = env::args().collect();
     let mut meta_file = program_name.to_string();
     for arg in &args[1..] {
@@ -1020,6 +1061,225 @@ pub fn delete_file(filename: &String, user: &str) -> bool {
         Ok(_) => { },
         Err(error) => {
             error!("Failed to rm: {}: {:?}", filename, error);
+            return false
+        }
+    }
+    true
+}
+
+pub fn sync_includes(
+    target: &str, runtime_config: &Vec<Yaml>, user: &str
+) -> bool {
+    /*!
+    Sync custom include data to target path
+    !*/
+    let include_section = &runtime_config[0]["include"];
+    let tar_includes = &include_section["tar"];
+    let mut status_code = 0;
+    if ! tar_includes.as_vec().is_none() {
+        for tar in tar_includes.as_vec().unwrap() {
+            debug(&format!("Adding tar include: [{}]", tar.as_str().unwrap()));
+            let mut call = Command::new("sudo");
+            if ! user.is_empty() {
+                call.arg("--user").arg(user);
+            }
+            call.arg("tar")
+                .arg("-C").arg(&target)
+                .arg("-xf").arg(tar.as_str().unwrap());
+            debug(&format!("{:?}", call.get_args()));
+            match call.output() {
+                Ok(output) => {
+                    debug(&String::from_utf8_lossy(&output.stdout).to_string());
+                    debug(&String::from_utf8_lossy(&output.stderr).to_string());
+                    status_code = output.status.code().unwrap();
+                },
+                Err(error) => {
+                    panic!("Failed to execute tar: {:?}", error)
+                }
+            }
+        }
+    }
+    if status_code == 0 {
+        return true
+    }
+    return false
+}
+
+pub fn mount_vm(
+    sub_dir: &str, rootfs_image_path: &str,
+    overlay_path: &str, user: &str
+) -> String {
+    /*!
+    Mount VM with overlay below given sub_dir
+    !*/
+    let failed = "".to_string();
+    // 1. create overlay image mount structure
+    for image_dir in vec![
+        defaults::IMAGE_ROOT,
+        defaults::IMAGE_OVERLAY
+    ].iter() {
+        let dir_path = format!("{}/{}", sub_dir, image_dir);
+        if ! Path::new(&dir_path).exists() {
+            match fs::create_dir_all(&dir_path) {
+                Ok(_) => { },
+                Err(error) => {
+                    error!("Error creating directory {}: {}", dir_path, error);
+                    return failed
+                }
+            }
+        }
+    }
+    // 2. mount VM image
+    let image_mount_point = format!(
+        "{}/{}", sub_dir, defaults::IMAGE_ROOT
+    );
+    let mut mount_image = Command::new("sudo");
+    if ! user.is_empty() {
+        mount_image.arg("--user").arg(user);
+    }
+    mount_image
+        .arg("mount")
+        .arg(&rootfs_image_path)
+        .arg(&image_mount_point);
+    debug(&format!("{:?}", mount_image.get_args()));
+    match mount_image.output() {
+        Ok(output) => {
+            if ! output.status.success() {
+                error!(
+                    "Failed to mount VM image: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                return failed
+            }
+        },
+        Err(error) => {
+            error!("Failed to execute mount: {:?}", error);
+            return failed
+        }
+    }
+    // 3. mount Overlay image
+    let overlay_mount_point = format!(
+        "{}/{}", sub_dir, defaults::IMAGE_OVERLAY
+    );
+    let mut mount_overlay = Command::new("sudo");
+    if ! user.is_empty() {
+        mount_overlay.arg("--user").arg(user);
+    }
+    mount_overlay
+        .arg("mount")
+        .arg(&overlay_path)
+        .arg(&overlay_mount_point);
+    debug(&format!("{:?}", mount_overlay.get_args()));
+    match mount_overlay.output() {
+        Ok(output) => {
+            if ! output.status.success() {
+                error!(
+                    "Failed to mount VM image: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                return failed
+            }
+        },
+        Err(error) => {
+            error!("Failed to execute mount: {:?}", error);
+            return failed
+        }
+    }
+    // 4. mount as overlay
+    for overlay_dir in vec![
+        defaults::OVERLAY_ROOT,
+        defaults::OVERLAY_UPPER,
+        defaults::OVERLAY_WORK
+    ].iter() {
+        let dir_path = format!("{}/{}", sub_dir, overlay_dir);
+        if ! Path::new(&dir_path).exists() {
+            if ! mkdir(&dir_path, "root") {
+                return failed
+            }
+        }
+    }
+    let root_mount_point = format!("{}/{}", sub_dir, defaults::OVERLAY_ROOT);
+    let mut mount_overlay = Command::new("sudo");
+    if ! user.is_empty() {
+        mount_overlay.arg("--user").arg(user);
+    }
+    mount_overlay
+        .arg("mount")
+        .arg("-t")
+        .arg("overlay")
+        .arg("overlayfs")
+        .arg("-o")
+        .arg(format!("lowerdir={},upperdir={}/{},workdir={}/{}",
+            &image_mount_point,
+            sub_dir, defaults::OVERLAY_UPPER,
+            sub_dir, defaults::OVERLAY_WORK
+        ))
+        .arg(&root_mount_point);
+    debug(&format!("{:?}", mount_overlay.get_args()));
+    match mount_overlay.output() {
+        Ok(output) => {
+            if ! output.status.success() {
+                error!(
+                    "Failed to overlay mount VM image: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                return failed
+            }
+        },
+        Err(error) => {
+            error!("Failed to execute mount: {:?}", error);
+            return failed
+        }
+    }
+    root_mount_point
+}
+
+pub fn umount_vm(sub_dir: &str, user: &str) -> bool {
+    /*!
+    Umount VM image
+    !*/
+    let mut status_code = 0;
+    for mount_point in vec![
+        defaults::OVERLAY_ROOT,
+        defaults::IMAGE_OVERLAY,
+        defaults::IMAGE_ROOT,
+    ].iter() {
+        let mut umount = Command::new("sudo");
+        umount.stderr(Stdio::null());
+        umount.stdout(Stdio::null());
+        if ! user.is_empty() {
+            umount.arg("--user").arg(user);
+        }
+        umount.arg("umount").arg(format!("{}/{}", &sub_dir, &mount_point));
+        debug(&format!("{:?}", umount.get_args()));
+        match umount.status() {
+            Ok(status) => {
+                status_code = status_code + status.code().unwrap();
+            },
+            Err(error) => {
+                error!("Failed to execute umount: {:?}", error)
+            }
+        }
+    }
+    if status_code > 0 {
+        return false
+    }
+    true
+}
+
+pub fn mkdir(dirname: &String, user: &str) -> bool {
+    /*!
+    Make directory via sudo
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("mkdir").arg("-p").arg(&dirname);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to mkdir: {}: {:?}", dirname, error);
             return false
         }
     }

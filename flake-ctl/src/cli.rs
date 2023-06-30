@@ -148,7 +148,13 @@ pub enum Firecracker {
 
         /// Disable networking
         #[clap(long)]
-        no_net: bool
+        no_net: bool,
+
+        /// Name of a tar file to be included on top of
+        /// the VM instance. This option can be
+        /// specified multiple times.
+        #[clap(long, multiple = true, requires = "overlay-size")]
+        include_tar: Option<Vec<String>>,
     },
     /// Remove application registration or entire VM
     #[clap(group(
