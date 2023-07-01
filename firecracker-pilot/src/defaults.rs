@@ -30,7 +30,7 @@ pub const FIRECRACKER_TEMPLATE:&str =
 pub const FIRECRACKER_FLAKE_DIR: &str =
     "/usr/share/flakes";
 pub const FIRECRACKER_VMID_DIR: &str =
-    "/tmp/flakes";
+    "/var/lib/firecracker/storage/tmp/flakes";
 pub const GC_THRESHOLD: i32 = 20;
 pub const VM_CID: u32 = 3;
 pub const VM_PORT: u32 =
