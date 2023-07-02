@@ -630,6 +630,7 @@ pub fn sync_includes(
             match call.output() {
                 Ok(output) => {
                     debug(&String::from_utf8_lossy(&output.stdout).to_string());
+                    debug(&String::from_utf8_lossy(&output.stderr).to_string());
                     status_code = output.status.code().unwrap();
                 },
                 Err(error) => {
