@@ -739,7 +739,7 @@ pub fn sync_host(
 
 pub fn init_cid_dir() {
     if ! Path::new(defaults::CONTAINER_CID_DIR).is_dir() {
-        fs::create_dir(defaults::CONTAINER_CID_DIR).unwrap_or_else(|why| {
+        fs::create_dir_all(defaults::CONTAINER_CID_DIR).unwrap_or_else(|why| {
             panic!("Failed to create CID dir: {:?}", why.kind());
         });
         let attr = fs::metadata(

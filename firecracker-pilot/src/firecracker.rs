@@ -870,7 +870,7 @@ pub fn init_meta_dirs() {
     meta_dirs.push(defaults::FIRECRACKER_OVERLAY_DIR);
     for meta_dir in meta_dirs {
         if ! Path::new(meta_dir).is_dir() {
-            fs::create_dir(meta_dir).unwrap_or_else(|why| {
+            fs::create_dir_all(meta_dir).unwrap_or_else(|why| {
                 panic!("Failed to create {}: {:?}", meta_dir, why.kind());
             });
             let attr = fs::metadata(meta_dir).unwrap_or_else(|why| {
