@@ -23,6 +23,16 @@
 //
 use std::env;
 
+pub const IMAGE_ROOT: &str =
+    "image";
+pub const IMAGE_OVERLAY: &str =
+    "overlayroot";
+pub const OVERLAY_ROOT: &str =
+    "overlayroot/rootfs";
+pub const OVERLAY_UPPER: &str =
+    "overlayroot/rootfs_upper";
+pub const OVERLAY_WORK: &str =
+    "overlayroot/rootfs_work";
 pub const FIRECRACKER_OVERLAY_DIR:&str =
     "/var/lib/firecracker/storage";
 pub const FIRECRACKER_TEMPLATE:&str =

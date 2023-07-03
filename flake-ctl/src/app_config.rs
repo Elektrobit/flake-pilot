@@ -175,7 +175,8 @@ impl AppConfig {
         run_as: Option<&String>,
         overlay_size: Option<&String>,
         no_net: bool,
-        resume: bool
+        resume: bool,
+        includes_tar: Option<Vec<String>>,
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
@@ -201,6 +202,11 @@ impl AppConfig {
         if ! run_as.is_none() {
             vm_config.runtime.as_mut().unwrap()
                 .runas = Some(run_as.unwrap().to_string());
+        }
+        if ! includes_tar.is_none() {
+            yaml_config.include.tar = Some(
+                includes_tar.as_ref().unwrap().to_vec()
+            );
         }
         if ! overlay_size.is_none() {
             vm_config.runtime.as_mut().unwrap()
