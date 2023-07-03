@@ -38,7 +38,7 @@ pub const VM_PORT: u32 =
 pub const SOCAT: &str =
     "/usr/bin/socat";
 pub const RETRIES: u32 =
-    5;
+    20;
 pub const VM_WAIT_TIMEOUT_MSEC: u64 =
     1000;
 
