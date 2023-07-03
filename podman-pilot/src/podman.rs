@@ -25,7 +25,6 @@ use spinoff::{Spinner, spinners, Color};
 use yaml_rust::Yaml;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::os::unix::fs::PermissionsExt;
 use std::process::exit;
 use std::env;
 use std::fs;
@@ -739,21 +738,18 @@ pub fn sync_host(
 
 pub fn init_cid_dir() {
     if ! Path::new(defaults::CONTAINER_CID_DIR).is_dir() {
-        fs::create_dir_all(defaults::CONTAINER_CID_DIR).unwrap_or_else(|why| {
-            panic!("Failed to create CID dir: {:?}", why.kind());
-        });
-        let attr = fs::metadata(
-            defaults::CONTAINER_CID_DIR
-        ).unwrap_or_else(|why| {
-            panic!("Failed to fetch CID attributes: {:?}", why.kind());
-        });
-        let mut permissions = attr.permissions();
-        permissions.set_mode(0o777);
-        fs::set_permissions(
-            defaults::CONTAINER_CID_DIR, permissions
-        ).unwrap_or_else(|why| {
-            panic!("Failed to set CID permissions: {:?}", why.kind());
-        });
+        if ! chmod(defaults::CONTAINER_DIR, "755", "root") {
+            panic!(
+                "Failed to set permissions 755 on {}",
+                defaults::CONTAINER_DIR
+            );
+        }
+        if ! mkdir(defaults::CONTAINER_CID_DIR, "777", "root") {
+            panic!(
+                "Failed to create CID dir: {}",
+                defaults::CONTAINER_CID_DIR
+            );
+        }
     }
 }
 
@@ -920,6 +916,44 @@ pub fn gc_cid_file(container_cid_file: &String, user: &String) -> bool {
         }
     }
     cid_status
+}
+
+pub fn chmod(filename: &str, mode: &str, user: &str) -> bool {
+    /*!
+    Chmod filename via sudo
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("chmod").arg(&mode).arg(&filename);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to chmod: {}: {:?}", filename, error);
+            return false
+        }
+    }
+    true
+}
+
+pub fn mkdir(dirname: &str, mode: &str, user: &str) -> bool {
+    /*!
+    Make directory via sudo
+    !*/
+    let mut call = Command::new("sudo");
+    if ! user.is_empty() {
+        call.arg("--user").arg(user);
+    }
+    call.arg("mkdir").arg("-p").arg("-m").arg(&mode).arg(&dirname);
+    match call.status() {
+        Ok(_) => { },
+        Err(error) => {
+            error!("Failed to mkdir: {}: {:?}", dirname, error);
+            return false
+        }
+    }
+    true
 }
 
 pub fn gc(user: &String) {

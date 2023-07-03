@@ -26,7 +26,6 @@ use spinoff::{Spinner, spinners, Color};
 use yaml_rust::Yaml;
 use std::path::Path;
 use std::process::{Command, Stdio, exit, id};
-use std::os::unix::fs::PermissionsExt;
 use std::env;
 use std::fs;
 use crate::defaults::{debug, is_debug};
@@ -866,25 +865,13 @@ pub fn get_target_app_path(
 
 pub fn init_meta_dirs() {
     let mut meta_dirs: Vec<&str> = Vec::new();
-    meta_dirs.push(defaults::FIRECRACKER_VMID_DIR);
     meta_dirs.push(defaults::FIRECRACKER_OVERLAY_DIR);
+    meta_dirs.push(defaults::FIRECRACKER_VMID_DIR);
     for meta_dir in meta_dirs {
         if ! Path::new(meta_dir).is_dir() {
-            fs::create_dir_all(meta_dir).unwrap_or_else(|why| {
-                panic!("Failed to create {}: {:?}", meta_dir, why.kind());
-            });
-            let attr = fs::metadata(meta_dir).unwrap_or_else(|why| {
-                panic!(
-                    "Failed to fetch {} attributes: {:?}", meta_dir, why.kind()
-                );
-            });
-            let mut permissions = attr.permissions();
-            permissions.set_mode(0o777);
-            fs::set_permissions(meta_dir, permissions).unwrap_or_else(|why| {
-                panic!(
-                    "Failed to set {} permissions: {:?}", meta_dir, why.kind()
-                );
-            });
+            if ! mkdir(meta_dir, "777", "root") {
+                panic!("Failed to create {}", meta_dir);
+            }
         }
     }
 }
@@ -1193,7 +1180,7 @@ pub fn mount_vm(
     ].iter() {
         let dir_path = format!("{}/{}", sub_dir, overlay_dir);
         if ! Path::new(&dir_path).exists() {
-            if ! mkdir(&dir_path, "root") {
+            if ! mkdir(&dir_path, "755", "root") {
                 return failed
             }
         }
@@ -1267,7 +1254,7 @@ pub fn umount_vm(sub_dir: &str, user: &str) -> bool {
     true
 }
 
-pub fn mkdir(dirname: &String, user: &str) -> bool {
+pub fn mkdir(dirname: &str, mode: &str, user: &str) -> bool {
     /*!
     Make directory via sudo
     !*/
@@ -1275,7 +1262,7 @@ pub fn mkdir(dirname: &String, user: &str) -> bool {
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("mkdir").arg("-p").arg(&dirname);
+    call.arg("mkdir").arg("-p").arg("-m").arg(&mode).arg(&dirname);
     match call.status() {
         Ok(_) => { },
         Err(error) => {
