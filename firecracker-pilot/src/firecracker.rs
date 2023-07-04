@@ -270,10 +270,21 @@ pub fn create(
             }
             match std::fs::File::create(&vm_overlay_file) {
                 Ok(mut vm_overlay_file_fd) => {
-                    vm_overlay_file_fd.seek(
+                    match vm_overlay_file_fd.seek(
                         SeekFrom::Start(byte_size - 1)
-                    ).unwrap();
-                    vm_overlay_file_fd.write_all(&[0]).unwrap();
+                    ) {
+                        Ok(_) => {
+                            match vm_overlay_file_fd.write_all(&[0]) {
+                                Ok(_) => { },
+                                Err(error) => {
+                                    panic!("Write failed with: {}", error)
+                                }
+                            }
+                        },
+                        Err(error) => {
+                            panic!("Seek failed with: {}", error)
+                        }
+                    }
                 },
                 Err(error) => {
                     panic!("Failed to create overlay image: {}", error);
