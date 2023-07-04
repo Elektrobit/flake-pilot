@@ -89,6 +89,7 @@ activate() {
         luksOpen "${reg_instance_device}" luksInstances
     rm -f "${tpm_key}"
     mount /dev/mapper/luksInstances /var/lib/containers/storage
+    mkdir -p /var/lib/containers/storage/tmp/flakes
 }
 
 format() {
