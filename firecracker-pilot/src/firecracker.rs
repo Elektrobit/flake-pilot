@@ -282,7 +282,7 @@ pub fn create(
                             }
                         },
                         Err(error) => {
-                            panic!("Seek failed with: {}", error)
+                            panic!("No space left on device: {}", error)
                         }
                     }
                 },
