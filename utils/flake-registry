@@ -21,17 +21,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# manage OCI read-write registry
+# setup tool for flake read-write registry
 #
-# NOTE: This script only works on systems that uses a specific
-# container registry layout. It is expected that the registry is
-# configured to use the overlay storage type and furthermore it's
-# expected that the storage space is LUKS encrypted providing
-# the device name luksInstances. The following lsblk output shows
-# an example which this script is based on:
+# NOTE: This script only works on systems which provides the podman
+# registry layout. It's expected that the storage space is LUKS
+# encrypted providing the device name luksInstances. The following
+# lsblk output shows an example which this script is based on:
 #
 # mmcblk0           179:0    0  29.7G  0 disk  
-# └─mmcblk0p3       179:3    0  29.5G  0 part  
+# └─mmcblk0pX       179:3    0  29.5G  0 part
 #   └─luksInstances 254:0    0  29.5G  0 crypt /var/lib/containers/storage
 #
 # If your host system does not provide the device stack like the
@@ -55,7 +53,7 @@ trap "rm -f /run/key" EXIT
 
 usage() {
     echo "USAGE:"
-    echo "  oci-registry [OPTIONS]"
+    echo "  flake-registry [OPTIONS]"
     echo
     echo "OPTIONS:"
     echo "  --setup <DEVICE>"

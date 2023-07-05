@@ -189,7 +189,7 @@ install -m 755 %{buildroot}/usr/sbin/sci \
 %files -n flake-pilot-podman
 %config /etc/flakes/container-flake.yaml
 /usr/bin/podman-pilot
-/usr/sbin/oci-registry
+/usr/sbin/flake-registry
 %doc /usr/share/man/man8/flake-ctl-podman-build-deb.8.gz
 %doc /usr/share/man/man8/flake-ctl-podman-load.8.gz
 %doc /usr/share/man/man8/flake-ctl-podman-pull.8.gz
