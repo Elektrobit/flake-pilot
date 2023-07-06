@@ -1,0 +1,2 @@
+[workspace]
+members = ["flake-ctl", "podman-pilot", "firecracker-pilot"]
