@@ -168,7 +168,7 @@ pub fn create(
     // check for includes
     let tar_includes = &include_section["tar"];
     let has_includes;
-    if ! tar_includes.as_vec().is_none() {
+    if tar_includes.as_vec().is_some() {
         has_includes = true;
     } else {
         has_includes = false;
@@ -178,9 +178,9 @@ pub fn create(
     let mut runas = String::new();
     let mut resume: bool = false;
 
-    if ! runtime_section.as_hash().is_none() {
+    if runtime_section.as_hash().is_some() {
         if ! &runtime_section["runas"].as_str().is_none() {
-            runas.push_str(&runtime_section["runas"].as_str().unwrap());
+            runas.push_str(runtime_section["runas"].as_str().unwrap());
         }
         if ! &runtime_section["resume"].as_bool().is_none() {
             resume = runtime_section["resume"].as_bool().unwrap();
@@ -191,28 +191,24 @@ pub fn create(
     init_meta_dirs();
 
     // Check early return condition
-    if Path::new(&vm_id_file).exists() &&
-        gc_meta_files(&vm_id_file, &runas, &program_name, resume)
-    {
-        if resume {
-            // VM exists
-            // report ID value and its ID file name
-            match fs::read_to_string(&vm_id_file) {
-                Ok(vmid) => {
-                    result.push(vmid);
-                },
-                Err(error) => {
-                    // vmid file exists but could not be read
-                    panic!("Error reading VMID: {:?}", error);
-                }
+    if Path::new(&vm_id_file).exists() && gc_meta_files(&vm_id_file, &runas, program_name, resume) && resume {
+        // VM exists
+        // report ID value and its ID file name
+        match fs::read_to_string(&vm_id_file) {
+            Ok(vmid) => {
+                result.push(vmid);
+            },
+            Err(error) => {
+                // vmid file exists but could not be read
+                panic!("Error reading VMID: {:?}", error);
             }
-            result.push(vm_id_file);
-            return result;
         }
+        result.push(vm_id_file);
+        return result;
     }
 
     // Garbage collect occasionally
-    gc(&runas, &program_name);
+    gc(&runas, program_name);
 
     // Sanity check
     if Path::new(&vm_id_file).exists() {
@@ -253,68 +249,66 @@ pub fn create(
     let vm_overlay_file = get_meta_file_name(
         program_name, defaults::FIRECRACKER_OVERLAY_DIR, "ext2"
     );
-    if ! &engine_section["overlay_size"].as_str().is_none() {
-        if ! Path::new(&vm_overlay_file).exists() || ! resume {
-            let byte_size: u64;
-            let string_size = &engine_section["overlay_size"].as_str().unwrap();
-            match string_size.parse::<ByteUnit>() {
-                Ok(result) => {
-                    byte_size = result.as_u64();
-                },
-                Err(error) => {
-                    panic!(
-                        "Failed to parse overlay_size '{}': {}",
-                        string_size, error
-                    )
-                }
+    if ! &engine_section["overlay_size"].as_str().is_none() && (! Path::new(&vm_overlay_file).exists() || ! resume) {
+        let byte_size: u64;
+        let string_size = &engine_section["overlay_size"].as_str().unwrap();
+        match string_size.parse::<ByteUnit>() {
+            Ok(result) => {
+                byte_size = result.as_u64();
+            },
+            Err(error) => {
+                panic!(
+                    "Failed to parse overlay_size '{}': {}",
+                    string_size, error
+                )
             }
-            match std::fs::File::create(&vm_overlay_file) {
-                Ok(mut vm_overlay_file_fd) => {
-                    match vm_overlay_file_fd.seek(
-                        SeekFrom::Start(byte_size - 1)
-                    ) {
-                        Ok(_) => {
-                            match vm_overlay_file_fd.write_all(&[0]) {
-                                Ok(_) => { },
-                                Err(error) => {
-                                    panic!("Write failed with: {}", error)
-                                }
-                            }
-                        },
-                        Err(error) => {
-                            panic!("No space left on device: {}", error)
-                        }
-                    }
-                },
-                Err(error) => {
-                    panic!("Failed to create overlay image: {}", error);
-                }
-            }
-            // Create filesystem
-            let mut mkfs = Command::new("sudo");
-            if ! runas.is_empty() {
-                mkfs.arg("--user").arg(&runas);
-            }
-            mkfs
-                .arg("mkfs.ext2")
-                .arg("-F")
-                .arg(&vm_overlay_file);
-            debug(&format!("sudo {:?}", mkfs.get_args()));
-            match mkfs.output() {
-                Ok(output) => {
-                    if ! output.status.success() {
-                        panic!(
-                            "Failed to create overlay filesystem: {}",
-                            String::from_utf8_lossy(&output.stderr)
-                        );
-                    }
-                },
-                Err(error) => {
-                    panic!("Failed to execute mkfs {:?}", error)
-                }
-            }
-            provision_ok = true;
         }
+        match std::fs::File::create(&vm_overlay_file) {
+            Ok(mut vm_overlay_file_fd) => {
+                match vm_overlay_file_fd.seek(
+                    SeekFrom::Start(byte_size - 1)
+                ) {
+                    Ok(_) => {
+                        match vm_overlay_file_fd.write_all(&[0]) {
+                            Ok(_) => { },
+                            Err(error) => {
+                                panic!("Write failed with: {}", error)
+                            }
+                        }
+                    },
+                    Err(error) => {
+                        panic!("No space left on device: {}", error)
+                    }
+                }
+            },
+            Err(error) => {
+                panic!("Failed to create overlay image: {}", error);
+            }
+        }
+        // Create filesystem
+        let mut mkfs = Command::new("sudo");
+        if ! runas.is_empty() {
+            mkfs.arg("--user").arg(&runas);
+        }
+        mkfs
+            .arg("mkfs.ext2")
+            .arg("-F")
+            .arg(&vm_overlay_file);
+        debug(&format!("sudo {:?}", mkfs.get_args()));
+        match mkfs.output() {
+            Ok(output) => {
+                if ! output.status.success() {
+                    panic!(
+                        "Failed to create overlay filesystem: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                }
+            },
+            Err(error) => {
+                panic!("Failed to execute mkfs {:?}", error)
+            }
+        }
+        provision_ok = true;
     }
 
     // Provision VM
@@ -334,14 +328,14 @@ pub fn create(
                     if has_includes {
                         debug("Syncing includes...");
                         provision_ok = sync_includes(
-                            &vm_mount_point, &runtime_config, "root"
+                            &vm_mount_point, runtime_config, "root"
                         );
                     }
                 } else {
                     provision_ok = false
                 }
                 umount_vm(
-                    &tmp_dir.path().to_str().unwrap(),
+                    tmp_dir.path().to_str().unwrap(),
                     "root"
                 );
             },
@@ -357,7 +351,7 @@ pub fn create(
     }
 
     spinner.success("Launching flake");
-    return result
+    result
 }
 
 pub fn start(
@@ -380,29 +374,29 @@ pub fn start(
     let mut is_blocking: bool = true;
     let mut runas = String::new();
 
-    if ! runtime_section.as_hash().is_none() {
+    if runtime_section.as_hash().is_some() {
         if ! &runtime_section["resume"].as_bool().is_none() {
             resume = runtime_section["resume"].as_bool().unwrap();
         }
         if ! &runtime_section["runas"].as_str().is_none() {
-            runas.push_str(&runtime_section["runas"].as_str().unwrap());
+            runas.push_str(runtime_section["runas"].as_str().unwrap());
         }
     }
 
-    if vm_running(&vmid, &runas) {
+    if vm_running(vmid, &runas) {
         is_running = true;
     }
 
     if is_running {
         // 1. Execute app in running VM
         status_code = execute_command_at_instance(
-            &program_name, &runtime_config, &runas, get_exec_port()
+            program_name, runtime_config, &runas, get_exec_port()
         );
     } else {
         match NamedTempFile::new() {
             Ok(firecracker_config) => {
                 create_firecracker_config(
-                    &program_name, &runtime_config, &firecracker_config
+                    program_name, runtime_config, &firecracker_config
                 );
                 if resume {
                     // 2. Startup resume type VM and execute app
@@ -411,7 +405,7 @@ pub fn start(
                         &firecracker_config, vm_id_file, &runas, is_blocking
                     );
                     status_code = execute_command_at_instance(
-                        &program_name, &runtime_config, &runas, get_exec_port()
+                        program_name, runtime_config, &runas, get_exec_port()
                     );
                 } else {
                     // 3. Startup VM and execute app
@@ -439,7 +433,7 @@ pub fn call_instance(
 
     let mut firecracker = Command::new("sudo");
     if ! user.is_empty() {
-        firecracker.arg("--user").arg(&user);
+        firecracker.arg("--user").arg(user);
     }
     if ! is_debug() {
         firecracker.stderr(Stdio::null());
@@ -480,7 +474,7 @@ pub fn call_instance(
             if is_blocking {
                 match child.wait() {
                     Ok(ecode) => {
-                        if ! ecode.code().is_none() {
+                        if ecode.code().is_some() {
                             status_code = ecode.code().unwrap()
                         }
                     },
@@ -506,8 +500,8 @@ pub fn get_exec_port() -> u32 {
     // should check for already running socket connections
     // and if the same number is used for an already running one
     // another rand should be called
-    let exec_port = random.gen_range(49200..60000);
-    exec_port
+    
+    random.gen_range(49200..60000)
 }
 
 pub fn check_connected(program_name: &String, user: &String) -> i32 {
@@ -517,7 +511,7 @@ pub fn check_connected(program_name: &String, user: &String) -> i32 {
     let mut status_code;
     let mut retry_count = 0;
     let vsock_uds_path = format!(
-        "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+        "/run/sci_cmd_{}.sock", get_meta_name(program_name)
     );
     loop {
         if retry_count == defaults::RETRIES {
@@ -562,7 +556,7 @@ pub fn check_connected(program_name: &String, user: &String) -> i32 {
             );
             thread::sleep(some_time);
         }
-        retry_count = retry_count + 1
+        retry_count += 1
     }
     status_code
 }
@@ -576,9 +570,9 @@ pub fn send_command_to_instance(
     !*/
     let mut status_code;
     let mut retry_count = 0;
-    let run = get_run_cmdline(&program_name, &runtime_config, false);
+    let run = get_run_cmdline(program_name, runtime_config, false);
     let vsock_uds_path = format!(
-        "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+        "/run/sci_cmd_{}.sock", get_meta_name(program_name)
     );
     loop {
         if retry_count == defaults::RETRIES {
@@ -625,7 +619,7 @@ pub fn send_command_to_instance(
             );
             thread::sleep(some_time);
         }
-        retry_count = retry_count + 1
+        retry_count += 1
     }
     status_code
 }
@@ -640,7 +634,7 @@ pub fn execute_command_at_instance(
     let mut status_code;
     let mut retry_count = 0;
     let vsock_uds_path = format!(
-        "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+        "/run/sci_cmd_{}.sock", get_meta_name(program_name)
     );
 
     // wait for UDS socket to appear
@@ -655,11 +649,11 @@ pub fn execute_command_at_instance(
         }
         let some_time = time::Duration::from_millis(100);
         thread::sleep(some_time);
-        retry_count = retry_count + 1
+        retry_count += 1
     }
 
     // make sure instance can be contacted
-    if check_connected(&program_name, &user) != 0 {
+    if check_connected(program_name, user) != 0 {
         return 1
     }
 
@@ -681,7 +675,7 @@ pub fn execute_command_at_instance(
     match vm_exec.spawn() {
         Ok(mut child) => {
             status_code = send_command_to_instance(
-                &program_name, &runtime_config, &user, exec_port
+                program_name, runtime_config, user, exec_port
             );
             match child.wait() {
                 Ok(ecode) => {
@@ -722,7 +716,7 @@ pub fn create_firecracker_config(
                             .as_str().unwrap().to_string();
 
                     // set initrd_path
-                    if ! engine_section["initrd_path"].as_str().is_none() {
+                    if engine_section["initrd_path"].as_str().is_some() {
                         firecracker_config.boot_source.initrd_path =
                             engine_section["initrd_path"]
                                 .as_str().unwrap().to_string()
@@ -730,15 +724,13 @@ pub fn create_firecracker_config(
 
                     // setup run commandline for the command call
                     let run = get_run_cmdline(
-                        &program_name, &runtime_config, true
+                        program_name, runtime_config, true
                     );
 
                     // lookup resume mode
                     let mut resume: bool = false;
-                    if ! runtime_section.as_hash().is_none() {
-                        if ! &runtime_section["resume"].as_bool().is_none() {
-                            resume = runtime_section["resume"].as_bool().unwrap();
-                        }
+                    if runtime_section.as_hash().is_some() && ! &runtime_section["resume"].as_bool().is_none() {
+                        resume = runtime_section["resume"].as_bool().unwrap();
                     }
 
                     // set boot_args
@@ -748,7 +740,7 @@ pub fn create_firecracker_config(
                     if ! &engine_section["overlay_size"].as_str().is_none() {
                         boot_args.push("overlay_root=/dev/vdb".to_string());
                     }
-                    if ! engine_section["boot_args"].as_vec().is_none() {
+                    if engine_section["boot_args"].as_vec().is_some() {
                         for boot_arg in
                             engine_section["boot_args"].as_vec().unwrap()
                         {
@@ -761,23 +753,21 @@ pub fn create_firecracker_config(
                                 // in resume mode the communication is handled
                                 // through vsocks. Thus we don't need a serial
                                 // console and only provide one in debug mode
-                                boot_args.push(format!("console="));
+                                boot_args.push("console=".to_string());
                             } else {
                                 boot_args.push(boot_option);
                             }
                         }
                     }
                     if ! firecracker_config.boot_source.boot_args.is_empty() {
-                        firecracker_config.boot_source.boot_args.push_str(
-                            &format!(" ")
-                        );
+                        firecracker_config.boot_source.boot_args.push(' ');
                     }
                     firecracker_config.boot_source.boot_args.push_str(
                         &boot_args.join(" ")
                     );
                     if resume {
                         firecracker_config.boot_source.boot_args.push_str(
-                            &format!(" run=vsock")
+                            " run=vsock"
                         )
                     } else {
                         firecracker_config.boot_source.boot_args.push_str(
@@ -807,19 +797,19 @@ pub fn create_firecracker_config(
                             path_on_host: vm_overlay_file,
                             is_root_device: false,
                             is_read_only: false,
-                            cache_type: cache_type
+                            cache_type
                         };
                         firecracker_config.drives.push(drive);
                     }
 
                     // set tap device name
                     firecracker_config.network_interfaces[0].host_dev_name =
-                        format!("tap-{}", get_meta_name(&program_name));
+                        format!("tap-{}", get_meta_name(program_name));
 
                     // set vsock name
                     firecracker_config.vsock.guest_cid = defaults::VM_CID;
                     firecracker_config.vsock.uds_path = format!(
-                        "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+                        "/run/sci_cmd_{}.sock", get_meta_name(program_name)
                     );
 
                     // set mem_size_mib
@@ -864,14 +854,14 @@ pub fn get_target_app_path(
     !*/
     let mut target_app_path = String::new();
     let vm_section = &runtime_config[0]["vm"];
-    if ! vm_section["target_app_path"].as_str().is_none() {
+    if vm_section["target_app_path"].as_str().is_some() {
         target_app_path.push_str(
             vm_section["target_app_path"].as_str().unwrap()
         )
     } else {
         target_app_path.push_str(program_name.as_str())
     }
-    return target_app_path
+    target_app_path
 }
 
 pub fn init_meta_dirs() {
@@ -879,10 +869,8 @@ pub fn init_meta_dirs() {
     meta_dirs.push(defaults::FIRECRACKER_OVERLAY_DIR);
     meta_dirs.push(defaults::FIRECRACKER_VMID_DIR);
     for meta_dir in meta_dirs {
-        if ! Path::new(meta_dir).is_dir() {
-            if ! mkdir(meta_dir, "777", "root") {
-                panic!("Failed to create {}", meta_dir);
-            }
+        if ! Path::new(meta_dir).is_dir() && ! mkdir(meta_dir, "777", "root") {
+            panic!("Failed to create {}", meta_dir);
         }
     }
 }
@@ -897,14 +885,14 @@ pub fn get_run_cmdline(
     let args: Vec<String> = env::args().collect();
     let mut run: Vec<String> = Vec::new();
     let target_app_path = get_target_app_path(
-        &program_name, &runtime_config
+        program_name, runtime_config
     );
     run.push(target_app_path);
     for arg in &args[1..] {
         debug(&format!("Got Argument: {}", arg));
-        if ! arg.starts_with("@") {
+        if ! arg.starts_with('@') {
             if quote_for_kernel_cmdline {
-                run.push(arg.replace("-", "\\-").to_string());
+                run.push(arg.replace('-', "\\-").to_string());
             } else {
                 run.push(arg.to_string());
             }
@@ -923,7 +911,7 @@ pub fn vm_running(vmid: &String, user: &String) -> bool {
     }
     let mut running = Command::new("sudo");
     if ! user.is_empty() {
-        running.arg("--user").arg(&user);
+        running.arg("--user").arg(user);
     }
     running.arg("kill").arg("-0").arg(vmid);
     debug(&format!("{:?}", running.get_args()));
@@ -947,7 +935,7 @@ pub fn get_meta_file_name(
     Construct meta data file name from given program name
     !*/
     let meta_file = format!(
-        "{}/{}.{}", target_dir, get_meta_name(&program_name), extension
+        "{}/{}.{}", target_dir, get_meta_name(program_name), extension
     );
     meta_file
 }
@@ -959,7 +947,7 @@ pub fn get_meta_name(program_name: &String) -> String {
     let args: Vec<String> = env::args().collect();
     let mut meta_file = program_name.to_string();
     for arg in &args[1..] {
-        if arg.starts_with("@") {
+        if arg.starts_with('@') {
             // The special @NAME argument is not passed to the
             // actual call and can be used to run different VM
             // instances for the same application
@@ -979,22 +967,22 @@ pub fn gc_meta_files(
     exists, in any other case return false.
     !*/
     let mut vmid_status = false;
-    match fs::read_to_string(&vm_id_file) {
+    match fs::read_to_string(vm_id_file) {
         Ok(vmid) => {
-            if ! vm_running(&vmid, &user) {
+            if ! vm_running(&vmid, user) {
                 debug(&format!("Deleting {}", vm_id_file));
-                match fs::remove_file(&vm_id_file) {
+                match fs::remove_file(vm_id_file) {
                     Ok(_) => { },
                     Err(error) => {
                         error!("Failed to remove VMID: {:?}", error)
                     }
                 }
                 let vsock_uds_path = format!(
-                    "/run/sci_cmd_{}.sock", get_meta_name(&program_name)
+                    "/run/sci_cmd_{}.sock", get_meta_name(program_name)
                 );
                 if Path::new(&vsock_uds_path).exists() {
                     debug(&format!("Deleting {}", vsock_uds_path));
-                    delete_file(&vsock_uds_path, &user);
+                    delete_file(&vsock_uds_path, user);
                 }
                 let vm_overlay_file = format!(
                     "{}/{}", defaults::FIRECRACKER_OVERLAY_DIR,
@@ -1031,7 +1019,7 @@ pub fn gc(user: &String, program_name: &String) {
     let paths = fs::read_dir(defaults::FIRECRACKER_VMID_DIR).unwrap();
     for path in paths {
         vmid_file_names.push(format!("{}", path.unwrap().path().display()));
-        vmid_file_count = vmid_file_count + 1;
+        vmid_file_count += 1;
     }
     if vmid_file_count <= defaults::GC_THRESHOLD {
         return
@@ -1042,7 +1030,7 @@ pub fn gc(user: &String, program_name: &String) {
         // The cleanup of overlay images from resume type instances
         // must be done by an explicit user action to avoid deleting
         // user data in overlay images eventually preserved for later.
-        gc_meta_files(&vm_id_file, &user, &program_name, true);
+        gc_meta_files(&vm_id_file, user, program_name, true);
     }
 }
 
@@ -1054,7 +1042,7 @@ pub fn delete_file(filename: &String, user: &str) -> bool {
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("rm").arg("-f").arg(&filename);
+    call.arg("rm").arg("-f").arg(filename);
     match call.status() {
         Ok(_) => { },
         Err(error) => {
@@ -1074,7 +1062,7 @@ pub fn sync_includes(
     let include_section = &runtime_config[0]["include"];
     let tar_includes = &include_section["tar"];
     let mut status_code = 0;
-    if ! tar_includes.as_vec().is_none() {
+    if tar_includes.as_vec().is_some() {
         for tar in tar_includes.as_vec().unwrap() {
             debug(&format!("Adding tar include: [{}]", tar.as_str().unwrap()));
             let mut call = Command::new("sudo");
@@ -1082,13 +1070,13 @@ pub fn sync_includes(
                 call.arg("--user").arg(user);
             }
             call.arg("tar")
-                .arg("-C").arg(&target)
+                .arg("-C").arg(target)
                 .arg("-xf").arg(tar.as_str().unwrap());
             debug(&format!("{:?}", call.get_args()));
             match call.output() {
                 Ok(output) => {
-                    debug(&String::from_utf8_lossy(&output.stdout).to_string());
-                    debug(&String::from_utf8_lossy(&output.stderr).to_string());
+                    debug(&String::from_utf8_lossy(&output.stdout));
+                    debug(&String::from_utf8_lossy(&output.stderr));
                     status_code = output.status.code().unwrap();
                 },
                 Err(error) => {
@@ -1100,7 +1088,7 @@ pub fn sync_includes(
     if status_code == 0 {
         return true
     }
-    return false
+    false
 }
 
 pub fn mount_vm(
@@ -1137,7 +1125,7 @@ pub fn mount_vm(
     }
     mount_image
         .arg("mount")
-        .arg(&rootfs_image_path)
+        .arg(rootfs_image_path)
         .arg(&image_mount_point);
     debug(&format!("{:?}", mount_image.get_args()));
     match mount_image.output() {
@@ -1165,7 +1153,7 @@ pub fn mount_vm(
     }
     mount_overlay
         .arg("mount")
-        .arg(&overlay_path)
+        .arg(overlay_path)
         .arg(&overlay_mount_point);
     debug(&format!("{:?}", mount_overlay.get_args()));
     match mount_overlay.output() {
@@ -1190,10 +1178,8 @@ pub fn mount_vm(
         defaults::OVERLAY_WORK
     ].iter() {
         let dir_path = format!("{}/{}", sub_dir, overlay_dir);
-        if ! Path::new(&dir_path).exists() {
-            if ! mkdir(&dir_path, "755", "root") {
-                return failed
-            }
+        if ! Path::new(&dir_path).exists() && ! mkdir(&dir_path, "755", "root") {
+            return failed
         }
     }
     let root_mount_point = format!("{}/{}", sub_dir, defaults::OVERLAY_ROOT);
@@ -1252,7 +1238,7 @@ pub fn umount_vm(sub_dir: &str, user: &str) -> bool {
         debug(&format!("{:?}", umount.get_args()));
         match umount.status() {
             Ok(status) => {
-                status_code = status_code + status.code().unwrap();
+                status_code += status.code().unwrap();
             },
             Err(error) => {
                 error!("Failed to execute umount: {:?}", error)
@@ -1273,7 +1259,7 @@ pub fn mkdir(dirname: &str, mode: &str, user: &str) -> bool {
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("mkdir").arg("-p").arg("-m").arg(&mode).arg(&dirname);
+    call.arg("mkdir").arg("-p").arg("-m").arg(mode).arg(dirname);
     match call.status() {
         Ok(_) => { },
         Err(error) => {

@@ -41,11 +41,11 @@ pub fn register(
     }
     let host_app_path = app.unwrap();
     let mut target_app_path = host_app_path;
-    if ! target.is_none() {
+    if target.is_some() {
         target_app_path = target.unwrap();
     }
     for path in &[host_app_path, target_app_path] {
-        if ! path.starts_with("/") {
+        if ! path.starts_with('/') {
             error!(
                 "Application {:?} must be specified with an absolute path", path
             );
@@ -57,14 +57,14 @@ pub fn register(
     // host_app_path -> pointing to engine
     let host_app_dir = Path::new(host_app_path)
         .parent().unwrap().to_str().unwrap();
-    match fs::create_dir_all(&host_app_dir) {
+    match fs::create_dir_all(host_app_dir) {
         Ok(dir) => dir,
         Err(error) => {
             error!("Failed creating: {}: {:?}", &host_app_dir, error);
             return false
         }
     };
-    match symlink(&engine, host_app_path) {
+    match symlink(engine, host_app_path) {
         Ok(link) => link,
         Err(error) => {
             error!("Error while creating symlink \"{} -> {}\": {:?}",
@@ -110,14 +110,14 @@ pub fn create_container_config (
     containing the required information to launch the
     application inside of the container engine.
     !*/
-    if base.is_none() && ! layers.is_none() {
+    if base.is_none() && layers.is_some() {
         error!("Layer(s) specified without a base");
         return false
     }
     let result;
     let host_app_path = app.unwrap();
     let mut target_app_path = host_app_path;
-    if ! target.is_none() {
+    if target.is_some() {
         target_app_path = target.unwrap();
     }
     let app_basename = Path::new(
@@ -128,9 +128,9 @@ pub fn create_container_config (
     );
     match app_config::AppConfig::save_container(
         Path::new(&app_config_file),
-        &container,
-        &target_app_path,
-        &host_app_path,
+        container,
+        target_app_path,
+        host_app_path,
         base,
         layers,
         includes_tar,
@@ -170,7 +170,7 @@ pub fn create_vm_config(
     let result;
     let host_app_path = app.unwrap();
     let mut target_app_path = host_app_path;
-    if ! target.is_none() {
+    if target.is_some() {
         target_app_path = target.unwrap();
     }
     let app_basename = Path::new(
@@ -181,9 +181,9 @@ pub fn create_vm_config(
     );
     match app_config::AppConfig::save_vm(
         Path::new(&app_config_file),
-        &vm,
-        &target_app_path,
-        &host_app_path,
+        vm,
+        target_app_path,
+        host_app_path,
         run_as,
         overlay_size,
         no_net,
@@ -205,7 +205,7 @@ pub fn remove(app: &str, engine: &str, silent: bool) {
     /*!
     Delete application link and config files
     !*/
-    if ! app.starts_with("/") {
+    if ! app.starts_with('/') {
         if ! silent {
             error!(
                 "Application {:?} must be specified with an absolute path", app
@@ -247,7 +247,7 @@ pub fn remove(app: &str, engine: &str, silent: bool) {
         }
     }
     // remove config file and config directory
-    let app_basename = basename(&format!("{}",app));
+    let app_basename = basename(&app.to_string());
     let config_file = format!(
         "{}/{}.yaml", defaults::FLAKE_DIR, &app_basename
     );
@@ -305,7 +305,7 @@ pub fn app_names() -> Vec<String> {
                 let base_config_file = basename(
                     &filepath.into_os_string().into_string().unwrap()
                 );
-                match base_config_file.split(".").next() {
+                match base_config_file.split('.').next() {
                     Some(value) => {
                         let mut app_name = String::new();
                         app_name.push_str(value);
@@ -331,10 +331,10 @@ pub fn purge(app: &str, engine: &str) {
     registrations and its connected resources for the specified app
     !*/
     if engine == defaults::PODMAN_PILOT {
-        podman::purge_container(&app)
+        podman::purge_container(app)
     }
     if engine == defaults::FIRECRACKER_PILOT {
-        firecracker::purge_vm(&app)
+        firecracker::purge_vm(app)
     }
 }
 
@@ -347,14 +347,12 @@ pub fn init(app: Option<&String>) -> bool {
     already exists.
     !*/
     let mut status = true;
-    if ! app.is_none() {
-        if Path::new(&app.unwrap()).exists() {
-            error!("App path {} already exists", app.unwrap());
-            return false
-        }
+    if app.is_some() && Path::new(&app.unwrap()).exists() {
+        error!("App path {} already exists", app.unwrap());
+        return false
     }
     let mut flake_dir = String::new();
-    match fs::read_link(&defaults::FLAKE_DIR) {
+    match fs::read_link(defaults::FLAKE_DIR) {
         Ok(target) => {
             flake_dir.push_str(
                 &target.into_os_string().into_string().unwrap()

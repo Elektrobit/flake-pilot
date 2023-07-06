@@ -311,5 +311,5 @@ pub enum Podman {
 }
 
 pub fn parse_args() -> Cli {
-    return Cli::parse();
+    Cli::parse()
 }

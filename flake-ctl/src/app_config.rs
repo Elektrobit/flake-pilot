@@ -103,9 +103,7 @@ impl AppConfig {
         save stores an AppConfig to the given file
         !*/
         let template = std::fs::File::open(defaults::FLAKE_TEMPLATE_CONTAINER)
-            .expect(&format!(
-                "Failed to open {}", defaults::FLAKE_TEMPLATE_CONTAINER)
-            );
+            .unwrap_or_else(|_| panic!("Failed to open {}", defaults::FLAKE_TEMPLATE_CONTAINER));
         let mut yaml_config: AppConfig = serde_yaml::from_reader(
             template
         ).expect("Failed to import config template");
@@ -114,12 +112,12 @@ impl AppConfig {
         container_config.name = container.to_string();
         container_config.target_app_path = target_app_path.to_string();
         container_config.host_app_path = host_app_path.to_string();
-        if ! base.is_none() {
+        if base.is_some() {
             container_config.base_container = Some(
                 base.unwrap().to_string()
             );
         }
-        if ! layers.is_none() {
+        if layers.is_some() {
             container_config.layers = Some(
                 layers.as_ref().unwrap().to_vec()
             );
@@ -133,21 +131,21 @@ impl AppConfig {
         } else {
             // default: remove the container if no resume/attach is set
             container_config.runtime.as_mut().unwrap()
-                .podman.as_mut().unwrap().push(format!("--rm"));
+                .podman.as_mut().unwrap().push("--rm".to_string());
         }
-        if ! run_as.is_none() {
+        if run_as.is_some() {
             container_config.runtime.as_mut().unwrap()
                 .runas = Some(run_as.unwrap().to_string());
         }
-        if ! includes_tar.is_none() {
+        if includes_tar.is_some() {
             yaml_config.include.tar = Some(
                 includes_tar.as_ref().unwrap().to_vec()
             );
         }
-        if ! opts.is_none() {
+        if opts.is_some() {
             let mut final_opts: Vec<String> = Vec::new();
             for opt in opts.as_ref().unwrap() {
-                if opt.chars().next().unwrap() == '\\' {
+                if opt.starts_with('\\') {
                     final_opts.push(opt[1..].to_string())
                 } else {
                     final_opts.push(opt.to_string())
@@ -161,8 +159,8 @@ impl AppConfig {
         let config = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .open(&config_file)
-            .expect(&format!("Failed to open {:?}", config_file));
+            .open(config_file)
+            .unwrap_or_else(|_| panic!("Failed to open {:?}", config_file));
         serde_yaml::to_writer(config, &yaml_config).unwrap();
         Ok(())
     }
@@ -183,9 +181,7 @@ impl AppConfig {
         !*/
         let image_dir = format!("{}/{}", defaults::FIRECRACKER_IMAGES_DIR, vm);
         let template = std::fs::File::open(defaults::FLAKE_TEMPLATE_FIRECRACKER)
-            .expect(&format!(
-                "Failed to open {}", defaults::FLAKE_TEMPLATE_FIRECRACKER)
-            );
+            .unwrap_or_else(|_| panic!("Failed to open {}", defaults::FLAKE_TEMPLATE_FIRECRACKER));
         let mut yaml_config: AppConfig = serde_yaml::from_reader(
             template
         ).expect("Failed to import config template");
@@ -199,16 +195,16 @@ impl AppConfig {
             vm_config.runtime.as_mut().unwrap()
                 .resume = Some(resume);
         }
-        if ! run_as.is_none() {
+        if run_as.is_some() {
             vm_config.runtime.as_mut().unwrap()
                 .runas = Some(run_as.unwrap().to_string());
         }
-        if ! includes_tar.is_none() {
+        if includes_tar.is_some() {
             yaml_config.include.tar = Some(
                 includes_tar.as_ref().unwrap().to_vec()
             );
         }
-        if ! overlay_size.is_none() {
+        if overlay_size.is_some() {
             vm_config.runtime.as_mut().unwrap()
                 .firecracker.as_mut().unwrap()
                 .overlay_size = Some(overlay_size.unwrap().to_string());
@@ -273,14 +269,14 @@ impl AppConfig {
             let firecracker_section = vm_config.runtime.as_mut().unwrap()
                 .firecracker.as_mut().unwrap();
             firecracker_section.boot_args.as_mut().unwrap()
-                .push(format!("sci_resume=1"));
+                .push("sci_resume=1".to_string());
         }
 
         let config = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .open(&config_file)
-            .expect(&format!("Failed to open {:?}", config_file));
+            .open(config_file)
+            .unwrap_or_else(|_| panic!("Failed to open {:?}", config_file));
         serde_yaml::to_writer(config, &yaml_config).unwrap();
         Ok(())
     }
@@ -292,8 +288,8 @@ impl AppConfig {
         new creates the new AppConfig class by reading and
         deserializing the data from a given yaml configuration
         !*/
-        let config = std::fs::File::open(&config_file)
-            .expect(&format!("Failed to open {:?}", config_file));
+        let config = std::fs::File::open(config_file)
+            .unwrap_or_else(|_| panic!("Failed to open {:?}", config_file));
         let yaml_config: AppConfig = serde_yaml::from_reader(config)
             .expect("Failed to import config file");
         Ok(yaml_config)

@@ -95,7 +95,7 @@ pub fn program_config(program_basename: &String) -> Vec<Yaml> {
         error!("Failed to read: {}: {:?}", config_file, why.kind());
         exit(1)
     });
-    let custom_config_dir = program_config_dir(&program_basename);
+    let custom_config_dir = program_config_dir(program_basename);
     if Path::new(&custom_config_dir).exists() {
         // put dir entries to vector to allow for sorting
         let mut custom_configs: Vec<_> = fs::read_dir(&custom_config_dir)

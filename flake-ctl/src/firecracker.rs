@@ -40,14 +40,14 @@ pub fn init_toplevel_image_dir(registry_dir: &str) -> bool {
     !*/
     let mut ok = true;
     let mut real_registry_dir = String::new();
-    match fs::read_link(&registry_dir) {
+    match fs::read_link(registry_dir) {
         Ok(target) => {
             real_registry_dir.push_str(
                 &target.into_os_string().into_string().unwrap()
             );
         },
         Err(_) => {
-            real_registry_dir.push_str(&registry_dir);
+            real_registry_dir.push_str(registry_dir);
         }
     }
     let mut subdirs: Vec<String> = Vec::new();
@@ -106,7 +106,7 @@ pub async fn pull_component_image(
         file: Cow<'a, str>
     }
     info!("Fetching Component image...");
-    if ! pull_new(&name, force) {
+    if ! pull_new(name, force) {
         return result
     }
     match tempdir() {
@@ -130,7 +130,7 @@ pub async fn pull_component_image(
                     file: Cow::Borrowed(&kernel_file),
                 }
             );
-            if ! initrd_uri.is_none() {
+            if initrd_uri.is_some() {
                 download_files.push(
                     Component {
                         uri: initrd_uri.unwrap().to_string(),
@@ -176,17 +176,15 @@ pub async fn pull_component_image(
                 if ! Path::new(&sci_in_image).exists() {
                     info!("Copying sci to rootfs...");
                     if ! copy(
-                        &defaults::FIRECRACKER_SCI, &sci_in_image, "root"
+                        defaults::FIRECRACKER_SCI, &sci_in_image, "root"
                     ) {
                         umount(&tmp_dir_path, "root");
                         return result
                     }
                 }
-                if ! Path::new(&overlay_root_in_image).exists() {
-                    if ! mkdir(&overlay_root_in_image, "root") {
-                        umount(&tmp_dir_path, "root");
-                        return result
-                    }
+                if ! Path::new(&overlay_root_in_image).exists() && ! mkdir(&overlay_root_in_image, "root") {
+                    umount(&tmp_dir_path, "root");
+                    return result
                 }
                 umount(&tmp_dir_path, "root");
             }
@@ -218,7 +216,7 @@ pub async fn pull_kis_image(
 
     info!("Fetching KIS image...");
 
-    if ! pull_new(&name, force) {
+    if ! pull_new(name, force) {
         return result
     }
 
@@ -232,7 +230,7 @@ pub async fn pull_kis_image(
             // Download...
             match fs::create_dir_all(&work_dir) {
                 Ok(_) => {
-                    match send_request(&uri.unwrap()).await {
+                    match send_request(uri.unwrap()).await {
                         Ok(response) => {
                             result = response.status().as_u16().into();
                             match fetch_file(response, &kis_tar).await {
@@ -328,7 +326,7 @@ pub fn mkdir(dirname: &String, user: &str) -> bool {
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("mkdir").arg("-p").arg(&dirname);
+    call.arg("mkdir").arg("-p").arg(dirname);
     match call.status() {
         Ok(_) => { },
         Err(error) => {
@@ -347,7 +345,7 @@ pub fn mv(source: &str, target: &String, user: &str) -> bool {
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("mv").arg(&source).arg(&target);
+    call.arg("mv").arg(source).arg(target);
     match call.status() {
         Ok(_) => { },
         Err(error) => {
@@ -366,7 +364,7 @@ pub fn copy(source: &str, target: &String, user: &str) -> bool {
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("cp").arg(&source).arg(&target);
+    call.arg("cp").arg(source).arg(target);
     match call.status() {
         Ok(_) => { },
         Err(error) => {
@@ -387,7 +385,7 @@ pub fn mount_fs_image(
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("mount").arg(&fs_name).arg(&mount_point);
+    call.arg("mount").arg(fs_name).arg(mount_point);
     match call.status() {
         Ok(_) => { },
         Err(error) => {
@@ -406,7 +404,7 @@ pub fn umount(mount_point: &str, user: &str) -> bool {
     if ! user.is_empty() {
         call.arg("--user").arg(user);
     }
-    call.arg("umount").arg(&mount_point);
+    call.arg("umount").arg(mount_point);
     match call.status() {
         Ok(_) => { },
         Err(error) => {
@@ -454,7 +452,7 @@ pub fn purge_vm(vm: &str) {
         );
         match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
             Ok(mut app_conf) => {
-                if ! app_conf.vm.is_none() &&
+                if app_conf.vm.is_some() &&
                     vm == app_conf.vm.as_mut().unwrap().name
                 {
                     app::remove(

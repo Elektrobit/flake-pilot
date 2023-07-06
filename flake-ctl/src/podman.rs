@@ -123,13 +123,13 @@ pub fn mount_container(container_name: &str) -> String {
     match Command::new(defaults::PODMAN_PATH)
         .arg("image")
         .arg("mount")
-        .arg(&container_name)
+        .arg(container_name)
         .output()
     {
         Ok(output) => {
             if output.status.success() {
                 return String::from_utf8_lossy(&output.stdout)
-                    .strip_suffix("\n").unwrap().to_string()
+                    .strip_suffix('\n').unwrap().to_string()
             }
             error!(
                 "Failed to mount container image: {}",
@@ -140,7 +140,7 @@ pub fn mount_container(container_name: &str) -> String {
             error!("Failed to execute podman image mount: {:?}", error)
         }
     }
-    return "".to_string();
+    "".to_string()
 }
 
 pub fn umount_container(container_name: &str) -> i32 {
@@ -153,7 +153,7 @@ pub fn umount_container(container_name: &str) -> i32 {
         .stdout(Stdio::null())
         .arg("image")
         .arg("umount")
-        .arg(&container_name)
+        .arg(container_name)
         .status()
     {
         Ok(status) => {
@@ -179,7 +179,7 @@ pub fn purge_container(container: &str) {
         );
         match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
             Ok(mut app_conf) => {
-                if ! app_conf.container.is_none() &&
+                if app_conf.container.is_some() &&
                     container == app_conf.container.as_mut().unwrap().name
                 {
                     app::remove(
@@ -209,7 +209,7 @@ pub fn print_container_info(container: &str) {
     let container_basename = Path::new(
         container
     ).file_name().unwrap().to_str().unwrap();
-    let image_mount_point = mount_container(&container);
+    let image_mount_point = mount_container(container);
     if image_mount_point.is_empty() {
         return
     }
@@ -233,5 +233,5 @@ pub fn print_container_info(container: &str) {
             container_basename, container
         );
     }
-    umount_container(&container);
+    umount_container(container);
 }
