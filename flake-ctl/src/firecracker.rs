@@ -277,10 +277,7 @@ pub async fn pull_kis_image(
             for path in fs::read_dir(&work_dir).unwrap() {
                 let path = path.unwrap().path();
                 let extension = path.extension().unwrap();
-                if extension == OsStr::new("append") {
-                    fs::remove_file(&path).unwrap();
-                    kis_ok -= 1;
-                } else if extension == OsStr::new("md5") {
+                if extension == OsStr::new("append") || extension == OsStr::new("md5") {
                     fs::remove_file(&path).unwrap();
                     kis_ok -= 1;
                 } else if extension == OsStr::new("initrd") {
