@@ -66,6 +66,8 @@ clean:
 	rm -rf firecracker-pilot/firecracker-service/service-communication/vendor
 	rm -rf firecracker-pilot/guestvm-tools/sci/vendor
 	${MAKE} -C doc clean
+	$(shell find . -name Cargo.lock | xargs rm -f)
+	$(shell find . -type d -name vendor | xargs rm -rf)
 
 test:
 	cd podman-pilot && cargo -v build
