@@ -171,8 +171,7 @@ pub fn create(
 
     // setup VM operation mode
     let runas = runtime_section.as_hash().and_then(|_| runtime_section["runas"].as_str()).unwrap_or_default().to_owned();
-    let resume = runtime_section.as_hash().and_then(|_| runtime_section["runas"].as_bool()).unwrap_or_default();
-
+    let resume = runtime_section.as_hash().and_then(|_| runtime_section["resume"].as_bool()).unwrap_or_default();
 
     // Make sure meta dirs exists
     init_meta_dirs();
