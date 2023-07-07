@@ -23,34 +23,21 @@
 //
 use std::env;
 
-pub const SWITCH_ROOT: &str =
-    "/sbin/switch_root";
-pub const PIVOT_ROOT: &str =
-    "/sbin/pivot_root";
-pub const OVERLAY_ROOT: &str =
-    "/overlayroot/rootfs";
-pub const OVERLAY_UPPER: &str =
-    "/overlayroot/rootfs_upper";
-pub const OVERLAY_WORK: &str =
-    "/overlayroot/rootfs_work";
-pub const PROBE_MODULE: &str =
-    "/sbin/modprobe";
-pub const SYSTEMD_NETWORK_RESOLV_CONF: &str =
-    "/run/systemd/resolve/resolv.conf";
-pub const VM_QUIT: &str =
-    "sci_quit";
-pub const VHOST_TRANSPORT: &str =
-    "vmw_vsock_virtio_transport";
-pub const SOCAT: &str =
-    "/usr/bin/socat";
-pub const VM_PORT: u32 = 
-    52;
-pub const GUEST_CID: u32 =
-    3;
+pub const SWITCH_ROOT: &str = "/sbin/switch_root";
+pub const PIVOT_ROOT: &str = "/sbin/pivot_root";
+pub const OVERLAY_ROOT: &str = "/overlayroot/rootfs";
+pub const OVERLAY_UPPER: &str = "/overlayroot/rootfs_upper";
+pub const OVERLAY_WORK: &str = "/overlayroot/rootfs_work";
+pub const PROBE_MODULE: &str = "/sbin/modprobe";
+pub const SYSTEMD_NETWORK_RESOLV_CONF: &str = "/run/systemd/resolve/resolv.conf";
+pub const VM_QUIT: &str = "sci_quit";
+pub const VHOST_TRANSPORT: &str = "vmw_vsock_virtio_transport";
+pub const SOCAT: &str = "/usr/bin/socat";
+pub const VM_PORT: u32 = 52;
+pub const GUEST_CID: u32 = 3;
 
 pub fn debug(message: &str) {
-    match env::var("PILOT_DEBUG") {
-        Ok(_) => { debug!("{}", message) },
-        Err(_) => { }
+    if env::var("PILOT_DEBUG").is_ok() {
+        debug!("{}", message)
     };
 }

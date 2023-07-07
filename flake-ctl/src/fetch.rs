@@ -68,7 +68,7 @@ pub async fn fetch_file(
     progress.finish_with_message(
         &format!("Downloaded {}", filepath)
     );
-    return Ok(());
+    Ok(())
 }
 
 pub async fn send_request(

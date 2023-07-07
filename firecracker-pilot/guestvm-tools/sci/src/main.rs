@@ -80,7 +80,7 @@ fn main() {
             }
         },
         None => {
-            debug(&format!("No run=... cmdline parameter in env"));
+            debug("No run=... cmdline parameter in env");
             do_reboot(false)
         }
     }
@@ -175,7 +175,7 @@ fn main() {
             if ok {
                 move_mounts(defaults::OVERLAY_ROOT);
                 let root = Path::new(defaults::OVERLAY_ROOT);
-                match env::set_current_dir(&root) {
+                match env::set_current_dir(root) {
                     Ok(_) => {
                         debug(&format!(
                             "Changed working directory to {}", root.display()
@@ -306,7 +306,7 @@ fn main() {
                                     "CALL RAW BUF: {}", call_str
                                 ));
                                 let mut call_stack: Vec<&str> =
-                                    call_str.split(" ").collect();
+                                    call_str.split(' ').collect();
                                 let exec_port = call_stack.pop().unwrap();
                                 let exec_cmd = call_stack.join(" ");
                                 call = Command::new(defaults::SOCAT);
@@ -366,10 +366,7 @@ fn main() {
             } else {
                 // call a command and keep control
                 debug(&format!("CALL: {} -> {:?}", &args[0], call.get_args()));
-                match call.status() {
-                    Ok(_) => { },
-                    Err(_) => { }
-                }
+                let _ = call.status();
             }
         }
     }
@@ -423,7 +420,7 @@ fn move_mounts(new_root: &str) {
         Err(error) => {
             debug(&format!("Failed to bind mount /run: {}", error));
             match Mount::builder()
-                .fstype("tmpfs").mount("tmpfs", &format!("{}/run", new_root))
+                .fstype("tmpfs").mount("tmpfs", format!("{}/run", new_root))
             {
                 Ok(_) => debug("Mounted tmpfs on /run"),
                 Err(error) => {

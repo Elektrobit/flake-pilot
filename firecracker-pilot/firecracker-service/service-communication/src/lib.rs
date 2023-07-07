@@ -103,4 +103,10 @@ pub mod service_proto{
             serde_json::to_string(&self)
         }
     }
+
+    impl Default for Response {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
 }

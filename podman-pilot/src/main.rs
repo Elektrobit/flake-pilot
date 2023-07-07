@@ -45,7 +45,7 @@ fn main() {
     podman::start(
         &program_name,
         &runtime_config,
-        &cid
+        cid
     );
 }
 

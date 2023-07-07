@@ -62,10 +62,8 @@ pub fn ocideb(
             .arg(&apps_string);
     }
 
-    if ! arch.is_none() {
-        oci_deb
-            .arg("--arch")
-            .arg(&arch.unwrap());
+    if let Some(arch) = arch {
+        oci_deb.arg("--arch").arg(arch);
     }
 
     info!("oci-deb {:?}", oci_deb);
@@ -81,7 +79,7 @@ pub fn ocideb(
             } else {
                 info!("Successfully created package repository at: {}", repo);
                 info!("Following packages are available:");
-                let mut packages: Vec<_> = fs::read_dir(&repo)
+                let mut packages: Vec<_> = fs::read_dir(repo)
                     .unwrap().map(|r| r.unwrap()).collect();
                 packages.sort_by_key(|entry| entry.path());
                 for filename in packages {

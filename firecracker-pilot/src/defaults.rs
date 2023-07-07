@@ -53,12 +53,7 @@ pub const VM_WAIT_TIMEOUT_MSEC: u64 =
     1000;
 
 pub fn is_debug() -> bool {
-    let debug_set;
-    match env::var("PILOT_DEBUG") {
-        Ok(_) => { debug_set = true },
-        Err(_) => { debug_set = false }
-    };
-    debug_set
+    env::var("PILOT_DEBUG").is_ok()
 }
 
 pub fn debug(message: &str) {
