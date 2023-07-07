@@ -21,15 +21,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-use std::fs;
-use std::path::Path;
-use std::os::unix::fs::symlink;
-use crate::{defaults, podman, firecracker, app_config};
+use crate::{app_config, defaults, firecracker, podman};
 use glob::glob;
+use std::fs;
+use std::os::unix::fs::symlink;
+use std::path::Path;
 
-pub fn register(
-    app: Option<&String>, target: Option<&String>, engine: &str
-) -> bool {
+pub fn register(app: Option<&String>, target: Option<&String>, engine: &str) -> bool {
     /*!
     Register container application for specified engine.
 
@@ -37,62 +35,61 @@ pub fn register(
     !*/
     if app.is_none() {
         error!("No application specified");
-        return false
+        return false;
     }
     let host_app_path = app.unwrap();
-    let mut target_app_path = host_app_path;
-    if target.is_some() {
-        target_app_path = target.unwrap();
-    }
+    let target_app_path = target.unwrap_or(host_app_path);
     for path in &[host_app_path, target_app_path] {
-        if ! path.starts_with('/') {
+        if !path.starts_with('/') {
             error!(
-                "Application {:?} must be specified with an absolute path", path
+                "Application {:?} must be specified with an absolute path",
+                path
             );
-            return false
+            return false;
         }
     }
     info!("Registering application: {}", host_app_path);
 
     // host_app_path -> pointing to engine
-    let host_app_dir = Path::new(host_app_path)
-        .parent().unwrap().to_str().unwrap();
+    let host_app_dir = Path::new(host_app_path).parent().unwrap().to_str().unwrap();
     match fs::create_dir_all(host_app_dir) {
         Ok(dir) => dir,
         Err(error) => {
             error!("Failed creating: {}: {:?}", &host_app_dir, error);
-            return false
+            return false;
         }
     };
     match symlink(engine, host_app_path) {
         Ok(link) => link,
         Err(error) => {
-            error!("Error while creating symlink \"{} -> {}\": {:?}",
+            error!(
+                "Error while creating symlink \"{} -> {}\": {:?}",
                 host_app_path, &engine, error
             );
-            return false
+            return false;
         }
     }
 
     // creating default app configuration
-    let app_basename = Path::new(
-        app.unwrap()
-    ).file_name().unwrap().to_str().unwrap();
-    let app_config_dir = format!("{}/{}.d",
-        defaults::FLAKE_DIR, &app_basename
-    );
+    let app_basename = Path::new(app.unwrap())
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let app_config_dir = format!("{}/{}.d", defaults::FLAKE_DIR, &app_basename);
     match fs::create_dir_all(&app_config_dir) {
         Ok(dir) => dir,
         Err(error) => {
             error!("Failed creating: {}: {:?}", &app_config_dir, error);
-            return false
+            return false;
         }
     }
     true
 }
 
-pub fn create_container_config (
-    container: &String,
+#[allow(clippy::too_many_arguments)]
+pub fn create_container_config(
+    container: &str,
     app: Option<&String>,
     target: Option<&String>,
     base: Option<&String>,
@@ -101,7 +98,7 @@ pub fn create_container_config (
     resume: bool,
     attach: bool,
     run_as: Option<&String>,
-    opts: Option<Vec<String>>
+    opts: Option<Vec<String>>,
 ) -> bool {
     /*!
     Create app configuration for the container engine.
@@ -112,20 +109,18 @@ pub fn create_container_config (
     !*/
     if base.is_none() && layers.is_some() {
         error!("Layer(s) specified without a base");
-        return false
+        return false;
     }
-    let result;
     let host_app_path = app.unwrap();
-    let mut target_app_path = host_app_path;
-    if target.is_some() {
-        target_app_path = target.unwrap();
-    }
-    let app_basename = Path::new(
-        app.unwrap()
-    ).file_name().unwrap().to_str().unwrap();
-    let app_config_file = format!("{}/{}.yaml",
-        defaults::FLAKE_DIR, &app_basename
-    );
+
+    let target_app_path = target.unwrap_or(host_app_path);
+
+    let app_basename = Path::new(app.unwrap())
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let app_config_file = format!("{}/{}.yaml", defaults::FLAKE_DIR, &app_basename);
     match app_config::AppConfig::save_container(
         Path::new(&app_config_file),
         container,
@@ -137,19 +132,20 @@ pub fn create_container_config (
         resume,
         attach,
         run_as,
-        opts
+        opts,
     ) {
-        Ok(_) => { result = true },
+        Ok(_) => true,
         Err(error) => {
-            error!("Failed to create AppConfig {}: {:?}",
+            error!(
+                "Failed to create AppConfig {}: {:?}",
                 app_config_file, error
             );
-            result = false
+            false
         }
     }
-    result
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_vm_config(
     vm: &String,
     app: Option<&String>,
@@ -167,18 +163,15 @@ pub fn create_vm_config(
     containing the required information to launch the
     application inside of the firecracker engine.
     !*/
-    let result;
+    
     let host_app_path = app.unwrap();
-    let mut target_app_path = host_app_path;
-    if target.is_some() {
-        target_app_path = target.unwrap();
-    }
-    let app_basename = Path::new(
-        app.unwrap()
-    ).file_name().unwrap().to_str().unwrap();
-    let app_config_file = format!("{}/{}.yaml",
-        defaults::FLAKE_DIR, &app_basename
-    );
+    let target_app_path = target.unwrap_or(host_app_path);
+    let app_basename = Path::new(host_app_path)
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let app_config_file = format!("{}/{}.yaml", defaults::FLAKE_DIR, &app_basename);
     match app_config::AppConfig::save_vm(
         Path::new(&app_config_file),
         vm,
@@ -190,30 +183,31 @@ pub fn create_vm_config(
         resume,
         includes_tar,
     ) {
-        Ok(_) => { result = true },
+        Ok(_) => true,
         Err(error) => {
-            error!("Failed to create AppConfig {}: {:?}",
+            error!(
+                "Failed to create AppConfig {}: {:?}",
                 app_config_file, error
             );
-            result = false
+            false
         }
     }
-    result
 }
 
 pub fn remove(app: &str, engine: &str, silent: bool) {
     /*!
     Delete application link and config files
     !*/
-    if ! app.starts_with('/') {
-        if ! silent {
+    if !app.starts_with('/') {
+        if !silent {
             error!(
-                "Application {:?} must be specified with an absolute path", app
+                "Application {:?} must be specified with an absolute path",
+                app
             );
         }
-        return
+        return;
     }
-    if ! silent {
+    if !silent {
         info!("Removing application: {}", app);
     }
     // remove pilot link if valid
@@ -221,60 +215,50 @@ pub fn remove(app: &str, engine: &str, silent: bool) {
         Ok(link_name) => {
             if link_name.into_os_string() == engine {
                 match fs::remove_file(app) {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(error) => {
-                        if ! silent {
-                            error!(
-                                "Error removing pilot link: {}: {:?}",
-                                app, error
-                            );
+                        if !silent {
+                            error!("Error removing pilot link: {}: {:?}", app, error);
                         }
-                        return
+                        return;
                     }
                 }
             } else {
-                if ! silent {
+                if !silent {
                     error!("Symlink not pointing to {}: {}", engine, app);
                 }
-                return
+                return;
             }
-        },
+        }
         Err(error) => {
-            if ! silent {
+            if !silent {
                 error!("Failed to read as symlink: {}: {:?}", app, error);
             }
-            return
+            return;
         }
     }
     // remove config file and config directory
     let app_basename = basename(&app.to_string());
-    let config_file = format!(
-        "{}/{}.yaml", defaults::FLAKE_DIR, &app_basename
-    );
-    let app_config_dir = format!(
-        "{}/{}.d", defaults::FLAKE_DIR, &app_basename
-    );
+    let config_file = format!("{}/{}.yaml", defaults::FLAKE_DIR, &app_basename);
+    let app_config_dir = format!("{}/{}.d", defaults::FLAKE_DIR, &app_basename);
     if Path::new(&config_file).exists() {
         match fs::remove_file(&config_file) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(error) => {
-                if ! silent {
-                    error!(
-                        "Error removing config file: {}: {:?}",
-                        config_file, error
-                    )
+                if !silent {
+                    error!("Error removing config file: {}: {:?}", config_file, error)
                 }
             }
         }
     }
     if Path::new(&app_config_dir).exists() {
         match fs::remove_dir_all(&app_config_dir) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(error) => {
-                if ! silent {
+                if !silent {
                     error!(
                         "Error removing config directory: {}: {:?}",
-                        app_config_dir , error
+                        app_config_dir, error
                     )
                 }
             }
@@ -288,7 +272,11 @@ pub fn basename(program_path: &String) -> String {
     !*/
     let mut program_name = String::new();
     program_name.push_str(
-        Path::new(program_path).file_name().unwrap().to_str().unwrap()
+        Path::new(program_path)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap(),
     );
     program_name
 }
@@ -302,24 +290,17 @@ pub fn app_names() -> Vec<String> {
     for config_file in glob(&glob_pattern).unwrap() {
         match config_file {
             Ok(filepath) => {
-                let base_config_file = basename(
-                    &filepath.into_os_string().into_string().unwrap()
-                );
+                let base_config_file = basename(&filepath.into_os_string().into_string().unwrap());
                 match base_config_file.split('.').next() {
                     Some(value) => {
                         let mut app_name = String::new();
                         app_name.push_str(value);
                         flakes.push(app_name);
-                    },
-                    None => error!(
-                        "Ignoring invalid config_file format: {}",
-                        base_config_file
-                    )
+                    }
+                    None => error!("Ignoring invalid config_file format: {}", base_config_file),
                 }
-            },
-            Err(error) => error!(
-                "Error while traversing flakes folder: {:?}", error
-            )
+            }
+            Err(error) => error!("Error while traversing flakes folder: {:?}", error),
         }
     }
     flakes
@@ -349,24 +330,19 @@ pub fn init(app: Option<&String>) -> bool {
     let mut status = true;
     if app.is_some() && Path::new(&app.unwrap()).exists() {
         error!("App path {} already exists", app.unwrap());
-        return false
+        return false;
     }
     let mut flake_dir = String::new();
     match fs::read_link(defaults::FLAKE_DIR) {
         Ok(target) => {
-            flake_dir.push_str(
-                &target.into_os_string().into_string().unwrap()
-            );
-        },
+            flake_dir.push_str(&target.into_os_string().into_string().unwrap());
+        }
         Err(_) => {
             flake_dir.push_str(defaults::FLAKE_DIR);
         }
     }
     fs::create_dir_all(flake_dir).unwrap_or_else(|why| {
-        error!(
-            "Failed creating {}: {:?}",
-            defaults::FLAKE_DIR, why.kind()
-        );
+        error!("Failed creating {}: {:?}", defaults::FLAKE_DIR, why.kind());
         status = false
     });
     status

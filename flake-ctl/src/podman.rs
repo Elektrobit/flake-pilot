@@ -47,15 +47,11 @@ pub fn pull(uri: &String) -> i32 {
                 error!("Failed, error message(s) reported");
             } else {
                 info!("podman prune");
-                let status = Command::new(defaults::PODMAN_PATH)
+                let _ = Command::new(defaults::PODMAN_PATH)
                     .arg("image")
                     .arg("prune")
                     .arg("--force")
                     .status();
-                match status {
-                    Ok(_) => { },
-                    Err(_) => { }
-                }
             }
         }
         Err(status) => { error!("Process terminated by signal: {}", status) }

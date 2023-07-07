@@ -84,7 +84,7 @@ pub struct FireCrackerVsock {
 }
 
 pub fn create(
-    program_name: &String, runtime_config: &Vec<Yaml>
+    program_name: &String, runtime_config: &[Yaml]
 ) -> Vec<String> {
     /*!
     Create VM for later execution of program_name.
@@ -167,25 +167,12 @@ pub fn create(
 
     // check for includes
     let tar_includes = &include_section["tar"];
-    let has_includes;
-    if tar_includes.as_vec().is_some() {
-        has_includes = true;
-    } else {
-        has_includes = false;
-    }
+    let has_includes = tar_includes.as_vec().is_some();
 
     // setup VM operation mode
-    let mut runas = String::new();
-    let mut resume: bool = false;
+    let runas = runtime_section.as_hash().and_then(|_| runtime_section["runas"].as_str()).unwrap_or_default().to_owned();
+    let resume = runtime_section.as_hash().and_then(|_| runtime_section["runas"].as_bool()).unwrap_or_default();
 
-    if runtime_section.as_hash().is_some() {
-        if ! &runtime_section["runas"].as_str().is_none() {
-            runas.push_str(runtime_section["runas"].as_str().unwrap());
-        }
-        if ! &runtime_section["resume"].as_bool().is_none() {
-            resume = runtime_section["resume"].as_bool().unwrap();
-        }
-    }
 
     // Make sure meta dirs exists
     init_meta_dirs();
@@ -355,7 +342,7 @@ pub fn create(
 }
 
 pub fn start(
-    program_name: &String, runtime_config: &Vec<Yaml>, vm: Vec<String>
+    program_name: &String, runtime_config: &[Yaml], vm: Vec<String>
 ) {
     /*!
     Start VM with the given VM ID
@@ -562,7 +549,7 @@ pub fn check_connected(program_name: &String, user: &String) -> i32 {
 }
 
 pub fn send_command_to_instance(
-    program_name: &String, runtime_config: &Vec<Yaml>,
+    program_name: &String, runtime_config: &[Yaml],
     user: &String, exec_port: u32
 ) -> i32 {
     /*!
@@ -625,7 +612,7 @@ pub fn send_command_to_instance(
 }
 
 pub fn execute_command_at_instance(
-    program_name: &String, runtime_config: &Vec<Yaml>,
+    program_name: &String, runtime_config: &[Yaml],
     user: &String, exec_port: u32
 ) -> i32 {
     /*!
@@ -695,7 +682,7 @@ pub fn execute_command_at_instance(
 }
 
 pub fn create_firecracker_config(
-    program_name: &String, runtime_config: &Vec<Yaml>,
+    program_name: &String, runtime_config: &[Yaml],
     config_file: &NamedTempFile
 ) {
     /*!
@@ -843,7 +830,7 @@ pub fn create_firecracker_config(
 }
 
 pub fn get_target_app_path(
-    program_name: &String, runtime_config: &Vec<Yaml>
+    program_name: &str, runtime_config: &[Yaml]
 ) -> String {
     /*!
     setup application command path name
@@ -852,16 +839,8 @@ pub fn get_target_app_path(
     time or the configured target application from the flake
     configuration file
     !*/
-    let mut target_app_path = String::new();
-    let vm_section = &runtime_config[0]["vm"];
-    if vm_section["target_app_path"].as_str().is_some() {
-        target_app_path.push_str(
-            vm_section["target_app_path"].as_str().unwrap()
-        )
-    } else {
-        target_app_path.push_str(program_name.as_str())
-    }
-    target_app_path
+    runtime_config[0]["vm"]["target_app_path"].as_str().unwrap_or(program_name).to_owned()
+
 }
 
 pub fn init_meta_dirs() {
@@ -876,7 +855,7 @@ pub fn init_meta_dirs() {
 }
 
 pub fn get_run_cmdline(
-    program_name: &String, runtime_config: &Vec<Yaml>,
+    program_name: &str, runtime_config: &[Yaml],
     quote_for_kernel_cmdline: bool
 ) -> Vec<String> {
     /*!
@@ -1054,7 +1033,7 @@ pub fn delete_file(filename: &String, user: &str) -> bool {
 }
 
 pub fn sync_includes(
-    target: &str, runtime_config: &Vec<Yaml>, user: &str
+    target: &str, runtime_config: &[Yaml], user: &str
 ) -> bool {
     /*!
     Sync custom include data to target path

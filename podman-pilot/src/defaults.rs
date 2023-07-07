@@ -30,8 +30,7 @@ pub const GC_THRESHOLD: i32 = 20;
 pub const HOST_DEPENDENCIES: &str = "removed";
 
 pub fn debug(message: &str) {
-    match env::var("PILOT_DEBUG") {
-        Ok(_) => { debug!("{}", message) },
-        Err(_) => { }
+    if env::var("PILOT_DEBUG").is_ok() {
+        debug!("{}", message)
     };
 }

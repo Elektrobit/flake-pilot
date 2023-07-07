@@ -62,10 +62,8 @@ pub fn ocideb(
             .arg(&apps_string);
     }
 
-    if arch.is_some() {
-        oci_deb
-            .arg("--arch")
-            .arg(arch.unwrap());
+    if let Some(arch) = arch {
+        oci_deb.arg("--arch").arg(arch);
     }
 
     info!("oci-deb {:?}", oci_deb);

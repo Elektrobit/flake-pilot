@@ -39,7 +39,7 @@ use std::io::SeekFrom;
 use crate::defaults;
 
 pub fn create(
-    program_name: &String, runtime_config: &Vec<Yaml>
+    program_name: &String, runtime_config: &[Yaml]
 ) -> Vec<String> {
     /*!
     Create container for later execution of program_name.
@@ -135,12 +135,7 @@ pub fn create(
     // check for includes
     let include_section = &runtime_config[0]["include"];
     let tar_includes = &include_section["tar"];
-    let has_includes;
-    if tar_includes.as_vec().is_some() {
-        has_includes = true;
-    } else {
-        has_includes = false;
-    }
+    let has_includes = tar_includes.as_vec().is_some();
 
     // setup podman container to use
     if container_section["name"].as_str().is_none() {
@@ -241,15 +236,15 @@ pub fn create(
     let mut has_runtime_arguments: bool = false;
     if runtime_section.as_hash().is_some() {
         let podman_section = &runtime_section["podman"];
-        if podman_section.as_vec().is_some() {
+        if let Some(podman_section) = podman_section.as_vec() {
             has_runtime_arguments = true;
-            for opt in podman_section.as_vec().unwrap() {
+            for opt in podman_section {
                 let mut split_opt = opt.as_str().unwrap().splitn(2, ' ');
                 let opt_name = split_opt.next();
                 let opt_value = split_opt.next();
                 app.arg(opt_name.unwrap());
-                if opt_value.is_some() {
-                    app.arg(opt_value.unwrap());
+                if let Some(opt_value) = opt_value {
+                    app.arg(opt_value);
                 }
             }
         }
@@ -390,7 +385,7 @@ pub fn create(
 }
 
 pub fn start(
-    program_name: &String, runtime_config: &Vec<Yaml>, cid: &String
+    program_name: &str, runtime_config: &[Yaml], cid: &str
 ) {
     /*!
     Start container with the given container ID
@@ -400,60 +395,47 @@ pub fn start(
     let container_section = &runtime_config[0]["container"];
     let runtime_section = &container_section["runtime"];
 
-    let mut status_code;
-    let mut resume: bool = false;
-    let mut attach: bool = false;
-    let mut is_running: bool = false;
-    let mut runas = String::new();
+    let resume = runtime_section.as_hash().and(runtime_section["resume"].as_bool()).unwrap_or_default();
+    let attach = runtime_section.as_hash().and(runtime_section["attach"].as_bool()).unwrap_or_default();
+    let runas = runtime_section.as_hash().and(runtime_section["runas"].as_str()).unwrap_or_default().to_owned();
+    
+    let is_running = container_running(cid, &runas);
 
-    if runtime_section.as_hash().is_some() {
-        if ! &runtime_section["resume"].as_bool().is_none() {
-            resume = runtime_section["resume"].as_bool().unwrap();
-        }
-        if ! &runtime_section["attach"].as_bool().is_none() {
-            attach = runtime_section["attach"].as_bool().unwrap();
-        }
-        if ! &runtime_section["runas"].as_str().is_none() {
-            runas.push_str(runtime_section["runas"].as_str().unwrap());
-        }
-    }
+    let status_code = if is_running {
 
-    if container_running(cid, &runas) {
-        is_running = true;
-    }
-
-    if is_running && attach {
-        // 1. Attach to running container
-        status_code = call_instance(
-            "attach", cid, program_name, runtime_config, &runas
-        );
-    } else if is_running {
-        // 2. Execute app in running container
-        status_code = call_instance(
-            "exec", cid, program_name, runtime_config, &runas
-        );
+        if attach {
+            // 1. Attach to running container
+            call_instance(
+                "attach", cid, program_name, runtime_config, &runas
+            )
+        } else {
+            // 2. Execute app in running container
+            call_instance(
+                "exec", cid, program_name, runtime_config, &runas
+            )
+        }
     } else if resume {
         // 3. Startup resume type container and execute app
-        status_code = call_instance(
+        let status_code = call_instance(
             "start", cid, program_name, runtime_config, &runas
         );
         if status_code == 0 {
-            status_code = call_instance(
+            call_instance(
                 "exec", cid, program_name, runtime_config, &runas
-            );
-        }
+            )
+        } else { status_code }
     } else {
         // 4. Startup container
-        status_code = call_instance(
+        call_instance(
             "start", cid, program_name, runtime_config, &runas
-        );
-    }
+        )
+    };
 
     exit(status_code)
 }
 
 pub fn get_target_app_path(
-    program_name: &String, runtime_config: &Vec<Yaml>
+    program_name: &str, runtime_config: &[Yaml]
 ) -> String {
     /*!
     setup application command path name
@@ -462,21 +444,13 @@ pub fn get_target_app_path(
     time or the configured target application from the flake
     configuration file
     !*/
-    let mut target_app_path = String::new();
-    let container_section = &runtime_config[0]["container"];
-    if container_section["target_app_path"].as_str().is_some() {
-        target_app_path.push_str(
-            container_section["target_app_path"].as_str().unwrap()
-        )
-    } else {
-        target_app_path.push_str(program_name.as_str())
-    }
-    target_app_path
+
+    runtime_config[0]["container"]["target_app_path"].as_str().unwrap_or(program_name).to_owned()
 }
 
 pub fn call_instance(
-    action: &str, cid: &String, program_name: &String,
-    runtime_config: &Vec<Yaml>, user: &String
+    action: &str, cid: &str, program_name: &str,
+    runtime_config: &[Yaml], user: &str
 ) -> i32 {
     /*!
     Call container ID based podman commands
@@ -599,7 +573,7 @@ pub fn umount_container(
 }
 
 pub fn sync_includes(
-    target: &String, runtime_config: &Vec<Yaml>, user: &String
+    target: &String, runtime_config: &[Yaml], user: &String
 ) -> bool {
     /*!
     Sync custom include data to target path
@@ -745,7 +719,7 @@ pub fn init_cid_dir() {
     }
 }
 
-pub fn container_running(cid: &String, user: &String) -> bool {
+pub fn container_running(cid: &str, user: &String) -> bool {
     /*!
     Check if container with specified cid is running
     !*/
