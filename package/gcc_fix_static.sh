@@ -12,6 +12,10 @@ if [ -e /usr/bin/gcc-11.bin ];then
     echo "gcc already wrapped... skipped"
     exit 0
 fi
+if [ ! -e /usr/bin/gcc-11 ];then
+    echo "no gcc-11 system... skipped"
+    exit 0
+fi
 mv /usr/bin/gcc-11 /usr/bin/gcc-11.bin
 
 cat >/usr/bin/gcc-11 <<- EOF
