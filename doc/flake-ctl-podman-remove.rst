@@ -26,8 +26,8 @@ Remove registration(s). The command operates in two modes:
 1. Remove an application registration provided via **--app**
 
    In this mode the command deletes the specified application if it
-   is a link pointing to :file:`/usr/bin/podman-pilot`. It then also
-   deletes the application configuration from :file:`/usr/share/flakes`
+   is a link pointing to `/usr/bin/podman-pilot`. It then also
+   deletes the application configuration from `/usr/share/flakes`
 
 2. Remove a container including all its registered applications via **--container**
 

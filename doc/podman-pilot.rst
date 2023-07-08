@@ -19,7 +19,7 @@ at the time an application is registered via **flake-ctl podman register**.
 
 This means podman-pilot is the actual binary called with any application
 registration. If the registered application is requested as
-:file:`/usr/bin/myapp` there will be a symlink pointing to:
+`/usr/bin/myapp` there will be a symlink pointing to:
 
 .. code:: bash
 
@@ -28,9 +28,9 @@ registration. If the registered application is requested as
 Consequently calling **myapp** will effectively call **podman-pilot**.
 podman-pilot now reads the calling program basename, which is **myapp**
 and looks up all the registration metadata stored in
-:file:`/usr/share/flakes`
+`/usr/share/flakes`
 
-Below :file:`/usr/share/flakes` each application is registered
+Below `/usr/share/flakes` each application is registered
 with the following layout:
 
 .. code:: bash
@@ -41,10 +41,10 @@ with the following layout:
        └── myapp.yaml
 
 All metadata information read by **podman-pilot** uses the YAML
-markup. The main configuration :file:`myapp.yaml` is read first
-and can be optionally extended with further :file:`*.yaml` files
-below the :file:`myapp.d` directory. All files in the
-:file:`myapp.d` directory will be read in alpha sort order.
+markup. The main configuration `myapp.yaml` is read first
+and can be optionally extended with further `*.yaml` files
+below the `myapp.d` directory. All files in the
+`myapp.d` directory will be read in alpha sort order.
 Redundant information will always overwrite the former one.
 Thus the last setting in the sequence wins.
 
