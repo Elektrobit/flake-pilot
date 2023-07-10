@@ -1,6 +1,6 @@
 man:
 	for man in $(shell find -name "*.rst" | sed -e "s@.rst@@"); do \
-		pandoc --standalone --to man $$man.rst -o $$man.8 ;\
+		rst2man $$man.rst $$man.8 ;\
 	done
 
 clean:

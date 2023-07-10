@@ -31,8 +31,8 @@ DESCRIPTION
 Register the given application to run inside of the specified firecracker
 virtual machine. The registration process is two fold:
 
-1. Create the application symlink pointing to :file:`/usr/bin/firecracker-pilot`
-2. Create the application default configuration below :file:`/usr/share/flakes`.
+1. Create the application symlink pointing to `/usr/bin/firecracker-pilot`
+2. Create the application default configuration below `/usr/share/flakes`.
    Each application registered is called a **flake**
 
 On successful completion the registered *--app* name can be called
