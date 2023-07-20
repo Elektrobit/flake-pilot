@@ -21,15 +21,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-extern crate yaml_rust;
-
 use std::env;
 use which::which;
 use std::path::Path;
-use std::process::exit;
-use std::fs;
-use yaml_rust::Yaml;
-use yaml_rust::YamlLoader;
 
 use crate::defaults;
 
@@ -73,44 +67,4 @@ pub fn program_config_dir(program_basename: &String) -> String {
         "{}/{}.d", defaults::CONTAINER_FLAKE_DIR, program_basename
     );
     config_dir.to_string()
-}
-
-pub fn program_config(program_basename: &String) -> Vec<Yaml> {
-    /*!
-    Read container runtime configuration for given program
-
-    CONTAINER_FLAKE_DIR/
-       ├── program_name.d
-       │   └── other.yaml
-       └── program_name.yaml
-
-    Config files below program_name.d are read in alpha sort order
-    and attached to the master program_name.yaml file. The result
-    is send to the Yaml parser
-    !*/
-    let config_file = program_config_file(program_basename);
-    let mut yaml_content: String = fs::read_to_string(
-        &config_file
-    ).unwrap_or_else(|why| {
-        error!("Failed to read: {}: {:?}", config_file, why.kind());
-        exit(1)
-    });
-    let custom_config_dir = program_config_dir(program_basename);
-    if Path::new(&custom_config_dir).exists() {
-        // put dir entries to vector to allow for sorting
-        let mut custom_configs: Vec<_> = fs::read_dir(&custom_config_dir)
-            .unwrap().map(|r| r.unwrap()).collect();
-        custom_configs.sort_by_key(|entry| entry.path());
-        for filename in custom_configs {
-            let config_file = format!("{}", filename.path().display());
-            let add_yaml_content: String = fs::read_to_string(
-                &config_file
-            ).unwrap_or_else(|why| {
-                error!("Failed to read: {}: {:?}", config_file, why.kind());
-                exit(1)
-            });
-            yaml_content.push_str(&add_yaml_content);
-        }
-    }
-    YamlLoader::load_from_str(&yaml_content).unwrap()
 }
