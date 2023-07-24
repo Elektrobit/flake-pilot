@@ -32,19 +32,18 @@ use env_logger::Env;
 pub mod app_path;
 pub mod podman;
 pub mod defaults;
+pub mod config;
 
 fn main() {
     setup_logger();
 
     let program_path = app_path::program_abs_path();
     let program_name = app_path::basename(&program_path);
-    let runtime_config = app_path::program_config(&program_name);
 
-    let container = podman::create(&program_name, &runtime_config);
+    let container = podman::create(&program_name);
     let cid = &container[0];
     podman::start(
         &program_name,
-        &runtime_config,
         cid
     );
 }

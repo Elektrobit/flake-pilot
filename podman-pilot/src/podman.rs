@@ -22,13 +22,12 @@
 // SOFTWARE.
 //
 use spinoff::{Spinner, spinners, Color};
-use yaml_rust::Yaml;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::process::exit;
 use std::env;
 use std::fs;
-use crate::app_path::program_config_file;
+use crate::config::{RuntimeSection, config};
 use crate::defaults::debug;
 use tempfile::tempfile;
 use std::io::{Write, Read};
@@ -39,7 +38,7 @@ use std::io::SeekFrom;
 use crate::defaults;
 
 pub fn create(
-    program_name: &String, runtime_config: &[Yaml]
+    program_name: &String
 ) -> Vec<String> {
     /*!
     Create container for later execution of program_name.
@@ -130,65 +129,33 @@ pub fn create(
     }
     container_cid_file = format!("{}.cid", container_cid_file);
 
-    let container_section = &runtime_config[0]["container"];
+    let container_section = &config().container;
 
     // check for includes
-    let include_section = &runtime_config[0]["include"];
-    let tar_includes = &include_section["tar"];
-    let has_includes = tar_includes.as_vec().is_some();
+    let tar_includes = &config().tar;
+    let has_includes = !tar_includes.is_empty();
 
     // setup podman container to use
-    if container_section["name"].as_str().is_none() {
-        error!("No 'name' attribute specified in {}",
-            program_config_file(program_name)
-        );
-        exit(1)
-    }
-    let container_name = container_section["name"].as_str().unwrap();
+    let container_name = container_section.name;
 
     // setup base container if specified
-    let container_base_name;
-    let delta_container;
-    if container_section["base_container"].as_str().is_some() {
-        // get base container name
-        container_base_name = container_section["base_container"]
-            .as_str().unwrap();
+    let delta_container = container_section.base_container.is_some();
+    let container_base_name= container_section.base_container.unwrap_or_default();
+
+    if container_section.base_container.is_some() {
         // get additional container layers
-        let layer_section = &container_section["layers"];
-        if layer_section.as_vec().is_some() {
-            for layer in layer_section.as_vec().unwrap() {
-                debug(&format!("Adding layer: [{}]", layer.as_str().unwrap()));
-                layers.push(layer.as_str().unwrap().to_string());
-            }
-        }
-        delta_container = true;
-    } else {
-        container_base_name = "";
-        delta_container = false;
+
+        layers.extend(container_section.layers.iter()
+            .inspect(|layer| debug(&format!("Adding layer: [{layer}]")))
+            .map(|x| (*x).to_owned()));
     }
 
     // setup app command path name to call
-    let target_app_path = get_target_app_path(program_name, runtime_config);
+    let target_app_path = get_target_app_path(program_name);
 
     // get runtime section
-    let runtime_section = &container_section["runtime"];
-
-    // setup container operation mode
-    let mut resume: bool = false;
-    let mut attach: bool = false;
-    let mut runas = String::new();
-
-    if runtime_section.as_hash().is_some() {
-        if ! &runtime_section["resume"].as_bool().is_none() {
-            resume = runtime_section["resume"].as_bool().unwrap();
-        }
-        if ! &runtime_section["attach"].as_bool().is_none() {
-            attach = runtime_section["attach"].as_bool().unwrap();
-        }
-        if ! &runtime_section["runas"].as_str().is_none() {
-            runas.push_str(runtime_section["runas"].as_str().unwrap());
-        }
-    }
+    let RuntimeSection { runas, resume, attach, .. } = config().runtime();
+    let runas = runas.to_owned();
 
     let mut app = Command::new("sudo");
     if ! runas.is_empty() {
@@ -234,20 +201,10 @@ pub fn create(
 
     // create the container with configured runtime arguments
     let mut has_runtime_arguments: bool = false;
-    if runtime_section.as_hash().is_some() {
-        let podman_section = &runtime_section["podman"];
-        if let Some(podman_section) = podman_section.as_vec() {
-            has_runtime_arguments = true;
-            for opt in podman_section {
-                let mut split_opt = opt.as_str().unwrap().splitn(2, ' ');
-                let opt_name = split_opt.next();
-                let opt_value = split_opt.next();
-                app.arg(opt_name.unwrap());
-                if let Some(opt_value) = opt_value {
-                    app.arg(opt_value);
-                }
-            }
-        }
+    if let Some(RuntimeSection { podman, .. }) = &config().container.runtime {
+
+        app.args(podman.iter().flat_map(|x| x.splitn(2, ' ')));
+        has_runtime_arguments = !podman.is_empty();
     }
 
     // setup default runtime arguments if not configured
@@ -359,7 +316,7 @@ pub fn create(
                     if has_includes && provision_ok {
                         debug("Syncing includes...");
                         provision_ok = sync_includes(
-                            &instance_mount_point, runtime_config, &runas
+                            &instance_mount_point, &runas
                         )
                     }
 
@@ -385,19 +342,16 @@ pub fn create(
 }
 
 pub fn start(
-    program_name: &str, runtime_config: &[Yaml], cid: &str
+    program_name: &str, cid: &str
 ) {
     /*!
     Start container with the given container ID
 
     podman-pilot exits with the return code from podman after this function
     !*/
-    let container_section = &runtime_config[0]["container"];
-    let runtime_section = &container_section["runtime"];
 
-    let resume = runtime_section.as_hash().and(runtime_section["resume"].as_bool()).unwrap_or_default();
-    let attach = runtime_section.as_hash().and(runtime_section["attach"].as_bool()).unwrap_or_default();
-    let runas = runtime_section.as_hash().and(runtime_section["runas"].as_str()).unwrap_or_default().to_owned();
+    let RuntimeSection { runas, resume, attach, .. } = config().runtime();
+    let runas = runas.to_owned();
     
     let is_running = container_running(cid, &runas);
 
@@ -406,28 +360,28 @@ pub fn start(
         if attach {
             // 1. Attach to running container
             call_instance(
-                "attach", cid, program_name, runtime_config, &runas
+                "attach", cid, program_name, &runas
             )
         } else {
             // 2. Execute app in running container
             call_instance(
-                "exec", cid, program_name, runtime_config, &runas
+                "exec", cid, program_name, &runas
             )
         }
     } else if resume {
         // 3. Startup resume type container and execute app
         let status_code = call_instance(
-            "start", cid, program_name, runtime_config, &runas
+            "start", cid, program_name, &runas
         );
         if status_code == 0 {
             call_instance(
-                "exec", cid, program_name, runtime_config, &runas
+                "exec", cid, program_name, &runas
             )
         } else { status_code }
     } else {
         // 4. Startup container
         call_instance(
-            "start", cid, program_name, runtime_config, &runas
+            "start", cid, program_name, &runas
         )
     };
 
@@ -435,7 +389,7 @@ pub fn start(
 }
 
 pub fn get_target_app_path(
-    program_name: &str, runtime_config: &[Yaml]
+    program_name: &str
 ) -> String {
     /*!
     setup application command path name
@@ -445,23 +399,20 @@ pub fn get_target_app_path(
     configuration file
     !*/
 
-    runtime_config[0]["container"]["target_app_path"].as_str().unwrap_or(program_name).to_owned()
+    config().container.target_app_path.unwrap_or(program_name).to_owned()
 }
 
 pub fn call_instance(
     action: &str, cid: &str, program_name: &str,
-    runtime_config: &[Yaml], user: &str
+    user: &str
 ) -> i32 {
     /*!
     Call container ID based podman commands
     !*/
     let args: Vec<String> = env::args().collect();
-    let container_section = &runtime_config[0]["container"];
-    let runtime_section = &container_section["runtime"];
-    let mut resume: bool = false;
-    if runtime_section.as_hash().is_some() && ! &runtime_section["resume"].as_bool().is_none() {
-        resume = runtime_section["resume"].as_bool().unwrap();
-    }
+
+    let RuntimeSection { resume, .. } = config().runtime();
+
     let mut call = Command::new("sudo");
     if action == "create" || action == "rm" {
         call.stderr(Stdio::null());
@@ -485,7 +436,7 @@ pub fn call_instance(
     call.arg(cid);
     if action == "exec" {
         call.arg(
-            get_target_app_path(program_name, runtime_config)
+            get_target_app_path(program_name)
         );
         for arg in &args[1..] {
             if ! arg.starts_with('@') {
@@ -573,34 +524,32 @@ pub fn umount_container(
 }
 
 pub fn sync_includes(
-    target: &String, runtime_config: &[Yaml], user: &String
+    target: &String, user: &String
 ) -> bool {
     /*!
     Sync custom include data to target path
     !*/
-    let include_section = &runtime_config[0]["include"];
-    let tar_includes = &include_section["tar"];
+    let tar_includes = &config().tar;
     let mut status_code = 0;
-    if tar_includes.as_vec().is_some() {
-        for tar in tar_includes.as_vec().unwrap() {
-            debug(&format!("Adding tar include: [{}]", tar.as_str().unwrap()));
-            let mut call = Command::new("sudo");
-            if ! user.is_empty() {
-                call.arg("--user").arg(user);
-            }
-            call.arg("tar")
-                .arg("-C").arg(target)
-                .arg("-xf").arg(tar.as_str().unwrap());
-            debug(&format!("{:?}", call.get_args()));
-            match call.output() {
-                Ok(output) => {
-                    debug(&String::from_utf8_lossy(&output.stdout));
-                    debug(&String::from_utf8_lossy(&output.stderr));
-                    status_code = output.status.code().unwrap();
-                },
-                Err(error) => {
-                    panic!("Failed to execute tar: {:?}", error)
-                }
+    
+    for tar in tar_includes {
+        debug(&format!("Adding tar include: [{}]", tar));
+        let mut call = Command::new("sudo");
+        if ! user.is_empty() {
+            call.arg("--user").arg(user);
+        }
+        call.arg("tar")
+            .arg("-C").arg(target)
+            .arg("-xf").arg(tar);
+        debug(&format!("{:?}", call.get_args()));
+        match call.output() {
+            Ok(output) => {
+                debug(&String::from_utf8_lossy(&output.stdout));
+                debug(&String::from_utf8_lossy(&output.stderr));
+                status_code = output.status.code().unwrap();
+            },
+            Err(error) => {
+                panic!("Failed to execute tar: {:?}", error)
             }
         }
     }
