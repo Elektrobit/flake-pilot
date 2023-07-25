@@ -132,7 +132,7 @@ pub fn create(
     let container_section = &config().container;
 
     // check for includes
-    let tar_includes = &config().tar;
+    let tar_includes = &config().tars();
     let has_includes = !tar_includes.is_empty();
 
     // setup podman container to use
@@ -145,7 +145,7 @@ pub fn create(
     if container_section.base_container.is_some() {
         // get additional container layers
 
-        layers.extend(container_section.layers.iter()
+        layers.extend(config().layers().iter()
             .inspect(|layer| debug(&format!("Adding layer: [{layer}]")))
             .map(|x| (*x).to_owned()));
     }
@@ -158,8 +158,8 @@ pub fn create(
     let runas = runas.to_owned();
 
     let mut app = Command::new("sudo");
-    if ! runas.is_empty() {
-        app.arg("--user").arg(&runas);
+    if let Some(user) = runas {
+        app.arg("--user").arg(&user);
     }
     app.arg("podman").arg("create")
         .arg("--cidfile").arg(&container_cid_file);
@@ -168,7 +168,7 @@ pub fn create(
     init_cid_dir();
 
     // Check early return condition in resume mode
-    if Path::new(&container_cid_file).exists() && gc_cid_file(&container_cid_file, &runas) && (resume || attach) {
+    if Path::new(&container_cid_file).exists() && gc_cid_file(&container_cid_file, runas) && (resume || attach) {
         // resume or attach mode is active and container exists
         // report ID value and its ID file name
         match fs::read_to_string(&container_cid_file) {
@@ -185,7 +185,7 @@ pub fn create(
     }
 
     // Garbage collect occasionally
-    gc(&runas);
+    gc(runas);
 
     // Sanity check
     if Path::new(&container_cid_file).exists() {
@@ -202,6 +202,8 @@ pub fn create(
     // create the container with configured runtime arguments
     let mut has_runtime_arguments: bool = false;
     if let Some(RuntimeSection { podman, .. }) = &config().container.runtime {
+
+        let podman = podman.as_ref().cloned().unwrap_or_default(); 
 
         app.args(podman.iter().flat_map(|x| x.splitn(2, ' ')));
         has_runtime_arguments = !podman.is_empty();
@@ -263,7 +265,7 @@ pub fn create(
                     debug("Mounting instance for provisioning workload");
                     let mut provision_ok = true;
                     let instance_mount_point = mount_container(
-                        &result[0], &runas, false
+                        &result[0], runas, false
                     );
 
                     if delta_container {
@@ -291,15 +293,15 @@ pub fn create(
                                 "Syncing delta dependencies [{}]...", layer
                             ));
                             let app_mount_point = mount_container(
-                                &layer, &runas, true
+                                &layer, runas, true
                             );
                             update_removed_files(
                                 &app_mount_point, &removed_files
                             );
                             provision_ok = sync_delta(
-                                &app_mount_point, &instance_mount_point, &runas
+                                &app_mount_point, &instance_mount_point, runas
                             );
-                            umount_container(&layer, &runas, true);
+                            umount_container(&layer, runas, true);
                             if ! provision_ok {
                                 break
                             }
@@ -307,16 +309,16 @@ pub fn create(
                         if provision_ok {
                             debug("Syncing host dependencies...");
                             provision_ok = sync_host(
-                                &instance_mount_point, &removed_files, &runas
+                                &instance_mount_point, &removed_files, runas
                             )
                         }
-                        umount_container(&result[0], &runas, false);
+                        umount_container(&result[0], runas, false);
                     }
 
                     if has_includes && provision_ok {
                         debug("Syncing includes...");
                         provision_ok = sync_includes(
-                            &instance_mount_point, &runas
+                            &instance_mount_point, runas
                         )
                     }
 
@@ -351,37 +353,36 @@ pub fn start(
     !*/
 
     let RuntimeSection { runas, resume, attach, .. } = config().runtime();
-    let runas = runas.to_owned();
     
-    let is_running = container_running(cid, &runas);
+    let is_running = container_running(cid, runas);
 
     let status_code = if is_running {
 
         if attach {
             // 1. Attach to running container
             call_instance(
-                "attach", cid, program_name, &runas
+                "attach", cid, program_name, runas
             )
         } else {
             // 2. Execute app in running container
             call_instance(
-                "exec", cid, program_name, &runas
+                "exec", cid, program_name, runas
             )
         }
     } else if resume {
         // 3. Startup resume type container and execute app
         let status_code = call_instance(
-            "start", cid, program_name, &runas
+            "start", cid, program_name, runas
         );
         if status_code == 0 {
             call_instance(
-                "exec", cid, program_name, &runas
+                "exec", cid, program_name, runas
             )
         } else { status_code }
     } else {
         // 4. Startup container
         call_instance(
-            "start", cid, program_name, &runas
+            "start", cid, program_name, runas
         )
     };
 
@@ -404,7 +405,7 @@ pub fn get_target_app_path(
 
 pub fn call_instance(
     action: &str, cid: &str, program_name: &str,
-    user: &str
+    user: Option<&str>
 ) -> i32 {
     /*!
     Call container ID based podman commands
@@ -418,7 +419,7 @@ pub fn call_instance(
         call.stderr(Stdio::null());
         call.stdout(Stdio::null());
     }
-    if ! user.is_empty() {
+    if let Some(user) = user {
         call.arg("--user").arg(user);
     }
     call.arg("podman").arg(action);
@@ -458,13 +459,13 @@ pub fn call_instance(
 }
 
 pub fn mount_container(
-    container_name: &str, user: &String, as_image: bool
+    container_name: &str, user: Option<&str>, as_image: bool
 ) -> String {
     /*!
     Mount container and return mount point
     !*/
     let mut call = Command::new("sudo");
-    if ! user.is_empty() {
+    if let Some(user) = user {
         call.arg("--user").arg(user);
     }
     if as_image {
@@ -494,7 +495,7 @@ pub fn mount_container(
 }
 
 pub fn umount_container(
-    mount_point: &str, user: &String, as_image: bool
+    mount_point: &str, user: Option<&str>, as_image: bool
 ) -> i32 {
     /*!
     Umount container image
@@ -502,7 +503,7 @@ pub fn umount_container(
     let mut call = Command::new("sudo");
     call.stderr(Stdio::null());
     call.stdout(Stdio::null());
-    if ! user.is_empty() {
+    if let Some(user) = user {
         call.arg("--user").arg(user);
     }
     if as_image {
@@ -524,18 +525,18 @@ pub fn umount_container(
 }
 
 pub fn sync_includes(
-    target: &String, user: &String
+    target: &String, user: Option<&str>
 ) -> bool {
     /*!
     Sync custom include data to target path
     !*/
-    let tar_includes = &config().tar;
+    let tar_includes = &config().tars();
     let mut status_code = 0;
     
     for tar in tar_includes {
         debug(&format!("Adding tar include: [{}]", tar));
         let mut call = Command::new("sudo");
-        if ! user.is_empty() {
+        if let Some(user) = user {
             call.arg("--user").arg(user);
         }
         call.arg("tar")
@@ -560,13 +561,13 @@ pub fn sync_includes(
 }
 
 pub fn sync_delta(
-    source: &String, target: &String, user: &String
+    source: &String, target: &String, user: Option<&str>
 ) -> bool {
     /*!
     Sync data from source path to target path
     !*/
     let mut call = Command::new("sudo");
-    if ! user.is_empty() {
+    if let Some(user) = user {
         call.arg("--user").arg(user);
     }
     call.arg("rsync")
@@ -591,7 +592,7 @@ pub fn sync_delta(
 }
 
 pub fn sync_host(
-    target: &String, mut removed_files: &File, user: &String
+    target: &String, mut removed_files: &File, user: Option<&str>
 ) -> bool {
     /*!
     Sync files/dirs specified in target/defaults::HOST_DEPENDENCIES
@@ -625,7 +626,7 @@ pub fn sync_host(
         }
     }
     let mut call = Command::new("sudo");
-    if ! user.is_empty() {
+    if let Some(user) = user {
         call.arg("--user").arg(user);
     }
     call.arg("rsync")
@@ -653,13 +654,13 @@ pub fn sync_host(
 
 pub fn init_cid_dir() {
     if ! Path::new(defaults::CONTAINER_CID_DIR).is_dir() {
-        if ! chmod(defaults::CONTAINER_DIR, "755", "root") {
+        if ! chmod(defaults::CONTAINER_DIR, "755", Some("root")) {
             panic!(
                 "Failed to set permissions 755 on {}",
                 defaults::CONTAINER_DIR
             );
         }
-        if ! mkdir(defaults::CONTAINER_CID_DIR, "777", "root") {
+        if ! mkdir(defaults::CONTAINER_CID_DIR, "777", Some("root")) {
             panic!(
                 "Failed to create CID dir: {}",
                 defaults::CONTAINER_CID_DIR
@@ -668,13 +669,13 @@ pub fn init_cid_dir() {
     }
 }
 
-pub fn container_running(cid: &str, user: &String) -> bool {
+pub fn container_running(cid: &str, user: Option<&str>) -> bool {
     /*!
     Check if container with specified cid is running
     !*/
     let mut running_status = false;
     let mut running = Command::new("sudo");
-    if ! user.is_empty() {
+    if let Some(user) = user {
         running.arg("--user").arg(user);
     }
     running.arg("podman")
@@ -700,13 +701,13 @@ pub fn container_running(cid: &str, user: &String) -> bool {
     running_status
 }
 
-pub fn container_image_exists(name: &str, user: &str) -> bool {
+pub fn container_image_exists(name: &str, user: Option<&str>) -> bool {
     /*!
     Check if container image is present in local registry
     !*/
     let mut exists_status = false;
     let mut exists = Command::new("sudo");
-    if ! user.is_empty() {
+    if let Some(user) = user {
         exists.arg("--user").arg(user);
     }
     exists.arg("podman")
@@ -725,12 +726,12 @@ pub fn container_image_exists(name: &str, user: &str) -> bool {
     exists_status
 }
 
-pub fn pull(uri: &str, user: &str) {
+pub fn pull(uri: &str, user: Option<&str>) {
     /*!
     Call podman pull and prune with the provided uri
     !*/
     let mut pull = Command::new("sudo");
-    if ! user.is_empty() {
+    if let Some(user) = user {
         pull.arg("--user").arg(user);
     }
     pull.arg("podman").arg("pull").arg(uri);
@@ -744,7 +745,7 @@ pub fn pull(uri: &str, user: &str) {
                 );
             } else {
                 let mut prune = Command::new("sudo");
-                if ! user.is_empty() {
+                if let Some(user) = user {
                     prune.arg("--user").arg(user);
                 }
                 prune.arg("podman").arg("image").arg("prune").arg("--force");
@@ -789,7 +790,7 @@ pub fn update_removed_files(
     }
 }
 
-pub fn gc_cid_file(container_cid_file: &String, user: &String) -> bool {
+pub fn gc_cid_file(container_cid_file: &String, user: Option<&str>) -> bool {
     /*!
     Check if container exists according to the specified
     container_cid_file. Garbage cleanup the container_cid_file
@@ -800,7 +801,7 @@ pub fn gc_cid_file(container_cid_file: &String, user: &String) -> bool {
     match fs::read_to_string(container_cid_file) {
         Ok(cid) => {
             let mut exists = Command::new("sudo");
-            if ! user.is_empty() {
+            if let Some(user) = user {
                 exists.arg("--user").arg(user);
             }
             exists.arg("podman")
@@ -833,12 +834,12 @@ pub fn gc_cid_file(container_cid_file: &String, user: &String) -> bool {
     cid_status
 }
 
-pub fn chmod(filename: &str, mode: &str, user: &str) -> bool {
+pub fn chmod(filename: &str, mode: &str, user: Option<&str>) -> bool {
     /*!
     Chmod filename via sudo
     !*/
     let mut call = Command::new("sudo");
-    if ! user.is_empty() {
+    if let Some(user) = user {
         call.arg("--user").arg(user);
     }
     call.arg("chmod").arg(mode).arg(filename);
@@ -852,12 +853,12 @@ pub fn chmod(filename: &str, mode: &str, user: &str) -> bool {
     true
 }
 
-pub fn mkdir(dirname: &str, mode: &str, user: &str) -> bool {
+pub fn mkdir(dirname: &str, mode: &str, user: Option<&str>) -> bool {
     /*!
     Make directory via sudo
     !*/
     let mut call = Command::new("sudo");
-    if ! user.is_empty() {
+    if let Some(user) = user {
         call.arg("--user").arg(user);
     }
     call.arg("mkdir").arg("-p").arg("-m").arg(mode).arg(dirname);
@@ -871,7 +872,7 @@ pub fn mkdir(dirname: &str, mode: &str, user: &str) -> bool {
     true
 }
 
-pub fn gc(user: &String) {
+pub fn gc(user: Option<&str>) {
     /*!
     Garbage collect CID files for which no container exists anymore
     !*/

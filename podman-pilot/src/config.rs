@@ -34,7 +34,8 @@ fn load_config() -> Config<'static> {
 pub struct Config<'a> {
     #[serde(borrow)]
     pub container: ContainerSection<'a>,
-    pub tar: Vec<&'a str>
+    #[serde(borrow)]
+    pub include: IncludeSection<'a>
 }
 
 impl<'a> Config<'a> {
@@ -45,6 +46,20 @@ impl<'a> Config<'a> {
     pub fn runtime(&self) -> RuntimeSection {
         self.container.runtime.as_ref().cloned().unwrap_or_default()
     }
+
+    pub fn layers(&self) -> Vec<&'a str> {
+        self.container.layers.as_ref().cloned().unwrap_or_default()
+    }
+
+    pub fn tars(&self) -> Vec<&'a str> {
+        self.include.tar.as_ref().cloned().unwrap_or_default()
+    }
+}
+
+#[derive(Deserialize)]
+pub struct IncludeSection<'a> {
+    #[serde(borrow)]
+    tar: Option<Vec<&'a str>>
 }
 
 #[derive(Deserialize)]
@@ -72,7 +87,7 @@ pub struct ContainerSection<'a> {
     /// Optional additional container layers on top of the
     /// specified base container
     #[serde(default)]
-    pub layers: Vec<&'a str>,
+    layers: Option<Vec<&'a str>>,
 
     /// Optional registration setup
     /// Container runtime parameters
@@ -90,7 +105,7 @@ pub struct RuntimeSection<'a> {
     /// The behavior of sudo can be controlled via the
     /// file /etc/sudoers
     #[serde(borrow)]
-    pub runas: &'a str,
+    pub runas: Option<&'a str>,
 
     /// Resume the container from previous execution.
     ///
@@ -115,5 +130,5 @@ pub struct RuntimeSection<'a> {
     /// For details on podman options please consult the
     /// podman documentation.
     #[serde(default)]
-    pub podman: Vec<&'a str>,
+    pub podman: Option<Vec<&'a str>>,
 }
