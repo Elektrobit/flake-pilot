@@ -21,11 +21,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-use crate::defaults;
-use serde::{Deserialize, Serialize};
-use serde_yaml::{self};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
+use serde::{Serialize, Deserialize};
+use serde_yaml::{self};
+use crate::defaults;
 
 type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -109,31 +109,51 @@ impl AppConfig {
             serde_yaml::from_reader(template).expect("Failed to import config template");
         let container_config = yaml_config.container.as_mut().unwrap();
 
-        container_config.name = container.to_owned();
-        container_config.target_app_path = target_app_path.to_owned();
-        container_config.host_app_path = host_app_path.to_owned();
-
-        container_config.base_container = base.cloned();
-        container_config.layers = layers;
-        yaml_config.include.tar = includes_tar;
-
-        if let Some(runtime) = container_config.runtime.as_mut() {
-            if resume {
-                runtime.resume = Some(resume);
-            } else if attach {
-                runtime.attach = Some(attach);
-            } else {
-                // default: remove the container if no resume/attach is set
-                runtime.podman.as_mut().unwrap().push("--rm".to_string());
+        container_config.name = container.to_string();
+        container_config.target_app_path = target_app_path.to_string();
+        container_config.host_app_path = host_app_path.to_string();
+        if let Some(base) = base {
+            container_config.base_container = Some(
+                base.to_string()
+            );
+        }
+        if layers.is_some() {
+            container_config.layers = Some(
+                layers.as_ref().unwrap().to_vec()
+            );
+        }
+        if resume {
+            container_config.runtime.as_mut().unwrap()
+                .resume = Some(resume);
+        } else if attach {
+            container_config.runtime.as_mut().unwrap()
+                .attach = Some(attach);
+        } else {
+            // default: remove the container if no resume/attach is set
+            container_config.runtime.as_mut().unwrap()
+                .podman.as_mut().unwrap().push("--rm".to_string());
+        }
+        if let Some(run_as) = run_as {
+            container_config.runtime.as_mut().unwrap()
+                .runas = Some(run_as.to_string());
+        }
+        if includes_tar.is_some() {
+            yaml_config.include.tar = Some(
+                includes_tar.as_ref().unwrap().to_vec()
+            );
+        }
+        if opts.is_some() {
+            let mut final_opts: Vec<String> = Vec::new();
+            for opt in opts.as_ref().unwrap() {
+                if let Some(stripped_opt) = opt.strip_prefix('\\') {
+                    final_opts.push(stripped_opt.to_string())
+                } else {
+                    final_opts.push(opt.to_string())
+                }
             }
-
-            runtime.runas = run_as.cloned();
-
-            runtime.podman = opts.map(|x| {
-                x.iter()
-                    .map(|x| x.trim_start_matches('\\').to_owned())
-                    .collect()
-            });
+            container_config.runtime.as_mut().unwrap().podman = Some(
+                final_opts
+            );
         }
 
         let config = std::fs::OpenOptions::new()
@@ -167,59 +187,88 @@ impl AppConfig {
             serde_yaml::from_reader(template).expect("Failed to import config template");
         let vm_config = yaml_config.vm.as_mut().unwrap();
 
-        vm_config.name = vm.clone();
-        vm_config.target_app_path = target_app_path.to_owned();
-        vm_config.host_app_path = host_app_path.to_owned();
+        vm_config.name = vm.to_string();
+        vm_config.target_app_path = target_app_path.to_string();
+        vm_config.host_app_path = host_app_path.to_string();
 
-        yaml_config.include.tar = includes_tar;
+        if resume {
+            vm_config.runtime.as_mut().unwrap()
+                .resume = Some(resume);
+        }
+        if let Some(run_as) = run_as {
+            vm_config.runtime.as_mut().unwrap()
+                .runas = Some(run_as.to_string());
+        }
+        if includes_tar.is_some() {
+            yaml_config.include.tar = Some(
+                includes_tar.as_ref().unwrap().to_vec()
+            );
+        }
+        if let Some(overlay_size) = overlay_size {
+            vm_config.runtime.as_mut().unwrap()
+                .firecracker.as_mut().unwrap()
+                .overlay_size = Some(overlay_size.to_string());
+        }
+        let rootfs_image_path = format!(
+            "{}/{}", image_dir, defaults::FIRECRACKER_ROOTFS_NAME
+        );
+        if Path::new(&rootfs_image_path).exists() {
+            vm_config.runtime.as_mut().unwrap()
+                .firecracker.as_mut().unwrap()
+                .rootfs_image_path = Some(rootfs_image_path);
+        } else {
+            return Err(
+                Box::new(Error::new(
+                    ErrorKind::NotFound,
+                    format!("No rootfs image found: {}", rootfs_image_path)
+                ))
+            )
+        }
 
-        if let Some(runtime) = vm_config.runtime.as_mut() {
-            if resume {
-                runtime.resume = Some(resume);
+        let kernel_image_path = format!(
+            "{}/{}", image_dir, defaults::FIRECRACKER_KERNEL_NAME
+        );
+        if Path::new(&kernel_image_path).exists() {
+            vm_config.runtime.as_mut().unwrap()
+                .firecracker.as_mut().unwrap()
+                .kernel_image_path = Some(kernel_image_path);
+        } else {
+            return Err(
+                Box::new(Error::new(
+                    ErrorKind::NotFound,
+                    format!("No kernel image found: {}", kernel_image_path)
+                ))
+            )
+        }
+
+        let initrd_path = format!(
+            "{}/{}", image_dir, defaults::FIRECRACKER_INITRD_NAME
+        );
+        if Path::new(&initrd_path).exists() {
+            vm_config.runtime.as_mut().unwrap()
+                .firecracker.as_mut().unwrap()
+                .initrd_path = Some(initrd_path);
+        }
+
+        if no_net {
+            let mut boot_args: Vec<String> = Vec::new();
+            let firecracker_section = vm_config.runtime.as_mut().unwrap()
+                .firecracker.as_mut().unwrap();
+            for boot_arg in
+                firecracker_section.boot_args.as_mut().unwrap().iter().cloned()
+            {
+                if ! boot_arg.starts_with("ip=") {
+                    boot_args.push(boot_arg);
+                }
             }
+            firecracker_section.boot_args = Some(boot_args);
+        }
 
-            runtime.runas = run_as.cloned();
-
-            if let Some(firecracker) = runtime.firecracker.as_mut() {
-                firecracker.overlay_size = overlay_size.cloned();
-
-                let rootfs_image_path =
-                    format!("{}/{}", image_dir, defaults::FIRECRACKER_ROOTFS_NAME);
-
-                if Path::new(&rootfs_image_path).exists() {
-                    firecracker.rootfs_image_path = Some(rootfs_image_path);
-                } else {
-                    return Err(Box::new(Error::new(
-                        ErrorKind::NotFound,
-                        format!("No rootfs image found: {}", rootfs_image_path),
-                    )));
-                }
-                let kernel_image_path =
-                    format!("{}/{}", image_dir, defaults::FIRECRACKER_KERNEL_NAME);
-
-                if Path::new(&kernel_image_path).exists() {
-                    firecracker.kernel_image_path = Some(kernel_image_path);
-                } else {
-                    return Err(Box::new(Error::new(
-                        ErrorKind::NotFound,
-                        format!("No kernel image found: {}", kernel_image_path),
-                    )));
-                }
-
-                let initrd_path = format!("{}/{}", image_dir, defaults::FIRECRACKER_INITRD_NAME);
-                if Path::new(&initrd_path).exists() {
-                    firecracker.initrd_path = Some(initrd_path);
-                }
-
-                if let Some(boot_args) = firecracker.boot_args.as_mut() {
-                    if no_net {
-                        boot_args.retain(|arg| !arg.starts_with("ip="))
-                    }
-                    if resume {
-                        boot_args.push("sci_resume=1".to_owned());
-                    }
-                }
-            }
+        if resume {
+            let firecracker_section = vm_config.runtime.as_mut().unwrap()
+                .firecracker.as_mut().unwrap();
+            firecracker_section.boot_args.as_mut().unwrap()
+                .push("sci_resume=1".to_string());
         }
 
         let config = std::fs::OpenOptions::new()
@@ -231,7 +280,9 @@ impl AppConfig {
         Ok(())
     }
 
-    pub fn init_from_file(config_file: &Path) -> Result<AppConfig, GenericError> {
+    pub fn init_from_file(
+        config_file: &Path
+    ) -> Result<AppConfig, GenericError> {
         /*!
         new creates the new AppConfig class by reading and
         deserializing the data from a given yaml configuration
