@@ -39,12 +39,16 @@ fn load_config() -> Config<'static> {
 
 fn config_from_str(input: &str) -> Config<'static> {
     // Parse into a generic YAML to remove duplicate keys
-    let yaml: Value = from_str(input).unwrap();
-    
+
+    let yaml = yaml_rust::YamlLoader::load_from_str(input).unwrap();
+    let yaml = yaml.first().unwrap();
+    let mut buffer = String::new();
+    yaml_rust::YamlEmitter::new(&mut buffer).dump(yaml).unwrap();
+
     // Convert to a String and leak it to make it static
     // Can not use serde_yaml::from_value because of lifetime limitations
     // Safety: This does not cause a reocurring memory leak since `load_config` is only called once
-    let content = Box::leak(to_string(&yaml).unwrap().into_boxed_str());
+    let content = Box::leak(buffer.into_boxed_str());
     
     serde_yaml::from_str(content).unwrap()
 }
