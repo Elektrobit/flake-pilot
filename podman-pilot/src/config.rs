@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use serde::Deserialize;
+use serde_yaml::{Value, from_str, to_string};
 use std::{env, path::PathBuf, fs};
 
 use crate::defaults;
@@ -22,11 +23,29 @@ fn get_base_path() -> PathBuf {
 fn load_config() -> Config<'static> {
     let base_path = get_base_path();
     let base_path  = base_path.file_name().unwrap().to_str().unwrap();
-    let content = fs::read_to_string(format!("{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, base_path));
+    let base_yaml = fs::read_to_string(format!("{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, base_path));
+
+    let extra_yamls = fs::read_dir(format!("{}/{}.d", defaults::CONTAINER_FLAKE_DIR, base_path))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|x| x.path())
+        .flat_map(fs::read_to_string);
+
+    let full_yaml: String = base_yaml.into_iter().chain(extra_yamls).collect();
+    config_from_str(&full_yaml)
+
+}
+
+fn config_from_str(input: &str) -> Config<'static> {
+    // Parse into a generic YAML to remove duplicate keys
+    let yaml: Value = from_str(input).unwrap();
     
-    // Leak the data to make it static
+    // Convert to a String and leak it to make it static
+    // Can not use serde_yaml::from_value because of lifetime limitations
     // Safety: This does not cause a reocurring memory leak since `load_config` is only called once
-    let content = Box::leak(content.unwrap().into_boxed_str());
+    let content = Box::leak(to_string(&yaml).unwrap().into_boxed_str());
+    
     serde_yaml::from_str(content).unwrap()
 }
 
