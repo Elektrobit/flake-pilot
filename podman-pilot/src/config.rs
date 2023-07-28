@@ -151,3 +151,35 @@ pub struct RuntimeSection<'a> {
     #[serde(default)]
     pub podman: Option<Vec<&'a str>>,
 }
+
+#[cfg(test)]
+mod test {
+    use super::config_from_str;
+
+    #[test]
+    fn simple_config() {
+        let cfg = config_from_str(
+r#"container:
+ name: JoJo
+ host_app_path: /myapp
+include:
+ tar: ~
+"#);
+        assert_eq!(cfg.container.name, "JoJo");
+    }
+    
+    #[test]
+    fn combine_configs() {
+        let cfg = config_from_str(
+r#"container:
+ name: JoJo
+ host_app_path: /myapp
+include:
+ tar: ~
+container:
+ name: Dio
+ host_app_path: /other
+"#);
+        assert_eq!(cfg.container.name, "Dio");
+    }
+}
