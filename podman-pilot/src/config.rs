@@ -24,14 +24,16 @@ fn load_config() -> Config<'static> {
     let base_path  = base_path.file_name().unwrap().to_str().unwrap();
     let base_yaml = fs::read_to_string(format!("{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, base_path));
 
-    let extra_yamls = fs::read_dir(format!("{}/{}.d", defaults::CONTAINER_FLAKE_DIR, base_path))
+    let mut extra_yamls: Vec<_> = fs::read_dir(format!("{}/{}.d", defaults::CONTAINER_FLAKE_DIR, base_path))
         .into_iter()
         .flatten()
         .flatten()
-        .map(|x| x.path())
-        .flat_map(fs::read_to_string);
+        .map(|x| x.path()).collect();
 
-    let full_yaml: String = base_yaml.into_iter().chain(extra_yamls).collect();
+    extra_yamls.sort();
+        
+
+    let full_yaml: String = base_yaml.into_iter().chain(extra_yamls.into_iter().flat_map(fs::read_to_string)).collect();
     config_from_str(&full_yaml)
 
 }
