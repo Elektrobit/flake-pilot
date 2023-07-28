@@ -22,9 +22,9 @@ fn get_base_path() -> PathBuf {
 fn load_config() -> Config<'static> {
     let base_path = get_base_path();
     let base_path  = base_path.file_name().unwrap().to_str().unwrap();
-    let base_yaml = fs::read_to_string(format!("{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, base_path));
+    let base_yaml = fs::read_to_string(config_file(base_path));
 
-    let mut extra_yamls: Vec<_> = fs::read_dir(format!("{}/{}.d", defaults::CONTAINER_FLAKE_DIR, base_path))
+    let mut extra_yamls: Vec<_> = fs::read_dir(config_dir(base_path))
         .into_iter()
         .flatten()
         .flatten()
@@ -52,6 +52,14 @@ fn config_from_str(input: &str) -> Config<'static> {
     let content = Box::leak(buffer.into_boxed_str());
     
     serde_yaml::from_str(content).unwrap()
+}
+
+fn config_file(program: &str) -> String {
+    format!("{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, program)
+}
+
+fn config_dir(program: &str) -> String {
+    format!("{}/{}.d", defaults::CONTAINER_FLAKE_DIR, program)
 }
 
 #[derive(Deserialize)]
@@ -159,6 +167,8 @@ pub struct RuntimeSection<'a> {
 
 #[cfg(test)]
 mod test {
+    use crate::config::config_file;
+
     use super::config_from_str;
 
     #[test]
@@ -186,5 +196,11 @@ container:
  host_app_path: /other
 "#);
         assert_eq!(cfg.container.name, "Dio");
+    }
+
+    #[test]
+    fn test_program_config_file() {
+        let config_file = config_file(&"app".to_string());
+        assert_eq!("/usr/share/flakes/app.yaml", config_file);
     }
 }
