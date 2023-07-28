@@ -1,6 +1,5 @@
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use serde_yaml::{Value, from_str, to_string};
 use std::{env, path::PathBuf, fs};
 
 use crate::defaults;

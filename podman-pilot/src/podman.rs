@@ -159,7 +159,7 @@ pub fn create(
 
     let mut app = Command::new("sudo");
     if let Some(user) = runas {
-        app.arg("--user").arg(&user);
+        app.arg("--user").arg(user);
     }
     app.arg("podman").arg("create")
         .arg("--cidfile").arg(&container_cid_file);
