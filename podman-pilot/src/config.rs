@@ -20,14 +20,58 @@ fn get_base_path() -> PathBuf {
 }
 
 fn load_config() -> Config<'static> {
+    /*!
+    Read container runtime configuration for given program
+
+    CONTAINER_FLAKE_DIR/
+       ├── program_name.d
+       │   └── other.yaml
+       └── program_name.yaml
+
+    Config files below program_name.d are read in alpha sort order
+    and attached to the master program_name.yaml file. The result
+    is send to the Yaml parser
+    !*/
     let base_path = get_base_path();
     let base_path  = base_path.file_name().unwrap().to_str().unwrap();
-    let content = fs::read_to_string(format!("{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, base_path));
-    
-    // Leak the data to make it static
+    let base_yaml = fs::read_to_string(config_file(base_path));
+
+    let mut extra_yamls: Vec<_> = fs::read_dir(config_dir(base_path))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|x| x.path()).collect();
+
+    extra_yamls.sort();
+        
+
+    let full_yaml: String = base_yaml.into_iter().chain(extra_yamls.into_iter().flat_map(fs::read_to_string)).collect();
+    config_from_str(&full_yaml)
+
+}
+
+fn config_from_str(input: &str) -> Config<'static> {
+    // Parse into a generic YAML to remove duplicate keys
+
+    let yaml = yaml_rust::YamlLoader::load_from_str(input).unwrap();
+    let yaml = yaml.first().unwrap();
+    let mut buffer = String::new();
+    yaml_rust::YamlEmitter::new(&mut buffer).dump(yaml).unwrap();
+
+    // Convert to a String and leak it to make it static
+    // Can not use serde_yaml::from_value because of lifetime limitations
     // Safety: This does not cause a reocurring memory leak since `load_config` is only called once
-    let content = Box::leak(content.unwrap().into_boxed_str());
+    let content = Box::leak(buffer.into_boxed_str());
+    
     serde_yaml::from_str(content).unwrap()
+}
+
+fn config_file(program: &str) -> String {
+    format!("{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, program)
+}
+
+fn config_dir(program: &str) -> String {
+    format!("{}/{}.d", defaults::CONTAINER_FLAKE_DIR, program)
 }
 
 #[derive(Deserialize)]
@@ -131,4 +175,44 @@ pub struct RuntimeSection<'a> {
     /// podman documentation.
     #[serde(default)]
     pub podman: Option<Vec<&'a str>>,
+}
+
+#[cfg(test)]
+mod test {
+    use crate::config::config_file;
+
+    use super::config_from_str;
+
+    #[test]
+    fn simple_config() {
+        let cfg = config_from_str(
+r#"container:
+ name: JoJo
+ host_app_path: /myapp
+include:
+ tar: ~
+"#);
+        assert_eq!(cfg.container.name, "JoJo");
+    }
+    
+    #[test]
+    fn combine_configs() {
+        let cfg = config_from_str(
+r#"container:
+ name: JoJo
+ host_app_path: /myapp
+include:
+ tar: ~
+container:
+ name: Dio
+ host_app_path: /other
+"#);
+        assert_eq!(cfg.container.name, "Dio");
+    }
+
+    #[test]
+    fn test_program_config_file() {
+        let config_file = config_file(&"app".to_string());
+        assert_eq!("/usr/share/flakes/app.yaml", config_file);
+    }
 }
