@@ -1,31 +1,24 @@
 use std::{
-    error::Error,
     ffi::OsStr,
     fmt::{Debug, Display, Write},
     process::{Command, ExitCode, Output, Termination},
 };
 
-#[derive(Debug)]
+use thiserror::Error;
+
+#[derive(Debug, Error)]
 pub enum FlakeError {
     /// The pilot tried to run a sub command and failed
-    CommandError(CommandError),
+    #[error("Failed to run {}", .0)]
+    CommandError(#[from] CommandError),
     /// There was an error in an IO operation
-    IO(std::io::Error),
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
     /// This flake is already running
+    #[error("Container id in use by another instance, consider @NAME argument")]
     AlreadyRunning,
 }
 
-impl Display for FlakeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FlakeError::CommandError(err) => std::fmt::Display::fmt(err, f),
-            FlakeError::IO(err) => std::fmt::Display::fmt(err, f),
-            FlakeError::AlreadyRunning => {
-                f.write_str("Container id in use by another instance, consider @NAME argument")
-            }
-        }
-    }
-}
 
 impl Termination for FlakeError {
     /// A failed sub command will forward its error code
@@ -45,40 +38,13 @@ impl Termination for FlakeError {
     }
 }
 
-impl Error for FlakeError {}
-
-impl From<std::io::Error> for FlakeError {
-    fn from(value: std::io::Error) -> Self {
-        Self::IO(value)
-    }
-}
-
-impl From<CommandError> for FlakeError {
-    fn from(value: CommandError) -> Self {
-        Self::CommandError(value)
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ProcessError {
-    /// The Command failed to execute properly
-    IO(std::io::Error),
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
     // The Command terminated correctly but with unwanted results (e.g. wrong return code)
+    #[error("The process failed with status {}", .0.status)]
     ExecutionError(std::process::Output),
-}
-
-impl Error for ProcessError {}
-
-impl Display for ProcessError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ProcessError::IO(io) => std::fmt::Display::fmt(&io, f),
-            ProcessError::ExecutionError(output) => {
-                f.write_str("Failed with code ")?;
-                std::fmt::Display::fmt(&output.status, f)
-            }
-        }
-    }
 }
 
 impl From<std::process::Output> for ProcessError {
@@ -87,13 +53,7 @@ impl From<std::process::Output> for ProcessError {
     }
 }
 
-impl From<std::io::Error> for ProcessError {
-    fn from(value: std::io::Error) -> Self {
-        Self::IO(value)
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub struct CommandError {
     pub base: ProcessError,
     pub args: Vec<String>,
@@ -112,8 +72,6 @@ impl CommandError {
         self
     }
 }
-
-impl Error for CommandError {}
 
 impl Display for CommandError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -151,6 +109,9 @@ pub trait CommandExtTrait {
     /// 3. The [Output] of the Command if the command was executed successfully
     /// 
     /// Attaches all args to the resulting error
+    /// 
+    /// If a termination with a non 0 exit status is considered succesful
+    /// this method should not be used.
     fn perform(&mut self) -> Result<std::process::Output, CommandError>;
 }
 
