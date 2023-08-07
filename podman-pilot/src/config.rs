@@ -19,16 +19,19 @@ fn get_base_path() -> PathBuf {
     which::which(env::args().next().expect("Arg 0 must be present")).expect("Symlink should exist")
 }
 
-
-///    Read container runtime configuration for given program
-///    CONTAINER_FLAKE_DIR/
-///       ├── program_name.d
-///       │   └── other.yaml
-///       └── program_name.yaml
-///    Config files below program_name.d are read in alpha sort order
-///    and attached to the master program_name.yaml file. The result
-///    is send to the Yaml parser
 fn load_config() -> Config<'static> {
+    /*!
+    Read container runtime configuration for given program
+
+    CONTAINER_FLAKE_DIR/
+       ├── program_name.d
+       │   └── other.yaml
+       └── program_name.yaml
+
+    Config files below program_name.d are read in alpha sort order
+    and attached to the master program_name.yaml file. The result
+    is send to the Yaml parser
+    !*/
     let base_path = get_base_path();
     let base_path  = base_path.file_name().unwrap().to_str().unwrap();
     let base_yaml = fs::read_to_string(config_file(base_path));
