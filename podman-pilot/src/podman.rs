@@ -167,7 +167,7 @@ pub fn create(
     init_cid_dir()?;
 
     // Check early return condition in resume mode
-    if Path::new(&container_cid_file).exists() && gc_cid_file(&container_cid_file, runas).is_ok() && (resume || attach) {
+    if Path::new(&container_cid_file).exists() && gc_cid_file(&container_cid_file, runas)? && (resume || attach) {
         // resume or attach mode is active and container exists
         // report ID value and its ID file name
 
@@ -177,8 +177,7 @@ pub fn create(
     }
 
     // Garbage collect occasionally
-    // TODO: Behaviour (continue on error) retained from previous implementation, is this correct?
-    let _ = gc(runas);
+    gc(runas)?;
 
     // Sanity check
     if Path::new(&container_cid_file).exists() {
@@ -633,7 +632,7 @@ pub fn update_removed_files(
     Ok(())
 }
 
-pub fn gc_cid_file(container_cid_file: &String, user: Option<&str>) -> Result<(), FlakeError> {
+pub fn gc_cid_file(container_cid_file: &String, user: Option<&str>) -> Result<bool, FlakeError> {
     /*!
     Check if container exists according to the specified
     container_cid_file. Garbage cleanup the container_cid_file
@@ -648,8 +647,13 @@ pub fn gc_cid_file(container_cid_file: &String, user: Option<&str>) -> Result<()
     exists.arg("podman")
         .arg("container").arg("exists").arg(&cid);
 
-    exists.perform()?;
-    Ok(())
+
+    if !exists.status()?.success() {
+        fs::remove_file(container_cid_file)?;
+        Ok(false)
+    } else {
+        Ok(true)
+    }
 }
 
 pub fn chmod(filename: &str, mode: &str, user: Option<&str>) -> Result<(), CommandError> {
