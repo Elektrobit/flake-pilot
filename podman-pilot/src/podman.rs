@@ -404,7 +404,7 @@ pub fn call_instance(
         }
     }
     debug(&format!("{:?}", call.get_args()));
-    call.perform()?;
+    call.status()?;
     Ok(())
 }
 
