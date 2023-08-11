@@ -3,7 +3,7 @@ on:
     branches:
       - "master"
   pull_request:
-  
+
 name: Robot Full Test
 jobs:
   robot_test:
@@ -12,5 +12,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Install Flake
+        run:  make install
       - name: Robot Framework
         uses: joonvena/robotframework-docker-action@v1.0
