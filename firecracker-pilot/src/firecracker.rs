@@ -207,8 +207,8 @@ pub fn create(
     }
 
     // Setup VM...
-    let spinner = Spinner::new(
-        spinners::Line, "Launching flake...", Color::Yellow
+    let spinner = Spinner::new_with_stream(
+        spinners::Line, "Launching flake...", Color::Yellow, spinoff::Streams::Stderr
     );
 
     // Create initial vm_id_file with process ID set to 0
