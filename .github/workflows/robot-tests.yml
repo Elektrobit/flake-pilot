@@ -19,6 +19,6 @@ jobs:
       - name: Build Flake
         run:  make build
       - name: Install Flake
-        run:  make install
+        run:  sudo make install
       - name: Robot Framework
         uses: joonvena/robotframework-docker-action@v1.0
