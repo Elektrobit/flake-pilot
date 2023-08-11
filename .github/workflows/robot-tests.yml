@@ -15,8 +15,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install python3
-          sudo pip install rst2man
+          sudo apt -y install python3-docutils
       - name: Build Flake
         run:  make build
       - name: Install Flake
