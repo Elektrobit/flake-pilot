@@ -250,8 +250,8 @@ pub fn create(
 
     // create container
     debug(&format!("{:?}", app.get_args()));
-    let spinner = Spinner::new(
-        spinners::Line, "Launching flake...", Color::Yellow
+    let spinner = Spinner::new_with_stream(
+        spinners::Line, "Launching flake...", Color::Yellow, spinoff::Streams::Stderr
     );
     match app.output() {
         Ok(output) => {
