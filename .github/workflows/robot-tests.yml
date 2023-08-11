@@ -12,6 +12,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install python3
+          sudo pip install rst2man
       - name: Build Flake
         run:  make build
       - name: Install Flake
