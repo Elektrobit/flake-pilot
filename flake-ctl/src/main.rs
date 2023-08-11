@@ -105,6 +105,8 @@ async fn main() -> Result<ExitCode, Box<dyn std::error::Error>> {
                             );
                             return Ok(ExitCode::FAILURE)
                         }
+                    } else {
+                        return Ok(ExitCode::FAILURE)
                     }
                 },
                 // remove
@@ -168,6 +170,8 @@ async fn main() -> Result<ExitCode, Box<dyn std::error::Error>> {
                             );
                             return Ok(ExitCode::FAILURE)
                         }
+                    } else {
+                        return Ok(ExitCode::FAILURE)
                     }
                 },
                 // remove
