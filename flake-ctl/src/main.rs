@@ -25,7 +25,7 @@
 extern crate log;
 
 use env_logger::Env;
-use std::process::exit;
+use std::process::{exit, ExitCode};
 
 pub mod cli;
 pub mod podman;
@@ -37,7 +37,7 @@ pub mod defaults;
 pub mod fetch;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<ExitCode, Box<dyn std::error::Error>> {
     setup_logger();
 
     let args = cli::parse_args();
@@ -103,6 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             app::remove(
                                 app, defaults::FIRECRACKER_PILOT, true
                             );
+                            return Ok(ExitCode::FAILURE)
                         }
                     }
                 },
@@ -165,6 +166,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 app.as_ref().map(String::as_str).unwrap(),
                                 defaults::PODMAN_PILOT, true
                             );
+                            return Ok(ExitCode::FAILURE)
                         }
                     }
                 },
@@ -190,7 +192,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         },
     }
-    Ok(())
+    Ok(ExitCode::SUCCESS)
 }
 
 fn setup_logger() {
