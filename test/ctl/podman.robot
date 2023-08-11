@@ -21,6 +21,7 @@ Register the same Flake twice
     Pull Container    docker.io/amazon/aws-cli
     And Register Container    amazon/aws-cli    podman-test
     Run Keyword And Expect Error    *    Register Container    amazon/aws-cli    podman-test
+    [Teardown]  Run Process    sudo  rm  -r  /usr/bin/podman-test
 
 Register a Container
     Pull Container    docker.io/amazon/aws-cli
