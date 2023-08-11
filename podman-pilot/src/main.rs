@@ -33,6 +33,7 @@ pub mod app_path;
 pub mod podman;
 pub mod defaults;
 pub mod config;
+pub mod cwd;
 
 fn main() {
     setup_logger();

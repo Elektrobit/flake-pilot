@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::{env, path::PathBuf, fs};
 
-use crate::defaults;
+use crate::{defaults, cwd::{mount_working_directory, MountMode}};
 
 lazy_static! {
     static ref CONFIG: Config<'static> = load_config();
@@ -98,6 +98,10 @@ impl<'a> Config<'a> {
     pub fn tars(&self) -> Vec<&'a str> {
         self.include.tar.as_ref().cloned().unwrap_or_default()
     }
+
+    pub fn mount(&self) -> Option<String> {
+        self.container.dir.map(|dir| mount_working_directory(dir, &self.container.dir_mount))
+    }
 }
 
 #[derive(Deserialize)]
@@ -117,6 +121,17 @@ pub struct ContainerSection<'a> {
 
     /// Path of the program to register on the host
     pub host_app_path: &'a str,
+
+    /// Which directory to mount as the cwd inside the container.
+    /// 
+    /// No directory is mounted if `dir` is not given.
+    /// 
+    /// Otherwise the directory from the host will be mounted into the container and the
+    /// the target app will be run with that directory as the cwd.
+    pub dir: Option<&'a str>,
+
+    /// How to mount the working directory (ignored if `dir` is not given)
+    pub dir_mount: MountMode,
 
     /// Optional base container to use with a delta 'container: name'
     ///
