@@ -24,7 +24,6 @@
 #[macro_use]
 extern crate log;
 
-use app_config::MountMode;
 use env_logger::Env;
 use std::process::{exit, ExitCode};
 

@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::{env, path::PathBuf, fs};
 
-use crate::{defaults, cwd::{mount_working_directory, MountMode}};
+use crate::{defaults, cwd::MountMode};
 
 lazy_static! {
     static ref CONFIG: Config<'static> = load_config();
