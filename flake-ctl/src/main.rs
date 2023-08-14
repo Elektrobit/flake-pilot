@@ -24,6 +24,7 @@
 #[macro_use]
 extern crate log;
 
+use app_config::MountMode;
 use env_logger::Env;
 use std::process::{exit, ExitCode};
 
@@ -140,7 +141,7 @@ async fn main() -> Result<ExitCode, Box<dyn std::error::Error>> {
                 // register
                 cli::Podman::Register {
                     container, app, target, base,
-                    layer, include_tar, resume, attach, run_as, opt, info
+                    layer, include_tar, resume, attach, run_as, opt, info, working_dir
                 } => {
                     if *info {
                         podman::print_container_info(container);
@@ -149,6 +150,9 @@ async fn main() -> Result<ExitCode, Box<dyn std::error::Error>> {
                             app.as_ref(), target.as_ref(),
                             defaults::PODMAN_PILOT
                         );
+
+                        let dir = working_dir.then(|| ".".to_owned());
+
                         if ok {
                             ok = app::create_container_config(
                                 container,
@@ -160,7 +164,9 @@ async fn main() -> Result<ExitCode, Box<dyn std::error::Error>> {
                                 *resume,
                                 *attach,
                                 run_as.as_ref(),
-                                opt.as_ref().cloned()
+                                opt.as_ref().cloned(),
+                                dir,
+                                None
                             );
                         }
                         if ! ok {

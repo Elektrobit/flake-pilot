@@ -6,6 +6,8 @@ container:
   host_app_path: path/to/program/on/host
   base_container: ~
   layers: ~
+  dir: ~
+  mount_dir: Bind
   runtime:
     runas: root
     resume: false

@@ -45,6 +45,8 @@ pub struct AppContainer {
     pub base_container: Option<String>,
     pub layers: Option<Vec<String>>,
     pub runtime: Option<AppContainerRuntime>,
+    pub dir: Option<String>,
+    pub mount_dir: MountMode
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppContainerRuntime {
@@ -85,6 +87,16 @@ pub struct AppFireCrackerEngine {
     pub cache_type: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub enum MountMode {
+    Bind,
+    // Devpts,
+    // Glob,
+    // Image,
+    // Tmpfs,
+    // Volume,
+}
+
 impl AppConfig {
     #[allow(clippy::too_many_arguments)]
     pub fn save_container(
@@ -99,6 +111,8 @@ impl AppConfig {
         attach: bool,
         run_as: Option<&String>,
         opts: Option<Vec<String>>,
+        dir: Option<String>,
+        mount_dir: Option<MountMode>
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
@@ -154,6 +168,10 @@ impl AppConfig {
             container_config.runtime.as_mut().unwrap().podman = Some(
                 final_opts
             );
+        }
+        if let Some(dir) = dir {
+            container_config.dir = Some(dir);
+            container_config.mount_dir = mount_dir.unwrap_or(MountMode::Bind);
         }
 
         let config = std::fs::OpenOptions::new()

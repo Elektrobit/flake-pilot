@@ -284,6 +284,10 @@ pub enum Podman {
         /// Print registration information from container if provided
         #[clap(long)]
         info: bool,
+
+        /// Run this flake in the current working directory
+        #[clap(long)]
+        working_dir: bool,
     },
     /// Build container package
     BuildDeb {

@@ -1,3 +1,4 @@
+use crate::app_config::MountMode;
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
@@ -99,6 +100,8 @@ pub fn create_container_config(
     attach: bool,
     run_as: Option<&String>,
     opts: Option<Vec<String>>,
+    dir: Option<String>,
+    mount_dir: Option<MountMode>
 ) -> bool {
     /*!
     Create app configuration for the container engine.
@@ -133,6 +136,8 @@ pub fn create_container_config(
         attach,
         run_as,
         opts,
+        dir, 
+        mount_dir
     ) {
         Ok(_) => true,
         Err(error) => {
