@@ -12,11 +12,13 @@ pub enum MountMode {
     // Volume,
 }
 
-pub fn mount_working_directory<T: AsRef<Path>>(dir: T, mode: &MountMode) -> String {
+pub fn mount_working_directory<Source: AsRef<Path>, Target: AsRef<Path>>(source: Source, target: Target, mode: &MountMode) -> String {
 
-    let path = dir.as_ref().to_str().unwrap_or_default();
+    let source = source.as_ref().to_str().unwrap_or_default();
+    let target = target.as_ref().to_str().unwrap_or_default();
+
     match mode {
-        MountMode::Bind => format!("type=bind,source={path},destination={path}"),
+        MountMode::Bind => format!("type=bind,source={source},destination={target}"),
         // MountMode::Devpts => unimplemented!(),
         // MountMode::Glob => unimplemented!(),
         // MountMode::Image => unimplemented!(),
@@ -24,4 +26,10 @@ pub fn mount_working_directory<T: AsRef<Path>>(dir: T, mode: &MountMode) -> Stri
         // MountMode::Volume => unimplemented!(),
     }
 
+}
+
+impl Default for MountMode {
+    fn default() -> Self {
+        Self::Bind
+    }
 }

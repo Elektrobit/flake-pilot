@@ -99,8 +99,8 @@ impl<'a> Config<'a> {
         self.include.tar.as_ref().cloned().unwrap_or_default()
     }
 
-    pub fn mount(&self) -> Option<String> {
-        self.container.dir.map(|dir| mount_working_directory(dir, &self.container.dir_mount))
+    pub fn mount(&self) -> Option<&'a str> {
+        self.container.dir
     }
 }
 
@@ -131,6 +131,7 @@ pub struct ContainerSection<'a> {
     pub dir: Option<&'a str>,
 
     /// How to mount the working directory (ignored if `dir` is not given)
+    #[serde(default)]
     pub dir_mount: MountMode,
 
     /// Optional base container to use with a delta 'container: name'

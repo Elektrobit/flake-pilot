@@ -35,7 +35,7 @@ use std::fs::File;
 use std::io::Seek;
 use std::io::SeekFrom;
 
-use crate::defaults;
+use crate::{defaults, cwd};
 
 pub fn create(
     program_name: &String
@@ -162,6 +162,13 @@ pub fn create(
     }
     app.arg("podman").arg("create")
         .arg("--cidfile").arg(&container_cid_file);
+
+
+    if let Some(working_dir) = config().mount() {
+        let mount_cmd = cwd::mount_working_directory(working_dir, "/working_dir", &config().container.dir_mount);
+        app.arg("--mount").arg(mount_cmd);
+        app.arg("--workdir").arg("/working_dir");
+    }
 
     // Make sure CID dir exists
     init_cid_dir()?;
