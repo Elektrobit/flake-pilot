@@ -24,3 +24,9 @@ jobs:
         run:  sudo make install
       - name: Run Robot Framework
         run:  python3 -m robot robot_tests
+      - name: 'Upload Log'
+        uses: actions/upload-artifact@v3
+        with:
+          name: robot-log
+          path: /home/runner/work/flake-pilot/flake-pilot/log.html
+          retention-days: 5
