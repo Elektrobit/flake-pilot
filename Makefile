@@ -81,7 +81,7 @@ install:
 	install -d -m 755 $(DESTDIR)$(SHAREDIR)
 	install -d -m 755 $(DESTDIR)$(TEMPLATEDIR)
 	install -d -m 755 $(DESTDIR)$(FLAKEDIR)
-	install -d -m 755 ${DESTDIR}usr/share/man/man8
+	install -d -m 755 ${DESTDIR}/usr/share/man/man8
 	install -m 755 target/release/podman-pilot \
 		$(DESTDIR)$(BINDIR)/podman-pilot
 	install -m 755 target/release/firecracker-pilot \
@@ -102,7 +102,7 @@ install:
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker-flake.yaml
 	install -m 644 firecracker-pilot/template/firecracker.json \
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker.json
-	install -m 644 doc/*.8 ${DESTDIR}usr/share/man/man8
+	install -m 644 doc/*.8 ${DESTDIR}/usr/share/man/man8
 	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
 
 uninstall:

@@ -19,3 +19,6 @@ package/build/
 log.html
 output.xml
 report.html
+
+# Ignore tmp doc files
+doc/*.8
