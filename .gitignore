@@ -14,3 +14,6 @@ oci-pilot.tar.gz
 
 # Packaging files
 package/build/
+
+# Ignore tmp doc files
+doc/*.8
