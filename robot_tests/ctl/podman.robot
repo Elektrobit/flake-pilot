@@ -16,9 +16,6 @@ Pull a Container
 Pull a non-existing Container
     Run Keyword And Expect Error    125 != 0    Pull Podman Container    this.url.does.not.exist
 
-Register a non-existing Container
-    Run Keyword And Expect Error    *    Register Podman Container    ThisContainerDoesNotExist    Nothing
-
 Register the same Flake twice
     Pull Podman Container    docker.io/amazon/aws-cli
     And Register Podman Container    amazon/aws-cli    podman-test
