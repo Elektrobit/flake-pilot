@@ -44,11 +44,18 @@ sourcetar:
 	# Delete any target directories that may be present
 	find package/flake-pilot -type d -wholename "*/target" -prune -exec rm -rf {} \;
 
-	# Delete large chunk windows dependencies
+	# Delete large chunk windows and wasm dependencies
 	# Use filtered vendoring in the future
 	# https://github.com/rust-lang/cargo/issues/7058
-	rm -rf package/flake-pilot/vendor/winapi*gnu*/lib/*.a
+	find package/flake-pilot -type d -wholename "*/vendor/winapi*" -prune -exec \
+		rm -rf {}/src \; -exec mkdir -p {}/src \; -exec touch {}/src/lib.rs \; -exec rm -rf {}/lib \;
+	find package/flake-pilot -type d -wholename "*/vendor/windows*" -prune -exec \
+		rm -rf {}/src \; -exec mkdir -p {}/src \;  -exec touch {}/src/lib.rs \; -exec rm -rf {}/lib \;
 	
+	rm -rf package/flake-pilot/vendor/web-sys/src/*
+	rm -rf package/flake-pilot/vendor/web-sys/webidls
+	touch package/flake-pilot/vendor/web-sys/src/lib.rs
+
 	tar -C package -cf package/flake-pilot.tar flake-pilot
 	rm -rf package/flake-pilot
 
