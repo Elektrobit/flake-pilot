@@ -27,12 +27,7 @@ package: clean vendor sourcetar
 	@echo "Find package data at package/build"
 
 vendor:
-	(cd podman-pilot && cargo vendor)
-	(cd firecracker-pilot && cargo vendor)
-	(cd flake-ctl && cargo vendor)
-	(cd firecracker-pilot/firecracker-service/service && cargo vendor)
-	(cd firecracker-pilot/firecracker-service/service-communication && cargo vendor)
-	(cd firecracker-pilot/guestvm-tools/sci && cargo vendor)
+	cargo vendor
 
 sourcetar:
 	rm -rf package/flake-pilot
@@ -43,16 +38,19 @@ sourcetar:
 	cp -a firecracker-pilot package/flake-pilot/
 	cp -a doc package/flake-pilot/
 	cp -a utils package/flake-pilot/
+	cp -a vendor package/flake-pilot
+	cp Cargo.toml package/flake-pilot
 	tar -C package -cf package/flake-pilot.tar flake-pilot
 	rm -rf package/flake-pilot
 
 .PHONY:build
 build: man
-	cd podman-pilot && cargo build -v --release && upx --best --lzma target/release/podman-pilot
-	cd flake-ctl && cargo build -v --release && upx --best --lzma target/release/flake-ctl
-	cd firecracker-pilot/firecracker-service/service && cargo build -v --release && upx --best --lzma target/release/firecracker-service
+	cargo build -v --release
+	upx --best --lzma target/release/podman-pilot
+	upx --best --lzma target/release/flake-ctl
+	upx --best --lzma target/release/firecracker-service
 	cd firecracker-pilot/guestvm-tools/sci && RUSTFLAGS='-C target-feature=+crt-static' cargo build -v --release --target $(ARCH)-unknown-linux-gnu
-	cd firecracker-pilot && cargo build -v --release && upx --best --lzma target/release/firecracker-pilot
+	upx --best --lzma target/release/firecracker-pilot
 
 clean:
 	cd podman-pilot && cargo -v clean
@@ -79,16 +77,16 @@ install:
 	install -d -m 755 $(DESTDIR)$(SHAREDIR)
 	install -d -m 755 $(DESTDIR)$(TEMPLATEDIR)
 	install -d -m 755 $(DESTDIR)$(FLAKEDIR)
-	install -d -m 755 ${DESTDIR}usr/share/man/man8
-	install -m 755 podman-pilot/target/release/podman-pilot \
+	install -d -m 755 ${DESTDIR}/usr/share/man/man8
+	install -m 755 target/release/podman-pilot \
 		$(DESTDIR)$(BINDIR)/podman-pilot
-	install -m 755 firecracker-pilot/target/release/firecracker-pilot \
+	install -m 755 target/release/firecracker-pilot \
 		$(DESTDIR)$(BINDIR)/firecracker-pilot
-	install -m 755 firecracker-pilot/firecracker-service/service/target/release/firecracker-service \
+	install -m 755 target/release/firecracker-service \
 		$(DESTDIR)$(BINDIR)/firecracker-service
-	install -m 755 firecracker-pilot/guestvm-tools/sci/target/$(ARCH)-unknown-linux-gnu/release/sci \
+	install -m 755 target/$(ARCH)-unknown-linux-gnu/release/sci \
 		$(DESTDIR)$(SBINDIR)/sci
-	install -m 755 flake-ctl/target/release/flake-ctl \
+	install -m 755 target/release/flake-ctl \
 		$(DESTDIR)$(BINDIR)/flake-ctl
 	install -m 755 flake-ctl/debbuild/oci-deb \
 		$(DESTDIR)$(BINDIR)/oci-deb
@@ -100,7 +98,7 @@ install:
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker-flake.yaml
 	install -m 644 firecracker-pilot/template/firecracker.json \
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker.json
-	install -m 644 doc/*.8 ${DESTDIR}usr/share/man/man8
+	install -m 644 doc/*.8 ${DESTDIR}/usr/share/man/man8
 	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
 
 uninstall:
