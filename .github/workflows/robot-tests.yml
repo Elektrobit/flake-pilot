@@ -24,7 +24,7 @@ jobs:
         run:  sudo make install
       - name: Run Robot Framework
         run:  python3 -m robot robot_tests
-      - name: 'Upload Log'
+      - name: Upload Log
         if: always()
         uses: actions/upload-artifact@v3
         with:
