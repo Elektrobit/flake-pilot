@@ -184,7 +184,7 @@ mod test {
     #[test]
     fn simple_config() {
         let cfg = config_from_str(
-r#"container:
+r#"vm:
  name: JoJo
  host_app_path: /myapp
 include:
@@ -196,12 +196,12 @@ include:
     #[test]
     fn combine_configs() {
         let cfg = config_from_str(
-r#"container:
+r#"vm:
  name: JoJo
  host_app_path: /myapp
 include:
  tar: ~
-container:
+vm:
  name: Dio
  host_app_path: /other
 "#);
