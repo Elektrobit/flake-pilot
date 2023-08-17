@@ -22,7 +22,7 @@
 # SOFTWARE.
 #
 Name:           flake-pilot
-Version:        2.2.18
+Version:        2.2.19
 Release:        0
 Summary:        Launcher for flake applications
 License:        MIT
@@ -145,16 +145,8 @@ Guest VM tools to help with firecracker workloads
 sudo bash %{SOURCE2}
 %endif
 
-mkdir -p podman-pilot/.cargo
-mkdir -p firecracker-pilot/.cargo
-mkdir -p flake-ctl/.cargo
-mkdir -p firecracker-pilot/firecracker-service/service/.cargo
-mkdir -p firecracker-pilot/guestvm-tools/sci/.cargo
-cp %{SOURCE1} podman-pilot/.cargo/config
-cp %{SOURCE1} firecracker-pilot/.cargo/config
-cp %{SOURCE1} flake-ctl/.cargo/config
-cp %{SOURCE1} firecracker-pilot/firecracker-service/service/.cargo/config
-cp %{SOURCE1} firecracker-pilot/guestvm-tools/sci/.cargo/config
+mkdir -p .cargo
+cp %{SOURCE1} .cargo/config
 make build
 
 %install
