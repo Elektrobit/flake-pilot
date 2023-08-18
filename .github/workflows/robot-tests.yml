@@ -19,7 +19,6 @@ jobs:
           sudo apt -y install python3
           pip install robotframework
           sudo apt install podman
-          sudo apt install firecracker
       - name: Build Flake-Pilot
         run:  make build
       - name: Install Flake-Pilot
