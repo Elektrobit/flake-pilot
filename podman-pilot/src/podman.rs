@@ -111,22 +111,22 @@ pub fn create(
       tar:
         - tar-archive-file-name-to-include
     !*/
-    let args: Vec<String> = env::args().collect();
-    let mut layers: Vec<String> = Vec::new();
+
+    let (args, name): (Vec<_>, Vec<_>) = env::args().partition(|arg| arg.starts_with('@'));
 
     // setup container ID file name
-    let mut container_cid_file = format!(
-        "{}/{}", defaults::CONTAINER_CID_DIR, program_name
+    
+    // The special @NAME argument is not passed to the
+    // actual call and can be used to run different container
+    // instances for the same application
+    let suffix = match name.first() {
+        Some(name) => name,
+        None => "",
+    };
+    
+    let container_cid_file = format!(
+        "{}/{}{suffix}.cid", defaults::CONTAINER_CID_DIR, program_name
     );
-    for arg in &args[1..] {
-        if arg.starts_with('@') {
-            // The special @NAME argument is not passed to the
-            // actual call and can be used to run different container
-            // instances for the same application
-            container_cid_file = format!("{}{}", container_cid_file, arg);
-        }
-    }
-    container_cid_file = format!("{}.cid", container_cid_file);
 
     let container_section = &config().container;
 
@@ -136,18 +136,6 @@ pub fn create(
 
     // setup podman container to use
     let container_name = container_section.name;
-
-    // setup base container if specified
-    let delta_container = container_section.base_container.is_some();
-    let container_base_name= container_section.base_container.unwrap_or_default();
-
-    if container_section.base_container.is_some() {
-        // get additional container layers
-
-        layers.extend(config().layers().iter()
-            .inspect(|layer| debug(&format!("Adding layer: [{layer}]")))
-            .map(|x| (*x).to_owned()));
-    }
 
     // setup app command path name to call
     let target_app_path = get_target_app_path(program_name);
@@ -204,7 +192,7 @@ pub fn create(
     }
 
     // setup container name to use
-    if delta_container {
+    if let Some(container_base_name) = config().container.base_container {
         app.arg(container_base_name);
     } else {
         app.arg(container_name);
@@ -226,11 +214,7 @@ pub fn create(
         // running the app multiple times with different arguments
         app.arg("4294967295d");
     } else {
-        for arg in &args[1..] {
-            if ! arg.starts_with('@') {
-                app.arg(arg);
-            }
-        }
+        app.args(args);
     }
     
     // create container
@@ -239,7 +223,7 @@ pub fn create(
         spinners::Line, "Launching flake...", Color::Yellow, spinoff::Streams::Stderr
     );
     
-    match run_podman_creation(app, delta_container, has_includes, runas, container_name, layers, &container_cid_file) {
+    match run_podman_creation(app, has_includes, runas, container_name, &container_cid_file) {
         Ok(container) => {
             spinner.success("Launching flake");
             Ok(container)            
@@ -253,18 +237,19 @@ pub fn create(
 }
 
 fn run_podman_creation(
-    mut app: Command, 
-    delta_container: bool, 
+    mut app: Command,
     has_includes: bool, 
     runas: Option<&str>,
     container_name: &str,
-    mut layers: Vec<String>,
     container_cid_file: &str
 ) -> Result<(String, String), FlakeError> {
 
     let output = app.perform()?;
 
     let cid = String::from_utf8_lossy(&output.stdout).trim_end_matches('\n').to_owned();
+
+    let delta_container = config().container.base_container.is_some();
+
 
     if delta_container || has_includes {
         debug("Mounting instance for provisioning workload");
@@ -280,16 +265,20 @@ fn run_podman_creation(
             update_removed_files(
                 &instance_mount_point, &removed_files
             )?;
+            
+            let layers = config().layers();
+            let layers = layers.iter()
+                .inspect(|layer| debug(&format!("Adding layer: [{layer}]")))
+                .chain(Some(&container_name));
+
             debug(&format!(
                 "Adding main app [{}] to layer list", container_name
             ));
-            layers.push(container_name.to_string());
+        
             for layer in layers {
-                debug(&format!(
-                    "Syncing delta dependencies [{}]...", layer
-                ));
+                debug(&format!("Syncing delta dependencies [{layer}]..."));
                 let app_mount_point = mount_container(
-                    &layer, runas, true
+                    layer, runas, true
                 )?;
                 update_removed_files(
                     &app_mount_point, &removed_files
