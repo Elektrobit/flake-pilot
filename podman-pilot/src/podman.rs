@@ -116,7 +116,7 @@ pub fn create(
     // The special @NAME argument is not passed to the
     // actual call and can be used to run different container
     // instances for the same application
-    let (args, name): (Vec<_>, Vec<_>) = env::args().partition(|arg| arg.starts_with('@'));
+    let (name, args): (Vec<_>, Vec<_>) = env::args().skip(1).partition(|arg| arg.starts_with('@'));
     
     // setup container ID file name
     let suffix = name.first().map(String::as_str).unwrap_or("");
@@ -158,13 +158,16 @@ pub fn create(
     }
 
     // create the container with configured runtime arguments
-    if let Some(podman) = podman {
-        app.args(podman.iter().flat_map(|x| x.splitn(2, ' ')));
-        if !podman.is_empty() {
+
+    let has_runtime_args = podman.as_ref().map(|p| !p.is_empty()).unwrap_or_default();
+    app.args(podman.iter().flatten().flat_map(|x| x.splitn(2, ' ')));
+
+    if !has_runtime_args {
+        if !resume {
             app.arg("--rm");
         }
+        app.arg("-ti");
     }
-    app.arg("-ti");
 
     // setup container name to use
     app.arg(config().container.base_container.unwrap_or(config().container.name));
@@ -183,7 +186,7 @@ pub fn create(
             app.arg(target_app_path);
         }
         app.args(args);
-    }
+            }
     
     // create container
     debug(&format!("{:?}", app.get_args()));
