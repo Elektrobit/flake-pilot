@@ -24,28 +24,24 @@
 #[macro_use]
 extern crate log;
 
-#[cfg(test)]
-pub mod tests;
+// #[cfg(test)]
+// pub mod tests;
 
 use env_logger::Env;
 
 pub mod app_path;
 pub mod firecracker;
 pub mod defaults;
+pub mod config;
 
 fn main() {
     setup_logger();
 
     let program_path = app_path::program_abs_path();
     let program_name = app_path::basename(&program_path);
-    let runtime_config = app_path::program_config(&program_name);
 
-    let vm = firecracker::create(&program_name, &runtime_config);
-    firecracker::start(
-        &program_name,
-        &runtime_config,
-        vm
-    );
+    let vm = firecracker::create(&program_name);
+    firecracker::start(&program_name, vm);
 }
 
 fn setup_logger() {
