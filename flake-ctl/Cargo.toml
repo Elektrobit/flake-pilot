@@ -1,5 +1,5 @@
 [profile.release]
-# strip = true
+strip = true
 opt-level = "z"
 lto = true
 codegen-units = 1
