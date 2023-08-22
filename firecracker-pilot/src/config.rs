@@ -1,8 +1,8 @@
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use strum::Display;
-use ubyte::ByteUnit;
-use std::{env, path::PathBuf, fs};
+
+use std::{env, fs, path::PathBuf};
 
 use crate::defaults;
 
@@ -11,7 +11,7 @@ lazy_static! {
 }
 
 /// Returns the config singleton
-/// 
+///
 /// Will initialize the config on first call and return the cached version afterwards
 pub fn config() -> &'static Config<'static> {
     &CONFIG
@@ -35,21 +35,23 @@ fn load_config() -> Config<'static> {
     is send to the Yaml parser
     !*/
     let base_path = get_base_path();
-    let base_path  = base_path.file_name().unwrap().to_str().unwrap();
+    let base_path = base_path.file_name().unwrap().to_str().unwrap();
     let base_yaml = fs::read_to_string(config_file(base_path));
 
     let mut extra_yamls: Vec<_> = fs::read_dir(config_dir(base_path))
         .into_iter()
         .flatten()
         .flatten()
-        .map(|x| x.path()).collect();
+        .map(|x| x.path())
+        .collect();
 
     extra_yamls.sort();
-        
 
-    let full_yaml: String = base_yaml.into_iter().chain(extra_yamls.into_iter().flat_map(fs::read_to_string)).collect();
+    let full_yaml: String = base_yaml
+        .into_iter()
+        .chain(extra_yamls.into_iter().flat_map(fs::read_to_string))
+        .collect();
     config_from_str(&full_yaml)
-
 }
 
 fn config_from_str(input: &str) -> Config<'static> {
@@ -64,7 +66,7 @@ fn config_from_str(input: &str) -> Config<'static> {
     // Can not use serde_yaml::from_value because of lifetime limitations
     // Safety: This does not cause a reocurring memory leak since `load_config` is only called once
     let content = Box::leak(buffer.into_boxed_str());
-    
+
     serde_yaml::from_str(content).unwrap()
 }
 
@@ -81,7 +83,7 @@ pub struct Config<'a> {
     #[serde(borrow)]
     pub vm: VMSection<'a>,
     #[serde(borrow)]
-    pub include: IncludeSection<'a>
+    pub include: IncludeSection<'a>,
 }
 
 impl<'a> Config<'a> {
@@ -97,7 +99,7 @@ impl<'a> Config<'a> {
 #[derive(Deserialize)]
 pub struct IncludeSection<'a> {
     #[serde(borrow)]
-    tar: Option<Vec<&'a str>>
+    tar: Option<Vec<&'a str>>,
 }
 
 #[derive(Deserialize)]
@@ -138,7 +140,7 @@ pub struct RuntimeSection<'a> {
     #[serde(default)]
     pub resume: bool,
 
-    pub firecracker: EngineSection<'a>
+    pub firecracker: EngineSection<'a>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -147,7 +149,7 @@ pub struct EngineSection<'a> {
     /// If specified a new ext2 overlay filesystem image of the
     /// specified size will be created and attached to the VM
     pub overlay_size: Option<&'a str>,
-    
+
     pub cache_type: Option<CacheType>,
     pub mem_size_mib: Option<i64>,
     pub vcpu_count: Option<i64>,
@@ -161,12 +163,12 @@ pub struct EngineSection<'a> {
     /// Optional path to initrd image done by app registration
     pub initrd_path: Option<&'a str>,
 
-    pub boot_args: Vec<&'a str>
+    pub boot_args: Vec<&'a str>,
 }
 
 #[derive(Debug, Deserialize, Clone, Display)]
 pub enum CacheType {
-    Writeback
+    Writeback,
 }
 
 impl Default for CacheType {
@@ -184,19 +186,20 @@ mod test {
     #[test]
     fn simple_config() {
         let cfg = config_from_str(
-r#"vm:
+            r#"vm:
  name: JoJo
  host_app_path: /myapp
 include:
  tar: ~
-"#);
+"#,
+        );
         assert_eq!(cfg.vm.name, "JoJo");
     }
-    
+
     #[test]
     fn combine_configs() {
         let cfg = config_from_str(
-r#"vm:
+            r#"vm:
  name: JoJo
  host_app_path: /myapp
 include:
@@ -204,13 +207,14 @@ include:
 vm:
  name: Dio
  host_app_path: /other
-"#);
+"#,
+        );
         assert_eq!(cfg.vm.name, "Dio");
     }
 
     #[test]
     fn test_program_config_file() {
-        let config_file = config_file(&"app".to_string());
+        let config_file = config_file("app");
         assert_eq!("/usr/share/flakes/app.yaml", config_file);
     }
 }

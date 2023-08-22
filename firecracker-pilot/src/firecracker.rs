@@ -287,7 +287,7 @@ pub fn create(
             Ok(tmp_dir) => {
                 let vm_mount_point = mount_vm(
                     tmp_dir.path().to_str().unwrap(),
-                    &vm_image_file,
+                    vm_image_file,
                     &vm_overlay_file,
                     Some("root")
                 );
