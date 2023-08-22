@@ -146,7 +146,7 @@ pub struct EngineSection<'a> {
     /// Size of the VM overlay
     /// If specified a new ext2 overlay filesystem image of the
     /// specified size will be created and attached to the VM
-    pub overlay_size: Option<ByteUnit>,
+    pub overlay_size: Option<String>,
     
     pub cache_type: Option<CacheType>,
     pub mem_size_mib: Option<i64>,

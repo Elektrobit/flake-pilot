@@ -23,6 +23,7 @@
 //
 use std::{thread, time};
 use spinoff::{Spinner, spinners, Color};
+use ubyte::ByteUnit;
 use std::path::Path;
 use std::process::{Command, Stdio, exit, id};
 use std::env;
@@ -228,7 +229,7 @@ pub fn create(
         program_name, defaults::FIRECRACKER_OVERLAY_DIR, "ext2"
     );
     if let Some(overlay_size) = engine_section.overlay_size {
-        let overlay_size = overlay_size.as_u64();
+        let overlay_size = overlay_size.parse::<ByteUnit>().expect("could not parse overlay size").as_u64();
         if !Path::new(&vm_overlay_file).exists() || !resume {
             match std::fs::File::create(&vm_overlay_file) {
                 Ok(mut vm_overlay_file_fd) => {
