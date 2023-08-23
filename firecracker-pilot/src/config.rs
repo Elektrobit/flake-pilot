@@ -130,7 +130,7 @@ pub struct RuntimeSection<'a> {
     /// of the VM engine is performed by sudo.
     /// The behavior of sudo can be controlled via the
     /// file /etc/sudoers
-    #[serde(borrow)]
+    #[serde(borrow, flatten)]
     pub runas: User<'a>,
 
     /// Resume the VM from previous execution.

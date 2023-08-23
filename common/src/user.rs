@@ -16,7 +16,7 @@ impl<'a> From<&'a str> for User<'a> {
 
 impl<'a> User<'a> {
     pub const ROOT: User<'static> = User { name: Some("root")};
-    
+
     pub fn run<S: AsRef<OsStr>>(&self, command: S) -> Command {
         let mut c = Command::new("sudo");
         if let Some(name) = self.name {
