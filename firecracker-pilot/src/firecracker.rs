@@ -22,10 +22,11 @@
 // SOFTWARE.
 //
 use std::{thread, time};
+use flakes::user::User;
 use spinoff::{Spinner, spinners, Color};
 use ubyte::ByteUnit;
 use std::path::Path;
-use std::process::{Command, Stdio, exit, id};
+use std::process::{Stdio, exit, id};
 use std::env;
 use std::fs;
 use crate::config::{config, RuntimeSection};
@@ -254,13 +255,8 @@ pub fn create(
                 }
             }
             // Create filesystem
-            let mut mkfs = Command::new("sudo");
-            if let Some(runas) = runas {
-                mkfs.arg("--user").arg(runas);
-            }
-            mkfs
-                .arg("mkfs.ext2")
-                .arg("-F")
+            let mut mkfs = runas.run("mkfs.ext2");
+            mkfs.arg("-F")
                 .arg(&vm_overlay_file);
             debug(&format!("sudo {:?}", mkfs.get_args()));
             match mkfs.output() {
@@ -289,14 +285,14 @@ pub fn create(
                     tmp_dir.path().to_str().unwrap(),
                     vm_image_file,
                     &vm_overlay_file,
-                    Some("root")
+                    User::ROOT
                 );
                 if ! vm_mount_point.is_empty() {
                     // Handle includes
                     if has_includes {
                         debug("Syncing includes...");
                         provision_ok = sync_includes(
-                            &vm_mount_point, Some("root")
+                            &vm_mount_point, User::ROOT
                         );
                     }
                 } else {
@@ -304,7 +300,7 @@ pub fn create(
                 }
                 umount_vm(
                     tmp_dir.path().to_str().unwrap(),
-                    Some("root")
+                    User::ROOT
                 );
             },
             Err(error) => {
@@ -380,17 +376,14 @@ pub fn start(
 
 pub fn call_instance(
     config_file: &NamedTempFile, vm_id_file: &String,
-    user: Option<&str>, is_blocking: bool
+    user: User, is_blocking: bool
 ) -> i32 {
     /*!
     Run firecracker with specified configuration
     !*/
     let mut status_code = 0;
 
-    let mut firecracker = Command::new("sudo");
-    if let Some(user) = user {
-        firecracker.arg("--user").arg(user);
-    }
+    let mut firecracker = user.run("firecracker");
     if ! is_debug() {
         firecracker.stderr(Stdio::null());
     }
@@ -400,7 +393,6 @@ pub fn call_instance(
             .stdout(Stdio::piped());
     }
     firecracker
-        .arg("firecracker")
         .arg("--no-api")
         .arg("--id")
         .arg(id().to_string())
@@ -460,7 +452,7 @@ pub fn get_exec_port() -> u32 {
     random.gen_range(49200..60000)
 }
 
-pub fn check_connected(program_name: &String, user: Option<&str>) -> i32 {
+pub fn check_connected(program_name: &String, user: User) -> i32 {
     /*!
     Check if instance connection is OK
     !*/
@@ -475,13 +467,8 @@ pub fn check_connected(program_name: &String, user: Option<&str>) -> i32 {
             status_code = 1;
             return status_code
         }
-        let mut vm_command = Command::new("sudo");
-        if let Some(user) = user {
-            vm_command.arg("--user").arg(user);
-        }
-        vm_command
-            .arg("bash")
-            .arg("-c")
+        let mut vm_command = user.run("bash");
+        vm_command.arg("-c")
             .arg(&format!(
                 "echo -e 'CONNECT {}'|{} UNIX-CONNECT:{} -",
                 defaults::VM_PORT,
@@ -518,7 +505,7 @@ pub fn check_connected(program_name: &String, user: Option<&str>) -> i32 {
 }
 
 pub fn send_command_to_instance(
-    program_name: &String, user: Option<&str>, exec_port: u32
+    program_name: &String, user: User, exec_port: u32
 ) -> i32 {
     /*!
     Send command to the VM via a vsock
@@ -535,13 +522,8 @@ pub fn send_command_to_instance(
             status_code = 1;
             return status_code
         }
-        let mut vm_command = Command::new("sudo");
-        if let Some(user) = user {
-            vm_command.arg("--user").arg(user);
-        }
-        vm_command
-            .arg("bash")
-            .arg("-c")
+        let mut vm_command = user.run("bash");
+        vm_command.arg("-c")
             .arg(&format!(
                 "echo -e 'CONNECT {}\n{} {}\n'|{} UNIX-CONNECT:{} -",
                 defaults::VM_PORT,
@@ -580,7 +562,7 @@ pub fn send_command_to_instance(
 }
 
 pub fn execute_command_at_instance(
-    program_name: &String, user: Option<&str>, exec_port: u32
+    program_name: &String, user: User, exec_port: u32
 ) -> i32 {
     /*!
     Send command to a vsoc connected to a running instance
@@ -612,13 +594,8 @@ pub fn execute_command_at_instance(
     }
 
     // spawn the listener and wait for sci to run the command
-    let mut vm_exec = Command::new("sudo");
-    if let Some(user) = user {
-        vm_exec.arg("--user").arg(user);
-    }
-    vm_exec
-        .arg(defaults::SOCAT)
-        .arg("-t")
+    let mut vm_exec = user.run(defaults::SOCAT);
+    vm_exec.arg("-t")
         .arg("0")
         .arg("-")
         .arg(
@@ -792,7 +769,7 @@ pub fn init_meta_dirs() {
     meta_dirs.push(defaults::FIRECRACKER_OVERLAY_DIR);
     meta_dirs.push(defaults::FIRECRACKER_VMID_DIR);
     for meta_dir in meta_dirs {
-        if ! Path::new(meta_dir).is_dir() && ! mkdir(meta_dir, "777", Some("root")) {
+        if ! Path::new(meta_dir).is_dir() && ! mkdir(meta_dir, "777", User::ROOT) {
             panic!("Failed to create {}", meta_dir);
         }
     }
@@ -824,7 +801,7 @@ pub fn get_run_cmdline(
     run
 }
 
-pub fn vm_running(vmid: &String, user: Option<&str>) -> bool {
+pub fn vm_running(vmid: &String, user: User) -> bool {
     /*!
     Check if VM with specified vmid is running
     !*/
@@ -832,11 +809,8 @@ pub fn vm_running(vmid: &String, user: Option<&str>) -> bool {
     if vmid == "0" {
         return running_status
     }
-    let mut running = Command::new("sudo");
-    if let Some(user) = user {
-        running.arg("--user").arg(user);
-    }
-    running.arg("kill").arg("-0").arg(vmid);
+    let mut running = user.run("kill");
+    running.arg("-0").arg(vmid);
     debug(&format!("{:?}", running.get_args()));
     match running.output() {
         Ok(output) => {
@@ -881,7 +855,7 @@ pub fn get_meta_name(program_name: &String) -> String {
 }
 
 pub fn gc_meta_files(
-    vm_id_file: &String, user: Option<&str>, program_name: &String, resume: bool
+    vm_id_file: &String, user: User, program_name: &String, resume: bool
 ) -> bool {
     /*!
     Check if VM exists according to the specified
@@ -933,7 +907,7 @@ pub fn gc_meta_files(
     vmid_status
 }
 
-pub fn gc(user: Option<&str>, program_name: &String) {
+pub fn gc(user: User, program_name: &String) {
     /*!
     Garbage collect VMID files for which no VM exists anymore
     !*/
@@ -957,15 +931,12 @@ pub fn gc(user: Option<&str>, program_name: &String) {
     }
 }
 
-pub fn delete_file(filename: &String, user: Option<&str>) -> bool {
+pub fn delete_file(filename: &String, user: User) -> bool {
     /*!
     Delete file via sudo
     !*/
-    let mut call = Command::new("sudo");
-    if let Some(user) = user {
-        call.arg("--user").arg(user);
-    }
-    call.arg("rm").arg("-f").arg(filename);
+    let mut call = user.run("rm");
+    call.arg("-f").arg(filename);
     match call.status() {
         Ok(_) => { },
         Err(error) => {
@@ -977,7 +948,7 @@ pub fn delete_file(filename: &String, user: Option<&str>) -> bool {
 }
 
 pub fn sync_includes(
-    target: &str, user: Option<&str>
+    target: &str, user: User
 ) -> bool {
     /*!
     Sync custom include data to target path
@@ -986,12 +957,8 @@ pub fn sync_includes(
     let mut status_code = 0;
     for tar in tar_includes {
         debug(&format!("Adding tar include: [{}]", tar));
-        let mut call = Command::new("sudo");
-        if let Some(user) = user {
-            call.arg("--user").arg(user);
-        }
-        call.arg("tar")
-            .arg("-C").arg(target)
+        let mut call = user.run("tar");
+        call.arg("-C").arg(target)
             .arg("-xf").arg(tar);
         debug(&format!("{:?}", call.get_args()));
         match call.output() {
@@ -1013,7 +980,7 @@ pub fn sync_includes(
 
 pub fn mount_vm(
     sub_dir: &str, rootfs_image_path: &str,
-    overlay_path: &str, user: Option<&str>
+    overlay_path: &str, user: User
 ) -> String {
     /*!
     Mount VM with overlay below given sub_dir
@@ -1039,13 +1006,8 @@ pub fn mount_vm(
     let image_mount_point = format!(
         "{}/{}", sub_dir, defaults::IMAGE_ROOT
     );
-    let mut mount_image = Command::new("sudo");
-    if let Some(user) = user {
-        mount_image.arg("--user").arg(user);
-    }
-    mount_image
-        .arg("mount")
-        .arg(rootfs_image_path)
+    let mut mount_image = user.run("mount");
+    mount_image.arg(rootfs_image_path)
         .arg(&image_mount_point);
     debug(&format!("{:?}", mount_image.get_args()));
     match mount_image.output() {
@@ -1067,13 +1029,8 @@ pub fn mount_vm(
     let overlay_mount_point = format!(
         "{}/{}", sub_dir, defaults::IMAGE_OVERLAY
     );
-    let mut mount_overlay = Command::new("sudo");
-    if let Some(user) = user {
-        mount_overlay.arg("--user").arg(user);
-    }
-    mount_overlay
-        .arg("mount")
-        .arg(overlay_path)
+    let mut mount_overlay = user.run("mount");
+    mount_overlay.arg(overlay_path)
         .arg(&overlay_mount_point);
     debug(&format!("{:?}", mount_overlay.get_args()));
     match mount_overlay.output() {
@@ -1098,18 +1055,13 @@ pub fn mount_vm(
         defaults::OVERLAY_WORK
     ].iter() {
         let dir_path = format!("{}/{}", sub_dir, overlay_dir);
-        if ! Path::new(&dir_path).exists() && ! mkdir(&dir_path, "755", Some("root")) {
+        if ! Path::new(&dir_path).exists() && ! mkdir(&dir_path, "755", User::ROOT) {
             return failed
         }
     }
     let root_mount_point = format!("{}/{}", sub_dir, defaults::OVERLAY_ROOT);
-    let mut mount_overlay = Command::new("sudo");
-    if let Some(user) = user {
-        mount_overlay.arg("--user").arg(user);
-    }
-    mount_overlay
-        .arg("mount")
-        .arg("-t")
+    let mut mount_overlay = user.run("mount");
+    mount_overlay.arg("-t")
         .arg("overlay")
         .arg("overlayfs")
         .arg("-o")
@@ -1138,7 +1090,7 @@ pub fn mount_vm(
     root_mount_point
 }
 
-pub fn umount_vm(sub_dir: &str, user: Option<&str>) -> bool {
+pub fn umount_vm(sub_dir: &str, user: User) -> bool {
     /*!
     Umount VM image
     !*/
@@ -1148,13 +1100,10 @@ pub fn umount_vm(sub_dir: &str, user: Option<&str>) -> bool {
         defaults::IMAGE_OVERLAY,
         defaults::IMAGE_ROOT,
     ].iter() {
-        let mut umount = Command::new("sudo");
+        let mut umount = user.run("umount");
         umount.stderr(Stdio::null());
         umount.stdout(Stdio::null());
-        if let Some(user) = user {
-            umount.arg("--user").arg(user);
-        }
-        umount.arg("umount").arg(format!("{}/{}", &sub_dir, &mount_point));
+        umount.arg(format!("{}/{}", &sub_dir, &mount_point));
         debug(&format!("{:?}", umount.get_args()));
         match umount.status() {
             Ok(status) => {
@@ -1171,15 +1120,12 @@ pub fn umount_vm(sub_dir: &str, user: Option<&str>) -> bool {
     true
 }
 
-pub fn mkdir(dirname: &str, mode: &str, user: Option<&str>) -> bool {
+pub fn mkdir(dirname: &str, mode: &str, user: User) -> bool {
     /*!
     Make directory via sudo
     !*/
-    let mut call = Command::new("sudo");
-    if let Some(user) = user {
-        call.arg("--user").arg(user);
-    }
-    call.arg("mkdir").arg("-p").arg("-m").arg(mode).arg(dirname);
+    let mut call = user.run("mkdir");
+    call.arg("-p").arg("-m").arg(mode).arg(dirname);
     match call.status() {
         Ok(_) => { },
         Err(error) => {

@@ -1,3 +1,4 @@
+use flakes::user::User;
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use strum::Display;
@@ -130,7 +131,7 @@ pub struct RuntimeSection<'a> {
     /// The behavior of sudo can be controlled via the
     /// file /etc/sudoers
     #[serde(borrow)]
-    pub runas: Option<&'a str>,
+    pub runas: User<'a>,
 
     /// Resume the VM from previous execution.
     /// If the VM is still running, the app will be
