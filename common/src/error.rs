@@ -12,7 +12,7 @@ pub enum FlakeError {
     #[error(transparent)]
     IO(#[from] std::io::Error),
     /// This flake is already running
-    #[error("Container id in use by another instance, consider @NAME argument")]
+    #[error("Instance in use by another instance, consider @NAME argument")]
     AlreadyRunning,
     #[error("Root priviledges needed")]
     AccessDenied
