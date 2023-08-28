@@ -111,11 +111,9 @@ arguments exists, the following defaults will apply:
 
 All caller arguments will be passed to the program call inside
 of the instance except for arguments that starts with the '@'
-sign. Caller arguments of this type are only used in the instance
-ID file name but will not be passed to the program call inside of
-the instance. This allows users to differentiate the same
-program call between different instances when using
-a resume based flake setup.
+or '%' sign. Caller arguments of this type are only used for
+the firecracker-pilot startup itself. See the OPTIONS section
+for the available runtime options.
 
 The execution of the program inside of the instance (the VM)
 is managed by an extra program called `sci` and provided with
@@ -135,6 +133,21 @@ the following example image which is hosted on the
 for your images:
 
 - https://build.opensuse.org/package/show/home:marcus.schaefer:delta_containers/firecracker_base_leap_system
+
+OPTIONS
+-------
+
+@NAME
+
+  This allows users to distribute the exact same program call to different
+  instances when using a non resume based flake setup.
+
+%port:number
+
+  This allows to specify a static port assignment for the communication
+  between guest and host in a resume based flake setup. By default
+  firecracker-pilot calculates a port number itself.
+
 
 DEBUGGING
 ---------
