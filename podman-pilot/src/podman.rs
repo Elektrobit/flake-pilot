@@ -1,4 +1,4 @@
-use flakes::user::User;
+use flakes::user::{User, chmod, mkdir};
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
@@ -613,22 +613,6 @@ pub fn gc_cid_file(container_cid_file: &String, user: User) -> Result<bool, Flak
     } else {
         Ok(true)
     }
-}
-
-pub fn chmod(filename: &str, mode: &str, user: User) -> Result<(), CommandError> {
-    /*!
-    Chmod filename via sudo
-    !*/
-    user.run("chmod").arg(mode).arg(filename).perform()?;
-    Ok(())
-}
-
-pub fn mkdir(dirname: &str, mode: &str, user: User) -> Result<(), CommandError> {
-    /*!
-    Make directory via sudo
-    !*/
-    user.run("mkdir").arg("-p").arg("-m").arg(mode).arg(dirname).perform()?;
-    Ok(())
 }
 
 pub fn gc(user: User) -> Result<(), std::io::Error> {

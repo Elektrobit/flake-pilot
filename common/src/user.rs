@@ -2,6 +2,8 @@ use std::{process::Command, ffi::OsStr};
 
 use serde::{Serialize, Deserialize};
 
+use crate::command::{CommandExtTrait, CommandError};
+
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub struct User<'a> {
@@ -25,4 +27,21 @@ impl<'a> User<'a> {
         c.arg(command);
         c
     }
+}
+
+
+pub fn chmod(filename: &str, mode: &str, user: User) -> Result<(), CommandError> {
+    /*!
+    Chmod filename via sudo
+    !*/
+    user.run("chmod").arg(mode).arg(filename).perform()?;
+    Ok(())
+}
+
+pub fn mkdir(dirname: &str, mode: &str, user: User) -> Result<(), CommandError> {
+    /*!
+    Make directory via sudo
+    !*/
+    user.run("mkdir").arg("-p").arg("-m").arg(mode).arg(dirname).perform()?;
+    Ok(())
 }
