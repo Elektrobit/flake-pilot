@@ -7,6 +7,10 @@ Test Teardown  Teardown
 Hello World
     Register Podman Container    registry.opensuse.org/home/marcus.schaefer/delta_containers/containers_ubuntu/ubuntu:latest    hello_world
     ${result} =  Run Process    sudo  /usr/bin/hello_world  echo  Hello World
+    
+    Log    ${result.stderr}
+    Log    ${result.stdout}
+    
     Should Be Equal As Strings    ${result.rc}    0
     Should Be Equal As Strings    ${result.stdout}    Hello World
 

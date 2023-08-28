@@ -1,7 +1,9 @@
 use flakes::user::User;
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use std::{env, path::PathBuf, fs};
+use strum::Display;
+
+use std::{env, fs, path::PathBuf};
 
 use crate::defaults;
 
@@ -10,7 +12,7 @@ lazy_static! {
 }
 
 /// Returns the config singleton
-/// 
+///
 /// Will initialize the config on first call and return the cached version afterwards
 pub fn config() -> &'static Config<'static> {
     &CONFIG
@@ -22,9 +24,9 @@ fn get_base_path() -> PathBuf {
 
 fn load_config() -> Config<'static> {
     /*!
-    Read container runtime configuration for given program
+    Read firecracker runtime configuration for given program
 
-    CONTAINER_FLAKE_DIR/
+    FIRECRACKER_FLAKE_DIR/
        ├── program_name.d
        │   └── other.yaml
        └── program_name.yaml
@@ -34,21 +36,23 @@ fn load_config() -> Config<'static> {
     is send to the Yaml parser
     !*/
     let base_path = get_base_path();
-    let base_path  = base_path.file_name().unwrap().to_str().unwrap();
+    let base_path = base_path.file_name().unwrap().to_str().unwrap();
     let base_yaml = fs::read_to_string(config_file(base_path));
 
     let mut extra_yamls: Vec<_> = fs::read_dir(config_dir(base_path))
         .into_iter()
         .flatten()
         .flatten()
-        .map(|x| x.path()).collect();
+        .map(|x| x.path())
+        .collect();
 
     extra_yamls.sort();
-        
 
-    let full_yaml: String = base_yaml.into_iter().chain(extra_yamls.into_iter().flat_map(fs::read_to_string)).collect();
+    let full_yaml: String = base_yaml
+        .into_iter()
+        .chain(extra_yamls.into_iter().flat_map(fs::read_to_string))
+        .collect();
     config_from_str(&full_yaml)
-
 }
 
 fn config_from_str(input: &str) -> Config<'static> {
@@ -63,37 +67,29 @@ fn config_from_str(input: &str) -> Config<'static> {
     // Can not use serde_yaml::from_value because of lifetime limitations
     // Safety: This does not cause a reocurring memory leak since `load_config` is only called once
     let content = Box::leak(buffer.into_boxed_str());
-    
+
     serde_yaml::from_str(content).unwrap()
 }
 
 fn config_file(program: &str) -> String {
-    format!("{}/{}.yaml", defaults::CONTAINER_FLAKE_DIR, program)
+    format!("{}/{}.yaml", defaults::FIRECRACKER_FLAKE_DIR, program)
 }
 
 fn config_dir(program: &str) -> String {
-    format!("{}/{}.d", defaults::CONTAINER_FLAKE_DIR, program)
+    format!("{}/{}.d", defaults::FIRECRACKER_FLAKE_DIR, program)
 }
 
 #[derive(Deserialize)]
 pub struct Config<'a> {
     #[serde(borrow)]
-    pub container: ContainerSection<'a>,
+    pub vm: VMSection<'a>,
     #[serde(borrow)]
-    pub include: IncludeSection<'a>
+    pub include: IncludeSection<'a>,
 }
 
 impl<'a> Config<'a> {
-    pub fn is_delta_container(&self) -> bool {
-        self.container.base_container.is_some()
-    }
-
     pub fn runtime(&self) -> RuntimeSection {
-        self.container.runtime.as_ref().cloned().unwrap_or_default()
-    }
-
-    pub fn layers(&self) -> Vec<&'a str> {
-        self.container.layers.as_ref().cloned().unwrap_or_default()
+        self.vm.runtime.as_ref().cloned().unwrap_or_default()
     }
 
     pub fn tars(&self) -> Vec<&'a str> {
@@ -104,78 +100,82 @@ impl<'a> Config<'a> {
 #[derive(Deserialize)]
 pub struct IncludeSection<'a> {
     #[serde(borrow)]
-    tar: Option<Vec<&'a str>>
+    tar: Option<Vec<&'a str>>,
 }
 
 #[derive(Deserialize)]
-pub struct ContainerSection<'a> {
+pub struct VMSection<'a> {
     /// Mandatory registration setup
-    /// Name of the container in the local registry
+    /// Name of the vm in the local registry
     pub name: &'a str,
 
-    /// Path of the program to call inside of the container (target)
+    /// Path of the program to call inside of the vm (target)
     pub target_app_path: Option<&'a str>,
 
     /// Path of the program to register on the host
     pub host_app_path: &'a str,
 
-    /// Optional base container to use with a delta 'container: name'
-    ///
-    /// If specified the given 'container: name' is expected to be
-    /// an overlay for the specified base_container. podman-pilot
-    /// combines the 'container: name' with the base_container into
-    /// one overlay and starts the result as a container instance
-    ///
-    /// Default: not_specified
-    pub base_container: Option<&'a str>,
-
-    /// Optional additional container layers on top of the
-    /// specified base container
-    #[serde(default)]
-    layers: Option<Vec<&'a str>>,
-
     /// Optional registration setup
-    /// Container runtime parameters
+    /// VM runtime parameters
     #[serde(default)]
     pub runtime: Option<RuntimeSection<'a>>,
 }
 
 #[derive(Deserialize, Default, Clone)]
 pub struct RuntimeSection<'a> {
-    /// Run the container engine as a user other than the
+    /// Run the VM engine as a user other than the
     /// default target user root. The user may be either
     /// a user name or a numeric user-ID (UID) prefixed
     /// with the ‘#’ character (e.g. #0 for UID 0). The call
-    /// of the container engine is performed by sudo.
+    /// of the VM engine is performed by sudo.
     /// The behavior of sudo can be controlled via the
     /// file /etc/sudoers
     #[serde(borrow, flatten)]
     pub runas: User<'a>,
 
-    /// Resume the container from previous execution.
-    ///
-    /// If the container is still running, the app will be
-    /// executed inside of this container instance.
+    /// Resume the VM from previous execution.
+    /// If the VM is still running, the app will be
+    /// executed inside of this VM instance.
     ///
     /// Default: false
     #[serde(default)]
     pub resume: bool,
 
-    /// Attach to the container if still running, rather than
-    /// executing the app again. Only makes sense for interactive
-    /// sessions like a shell running as app in the container.
-    ///
-    /// Default: false
-    #[serde(default)]
-    pub attach: bool,
+    pub firecracker: EngineSection<'a>,
+}
 
-    /// Caller arguments for the podman engine in the format:
-    /// - PODMAN_OPTION_NAME_AND_OPTIONAL_VALUE
-    ///
-    /// For details on podman options please consult the
-    /// podman documentation.
-    #[serde(default)]
-    pub podman: Option<Vec<&'a str>>,
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct EngineSection<'a> {
+    /// Size of the VM overlay
+    /// If specified a new ext2 overlay filesystem image of the
+    /// specified size will be created and attached to the VM
+    pub overlay_size: Option<&'a str>,
+
+    pub cache_type: Option<CacheType>,
+    pub mem_size_mib: Option<i64>,
+    pub vcpu_count: Option<i64>,
+
+    /// Path to rootfs image done by app registration
+    pub rootfs_image_path: &'a str,
+
+    /// Path to kernel image done by app registration
+    pub kernel_image_path: &'a str,
+
+    /// Optional path to initrd image done by app registration
+    pub initrd_path: Option<&'a str>,
+
+    pub boot_args: Vec<&'a str>,
+}
+
+#[derive(Debug, Deserialize, Clone, Display)]
+pub enum CacheType {
+    Writeback,
+}
+
+impl Default for CacheType {
+    fn default() -> Self {
+        Self::Writeback
+    }
 }
 
 #[cfg(test)]
@@ -187,33 +187,35 @@ mod test {
     #[test]
     fn simple_config() {
         let cfg = config_from_str(
-r#"container:
+            r#"vm:
  name: JoJo
  host_app_path: /myapp
 include:
  tar: ~
-"#);
-        assert_eq!(cfg.container.name, "JoJo");
+"#,
+        );
+        assert_eq!(cfg.vm.name, "JoJo");
     }
-    
+
     #[test]
     fn combine_configs() {
         let cfg = config_from_str(
-r#"container:
+            r#"vm:
  name: JoJo
  host_app_path: /myapp
 include:
  tar: ~
-container:
+vm:
  name: Dio
  host_app_path: /other
-"#);
-        assert_eq!(cfg.container.name, "Dio");
+"#,
+        );
+        assert_eq!(cfg.vm.name, "Dio");
     }
 
     #[test]
     fn test_program_config_file() {
-        let config_file = config_file(&"app".to_string());
+        let config_file = config_file("app");
         assert_eq!("/usr/share/flakes/app.yaml", config_file);
     }
 }
