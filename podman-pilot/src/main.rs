@@ -26,13 +26,11 @@ extern crate log;
 
 #[cfg(test)]
 pub mod tests;
-pub mod error;
-
 use std::process::{ExitCode, Termination};
 
 use config::config;
 use env_logger::Env;
-use error::FlakeError;
+use flakes::error::FlakeError;
 
 pub mod app_path;
 pub mod podman;
