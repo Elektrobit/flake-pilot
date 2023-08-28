@@ -64,12 +64,6 @@ build: man
 	cargo build -v --release
 	cd firecracker-pilot/guestvm-tools/sci && RUSTFLAGS='-C target-feature=+crt-static' cargo build -v --release --target $(ARCH)-unknown-linux-gnu
 
-compress:
-	upx --best --lzma target/release/podman-pilot
-	upx --best --lzma target/release/flake-ctl
-	upx --best --lzma target/release/firecracker-service
-	upx --best --lzma target/release/firecracker-pilot
-
 clean:
 	cd podman-pilot && cargo -v clean
 	cd firecracker-pilot && cargo -v clean

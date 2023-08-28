@@ -44,7 +44,6 @@ BuildRequires:  python3-docutils
 %if 0%{?suse_version}
 BuildRequires:  rust
 BuildRequires:  cargo
-BuildRequires:  upx
 BuildRequires:  openssl-devel
 BuildRequires:  glibc-devel-static
 BuildRequires:  kiwi-settings
@@ -52,7 +51,6 @@ BuildRequires:  python3-Pygments
 %endif
 %if 0%{?debian} || 0%{?ubuntu}
 BuildRequires:  rust-all
-BuildRequires:  upx-ucl
 BuildRequires:  libssl-dev
 BuildRequires:  openssl
 BuildRequires:  pkg-config
