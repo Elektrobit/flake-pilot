@@ -510,7 +510,6 @@ pub fn gc_cid_file(container_cid_file: &String, user: User) -> Result<bool, Flak
     }
 }
 
-// Garbage collect CID files for which no container exists anymore
 pub fn gc(user: User) -> Result<(), std::io::Error> {
     let mut cid_file_names: Vec<String> = Vec::new();
     let mut cid_file_count: i32 = 0;
