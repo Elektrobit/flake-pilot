@@ -36,7 +36,7 @@ use std::io::{Write, SeekFrom, Seek};
 use std::fs::File;
 use serde::{Serialize, Deserialize};
 use serde_json::{self};
-use std::collections::HashMap;
+use rand::Rng;
 
 use crate::defaults;
 
@@ -341,7 +341,9 @@ pub fn start(
 
     if is_running {
         // 1. Execute app in running VM
-        status_code = execute_command_at_instance(program_name, runas);
+        status_code = execute_command_at_instance(
+            program_name, runas, get_exec_port()
+        );
     } else {
         match NamedTempFile::new() {
             Ok(firecracker_config) => {
@@ -354,7 +356,9 @@ pub fn start(
                     call_instance(
                         &firecracker_config, vm_id_file, runas, is_blocking
                     );
-                    status_code = execute_command_at_instance(program_name, runas);
+                    status_code = execute_command_at_instance(
+                        program_name, runas, get_exec_port()
+                    );
                 } else {
                     // 3. Startup VM and execute app
                     status_code = call_instance(
@@ -437,22 +441,15 @@ pub fn call_instance(
 
 pub fn get_exec_port() -> u32 {
     /*!
-    Find free port
-
-    Note: This method finds a free port within the firecracker-pilot
-    managed port assignments. If the selected port is occupied by
-    another service in the system it will create a conflict. In this
-    case use the pilot call option %port:number to bind to a port
-    of your choice
+    Create random execution port
     !*/
-    let pilot_options = get_pilot_run_options();
-    let port;
-    if pilot_options.contains_key("%port") {
-        port = pilot_options["%port"].parse::<u32>().unwrap_or_default();
-    } else {
-        port = defaults::FIRECRACKER_VSOCK_PORT_START + id();
-    }
-    port
+    let mut random = rand::thread_rng();
+    // FIXME: A more stable version
+    // should check for already running socket connections
+    // and if the same number is used for an already running one
+    // another rand should be called
+    
+    random.gen_range(49200..60000)
 }
 
 pub fn check_connected(program_name: &String, user: User) -> i32 {
@@ -565,7 +562,7 @@ pub fn send_command_to_instance(
 }
 
 pub fn execute_command_at_instance(
-    program_name: &String, user: User
+    program_name: &String, user: User, exec_port: u32
 ) -> i32 {
     /*!
     Send command to a vsoc connected to a running instance
@@ -573,8 +570,7 @@ pub fn execute_command_at_instance(
     let mut status_code;
     let mut retry_count = 0;
     let vsock_uds_path = format!(
-        "{}{}.sock",
-        defaults::FIRECRACKER_VSOCK_PREFIX, get_meta_name(program_name)
+        "/run/sci_cmd_{}.sock", get_meta_name(program_name)
     );
 
     // wait for UDS socket to appear
@@ -599,9 +595,7 @@ pub fn execute_command_at_instance(
 
     // spawn the listener and wait for sci to run the command
     let mut vm_exec = user.run(defaults::SOCAT);
-    let exec_port = get_exec_port();
-    vm_exec
-        .arg("-t")
+    vm_exec.arg("-t")
         .arg("0")
         .arg("-")
         .arg(
@@ -796,7 +790,7 @@ pub fn get_run_cmdline(
     run.push(target_app_path);
     for arg in &args[1..] {
         debug(&format!("Got Argument: {}", arg));
-        if ! arg.starts_with('@') && ! arg.starts_with('%') {
+        if ! arg.starts_with('@') {
             if quote_for_kernel_cmdline {
                 run.push(arg.replace('-', "\\-").to_string());
             } else {
@@ -805,27 +799,6 @@ pub fn get_run_cmdline(
         }
     }
     run
-}
-
-pub fn get_pilot_run_options() -> HashMap<String, String> {
-    /*!
-    read runtime options which are only meant to be used for the
-    pilot and should not interfere with the standard arguments
-    passed along to the command call. For this purpose we deviate
-    from the standard Unix/Linux commandline format and treat
-    options passed as %name:value to be a pilot option
-    !*/
-    let args: Vec<String> = env::args().collect();
-    let mut pilot_options = HashMap::new();
-    for arg in &args[1..] {
-        if arg.starts_with('%') {
-            let (name, value) = arg.rsplit_once(':').unwrap_or_default();
-            if ! name.is_empty() {
-                pilot_options.insert(name.to_string(), value.to_string());
-            }
-        }
-    }
-    pilot_options
 }
 
 pub fn vm_running(vmid: &String, user: User) -> bool {

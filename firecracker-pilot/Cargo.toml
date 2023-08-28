@@ -23,6 +23,7 @@ env_logger = { version = "0.9" }
 tempfile = { version = "3.4" }
 spinoff = { version = "0.7" }
 ubyte = { version = "0.10", features = ["serde"] }
+rand = { version = "0.8" }
 lazy_static = "1.4.0"
 serde_yaml = "0.9.25"
 strum = { version = "0.25.0", features = ["derive"] }
