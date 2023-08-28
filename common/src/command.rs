@@ -1,4 +1,4 @@
-use std::{fmt::{Display, Write}, process::Command, ffi::OsStr};
+use std::{fmt::{Display, Write}, process::{Command, Output, CommandArgs}, ffi::OsStr};
 
 use thiserror::Error;
 
@@ -18,30 +18,32 @@ pub trait CommandExtTrait {
 
 impl CommandExtTrait for Command {
     fn perform(&mut self) -> Result<std::process::Output, CommandError> {
-        let out = self.output().map_err(ProcessError::IO);
-
-        let error: ProcessError = match out {
-            Ok(output) => {
-                if output.status.success() {
-                    return Ok(output);
-                } else {
-                    output.into()
-                }
-            }
-            Err(err) => err.into(),
-        };
-
-        Err(CommandError {
-            base: error,
-            args: self
-                .get_args()
-                .flat_map(OsStr::to_str)
-                .map(ToOwned::to_owned)
-                .collect(),
-        })
+        handle_output(self.output(), self.get_args())
     }
 }
 
+pub fn handle_output(maybe_output: Result<Output, std::io::Error>, args: CommandArgs) -> Result<std::process::Output, CommandError> {
+    let out = maybe_output.map_err(ProcessError::IO);
+
+    let error: ProcessError = match out {
+        Ok(output) => {
+            if output.status.success() {
+                return Ok(output);
+            } else {
+                output.into()
+            }
+        }
+        Err(err) => err.into(),
+    };
+
+    Err(CommandError {
+        base: error,
+        args: args
+            .flat_map(OsStr::to_str)
+            .map(ToOwned::to_owned)
+            .collect(),
+    })
+}
 
 #[derive(Debug, Error)]
 pub enum ProcessError {
