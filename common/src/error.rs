@@ -11,9 +11,20 @@ pub enum FlakeError {
     /// There was an error in an IO operation
     #[error(transparent)]
     IO(#[from] std::io::Error),
+    #[cfg(feature = "json")]
+    #[error(transparent)]
+    MalformedJson(#[from] serde_json::Error),
     /// This flake is already running
     #[error("Instance in use by another instance, consider @NAME argument")]
     AlreadyRunning,
+    #[error("{}", .0)]
+    OperationError(#[from] OperationError)
+}
+
+#[derive(Debug, Error)]
+pub enum OperationError {
+    #[error("Max retries for VM connection check exceeded")]
+    MaxTriesExceeded
 }
 
 
