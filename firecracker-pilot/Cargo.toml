@@ -20,4 +20,4 @@ rand = { version = "0.8" }
 lazy_static = "1.4.0"
 serde_yaml = "0.9.25"
 strum = { version = "0.25.0", features = ["derive"] }
-flakes = { version = "0.1.0 ", path= "../common" }
+flakes = { version = "0.1.0 ", path= "../common", features = ["json"] }

@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
@@ -22,14 +23,16 @@
 // SOFTWARE.
 //
 use std::{thread, time};
-use flakes::user::User;
+use flakes::command::{CommandError, handle_output, CommandExtTrait};
+use flakes::error::{FlakeError, OperationError};
+use flakes::user::{User, mkdir};
 use spinoff::{Spinner, spinners, Color};
 use ubyte::ByteUnit;
 use std::path::Path;
-use std::process::{Stdio, exit, id};
+use std::process::{Stdio, id};
 use std::env;
 use std::fs;
-use crate::config::{config, RuntimeSection};
+use crate::config::{config, RuntimeSection, EngineSection};
 use crate::defaults::{debug, is_debug};
 use tempfile::{NamedTempFile, tempdir};
 use std::io::{Write, SeekFrom, Seek};
@@ -84,9 +87,7 @@ pub struct FireCrackerVsock {
     pub uds_path: String
 }
 
-pub fn create(
-    program_name: &String, 
-) -> Vec<String> {
+pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
     /*!
     Create VM for later execution of program_name.
     The VM name and all other settings to run the program
@@ -153,10 +154,9 @@ pub fn create(
       for the later VM process ID and and the name of
       the VM ID file.
     !*/
-    let mut result: Vec<String> = Vec::new();
 
     // setup VM ID file name
-    let vm_id_file = get_meta_file_name(
+    let vm_id_file_path = get_meta_file_name(
         program_name, defaults::FIRECRACKER_VMID_DIR, "vmid"
     );
 
@@ -168,36 +168,24 @@ pub fn create(
     let has_includes = !tar_includes.is_empty();
 
     // Make sure meta dirs exists
-    init_meta_dirs();
+    init_meta_dirs()?;
 
     // Check early return condition
-    if Path::new(&vm_id_file).exists() && gc_meta_files(&vm_id_file, runas, program_name, resume) && resume {
+    if Path::new(&vm_id_file_path).exists() && gc_meta_files(&vm_id_file_path, runas, program_name, resume)? && resume {
         // VM exists
         // report ID value and its ID file name
-        match fs::read_to_string(&vm_id_file) {
-            Ok(vmid) => {
-                result.push(vmid);
-            },
-            Err(error) => {
-                // vmid file exists but could not be read
-                panic!("Error reading VMID: {:?}", error);
-            }
-        }
-        result.push(vm_id_file);
-        return result;
+        let vmid =  fs::read_to_string(&vm_id_file_path)?;
+        return Ok((vmid, vm_id_file_path));
     }
 
     // Garbage collect occasionally
-    gc(runas, program_name);
+    gc(runas, program_name).ok();
 
     // Sanity check
-    if Path::new(&vm_id_file).exists() {
+    if Path::new(&vm_id_file_path).exists() {
         // we are about to create a VM for which a
         // vmid file already exists.
-        error!(
-            "VM ID in use by another instance, consider @NAME argument"
-        );
-        exit(1)
+        return Err(FlakeError::AlreadyRunning)
     }
 
     // Setup VM...
@@ -205,122 +193,79 @@ pub fn create(
         spinners::Line, "Launching flake...", Color::Yellow, spinoff::Streams::Stderr
     );
 
-    // Create initial vm_id_file with process ID set to 0
-    match std::fs::File::create(&vm_id_file) {
-        Ok(mut vm_id_fd) => {
-            let vm_id = "0";
-            match vm_id_fd.write_all(vm_id.as_bytes()) {
-                Ok(_) => {
-                    result.push(vm_id.to_string());
-                    result.push(vm_id_file);
-                },
-                Err(error) => {
-                    panic!("Failed to write to file {}: {}", vm_id_file, error)
-                }
-            }
+    match run_creation(&vm_id_file_path, program_name, engine_section, resume, runas, has_includes) {
+        Ok(result) => {
+            spinner.success("Launching flake");
+            Ok(result)
         },
-        Err(error) => {
-            panic!("Failed to open {}: {}", vm_id_file, error)
-        }
+        Err(err) => {
+            spinner.fail("Flake launch has failed");
+            Err(err)            
+        },
     }
+}
+
+fn run_creation(
+    vm_id_file_path: &str,
+    program_name: &String,
+    engine_section: EngineSection,
+    resume: bool,
+    runas: User,
+    has_includes: bool
+) -> Result<(String, String), FlakeError> {
+
+
+    // Create initial vm_id_file with process ID set to 0
+    
+    std::fs::File::create(&vm_id_file_path)?.write_all("0".as_bytes())?;
+    let result = ("0".to_owned(), vm_id_file_path.to_owned());
 
     // Setup root overlay if configured
-    let mut provision_ok = false;
     let vm_overlay_file = get_meta_file_name(
         program_name, defaults::FIRECRACKER_OVERLAY_DIR, "ext2"
     );
     if let Some(overlay_size) = engine_section.overlay_size {
         let overlay_size = overlay_size.parse::<ByteUnit>().expect("could not parse overlay size").as_u64();
         if !Path::new(&vm_overlay_file).exists() || !resume {
-            match std::fs::File::create(&vm_overlay_file) {
-                Ok(mut vm_overlay_file_fd) => {
-                    match vm_overlay_file_fd.seek(
-                        SeekFrom::Start(overlay_size - 1)
-                    ) {
-                        Ok(_) => {
-                            match vm_overlay_file_fd.write_all(&[0]) {
-                                Ok(_) => { },
-                                Err(error) => {
-                                    panic!("Write failed with: {}", error)
-                                }
-                            }
-                        },
-                        Err(error) => {
-                            panic!("No space left on device: {}", error)
-                        }
-                    }
-                },
-                Err(error) => {
-                    panic!("Failed to create overlay image: {}", error);
-                }
-            }
+
+            let mut vm_overlay_file_fd = File::create(&vm_overlay_file)?;
+            vm_overlay_file_fd.seek(SeekFrom::Start(overlay_size - 1))?; // Maybe new Error for No space left on device
+            vm_overlay_file_fd.write_all(&[0])?;
+
             // Create filesystem
             let mut mkfs = runas.run("mkfs.ext2");
             mkfs.arg("-F")
                 .arg(&vm_overlay_file);
             debug(&format!("sudo {:?}", mkfs.get_args()));
-            match mkfs.output() {
-                Ok(output) => {
-                    if ! output.status.success() {
-                        panic!(
-                            "Failed to create overlay filesystem: {}",
-                            String::from_utf8_lossy(&output.stderr)
-                        );
-                    }
-                },
-                Err(error) => {
-                    panic!("Failed to execute mkfs {:?}", error)
-                }
-            }
-            provision_ok = true;
+            mkfs.perform()?;
         }
     }
 
     // Provision VM
-    if provision_ok {
-        let vm_image_file = engine_section.rootfs_image_path;
-        match tempdir() {
-            Ok(tmp_dir) => {
-                let vm_mount_point = mount_vm(
-                    tmp_dir.path().to_str().unwrap(),
-                    vm_image_file,
-                    &vm_overlay_file,
-                    User::ROOT
-                );
-                if ! vm_mount_point.is_empty() {
-                    // Handle includes
-                    if has_includes {
-                        debug("Syncing includes...");
-                        provision_ok = sync_includes(
-                            &vm_mount_point, User::ROOT
-                        );
-                    }
-                } else {
-                    provision_ok = false
-                }
-                umount_vm(
-                    tmp_dir.path().to_str().unwrap(),
-                    User::ROOT
-                );
-            },
-            Err(error) => {
-                error!("Failed to create temporary file: {}", error);
-                provision_ok = false
-            }
+    let vm_image_file = engine_section.rootfs_image_path;
+    
+    let tmp_dir = tempdir()?;
+    if let Some(tmp_dir) = tmp_dir.path().to_str() {
+        let vm_mount_point = mount_vm(
+            tmp_dir,
+            vm_image_file,
+            &vm_overlay_file,
+            User::ROOT
+        )?;
+        if has_includes {
+            debug("Syncing includes...");
+            sync_includes(&vm_mount_point, User::ROOT)?;
         }
-        if ! provision_ok {
-            spinner.fail("Flake launch has failed");
-            panic!("Failed to provision VM")
-        }
+        umount_vm(tmp_dir, User::ROOT)?;
     }
 
-    spinner.success("Launching flake");
-    result
+    Ok(result)
+
 }
 
 pub fn start(
-    program_name: &String, vm: Vec<String>
-) {
+    program_name: &String, (vm_id, vm_id_file): (String, String)
+) -> Result<(), FlakeError> {
     /*!
     Start VM with the given VM ID
 
@@ -328,61 +273,48 @@ pub fn start(
     after this function
     !*/
     let RuntimeSection { runas, resume, .. } = config().runtime();
-    let vmid = &vm[0];
-    let vm_id_file = &vm[1];
 
-    let status_code;
-    let mut is_running: bool = false;
     let mut is_blocking: bool = true;
 
-    if vm_running(vmid, runas) {
-        is_running = true;
+
+    if vm_running(&vm_id, runas)? {
+        // 1. Execute app in running VM
+        execute_command_at_instance(
+            program_name, runas, get_exec_port()
+        )?;
+    } else {
+        let firecracker_config = NamedTempFile::new()?;
+        create_firecracker_config(
+            program_name, &firecracker_config
+        )?;
+        if resume {
+            // 2. Startup resume type VM and execute app
+            is_blocking = false;
+            call_instance(
+                &firecracker_config, &vm_id_file, runas, is_blocking
+            )?;
+            execute_command_at_instance(
+                program_name, runas, get_exec_port()
+            )?;
+        } else {
+            // 3. Startup VM and execute app
+            call_instance(
+                &firecracker_config, &vm_id_file, runas, is_blocking
+            )?;
+        }
+        
     }
 
-    if is_running {
-        // 1. Execute app in running VM
-        status_code = execute_command_at_instance(
-            program_name, runas, get_exec_port()
-        );
-    } else {
-        match NamedTempFile::new() {
-            Ok(firecracker_config) => {
-                create_firecracker_config(
-                    program_name, &firecracker_config
-                );
-                if resume {
-                    // 2. Startup resume type VM and execute app
-                    is_blocking = false;
-                    call_instance(
-                        &firecracker_config, vm_id_file, runas, is_blocking
-                    );
-                    status_code = execute_command_at_instance(
-                        program_name, runas, get_exec_port()
-                    );
-                } else {
-                    // 3. Startup VM and execute app
-                    status_code = call_instance(
-                        &firecracker_config, vm_id_file, runas, is_blocking
-                    );
-                }
-            },
-            Err(error) => {
-                panic!("Failed to create temporary file: {}", error)
-            }
-        }
-    }
-    exit(status_code)
+    Ok(())
 }
 
 pub fn call_instance(
     config_file: &NamedTempFile, vm_id_file: &String,
     user: User, is_blocking: bool
-) -> i32 {
+) -> Result<(), FlakeError> {
     /*!
     Run firecracker with specified configuration
     !*/
-    let mut status_code = 0;
-
     let mut firecracker = user.run("firecracker");
     if ! is_debug() {
         firecracker.stderr(Stdio::null());
@@ -399,44 +331,17 @@ pub fn call_instance(
         .arg("--config-file")
         .arg(config_file.path());
     debug(&format!("sudo {:?}", firecracker.get_args()));
-    match firecracker.spawn() {
-        Ok(mut child) => {
-            let pid = child.id();
-            debug(&format!("PID {}", pid));
-            match std::fs::File::create(vm_id_file) {
-                Ok(mut vm_id_fd) => {
-                    match vm_id_fd.write_all(pid.to_string().as_bytes()) {
-                        Ok(_) => { },
-                        Err(error) => {
-                            panic!(
-                                "Failed to write to file {}: {}",
-                                vm_id_file, error
-                            )
-                        }
-                    }
-                },
-                Err(error) => {
-                    panic!("Failed to open {}: {}", vm_id_file, error)
-                }
-            }
-            if is_blocking {
-                match child.wait() {
-                    Ok(ecode) => {
-                        if ecode.code().is_some() {
-                            status_code = ecode.code().unwrap()
-                        }
-                    },
-                    Err(error) => {
-                        panic!("firecracker failed with: {}", error);
-                    }
-                }
-            }
-        },
-        Err(error) => {
-            panic!("Failed to execute firecracker: {:?}", error)
-        }
+
+    let child = firecracker.spawn()?;
+    let pid = child.id();
+    debug(&format!("PID {}", pid));
+
+    File::create(vm_id_file)?.write_all(pid.to_string().as_bytes())?;
+
+    if is_blocking {
+        handle_output(child.wait_with_output(), firecracker.get_args())?;
     }
-    status_code
+    Ok(())
 }
 
 pub fn get_exec_port() -> u32 {
@@ -452,11 +357,10 @@ pub fn get_exec_port() -> u32 {
     random.gen_range(49200..60000)
 }
 
-pub fn check_connected(program_name: &String, user: User) -> i32 {
+pub fn check_connected(program_name: &String, user: User) -> Result<(), FlakeError> {
     /*!
     Check if instance connection is OK
     !*/
-    let mut status_code;
     let mut retry_count = 0;
     let vsock_uds_path = format!(
         "/run/sci_cmd_{}.sock", get_meta_name(program_name)
@@ -464,8 +368,7 @@ pub fn check_connected(program_name: &String, user: User) -> i32 {
     loop {
         if retry_count == defaults::RETRIES {
             debug("Max retries for VM connection check exceeded");
-            status_code = 1;
-            return status_code
+            return Err(FlakeError::OperationError(OperationError::MaxTriesExceeded))
         }
         let mut vm_command = user.run("bash");
         vm_command.arg("-c")
@@ -476,32 +379,18 @@ pub fn check_connected(program_name: &String, user: User) -> i32 {
                 vsock_uds_path
             ));
         debug(&format!("sudo {:?}", vm_command.get_args()));
-        match vm_command.output() {
-            Ok(output) => {
-                if String::from_utf8_lossy(&output.stdout).starts_with("OK") {
-                    status_code = 0
-                } else {
-                    status_code = 1
-                }
-            },
-            Err(error) => {
-                error!("UNIX-CONNECT failed with: {:?}", error);
-                status_code = 1
-            }
+        let output = vm_command.output()?;
+        if String::from_utf8_lossy(&output.stdout).starts_with("OK") {
+            return Ok(())
         }
-        if status_code == 0 {
-            // connection OK
-            break
-        } else {
-            // VM not ready for connections
-            let some_time = time::Duration::from_millis(
-                defaults::VM_WAIT_TIMEOUT_MSEC
-            );
-            thread::sleep(some_time);
-        }
+        
+        // VM not ready for connections
+        let some_time = time::Duration::from_millis(
+            defaults::VM_WAIT_TIMEOUT_MSEC
+        );
+        thread::sleep(some_time);
         retry_count += 1
     }
-    status_code
 }
 
 pub fn send_command_to_instance(
@@ -563,11 +452,10 @@ pub fn send_command_to_instance(
 
 pub fn execute_command_at_instance(
     program_name: &String, user: User, exec_port: u32
-) -> i32 {
+) -> Result<(), FlakeError> {
     /*!
     Send command to a vsoc connected to a running instance
     !*/
-    let mut status_code;
     let mut retry_count = 0;
     let vsock_uds_path = format!(
         "/run/sci_cmd_{}.sock", get_meta_name(program_name)
@@ -577,8 +465,7 @@ pub fn execute_command_at_instance(
     loop {
         if retry_count == defaults::RETRIES {
             debug("Max retries for UDS socket lookup exceeded");
-            status_code = 1;
-            return status_code
+            Err(OperationError::MaxTriesExceeded)?
         }
         if Path::new(&vsock_uds_path).exists() {
             break
@@ -589,9 +476,7 @@ pub fn execute_command_at_instance(
     }
 
     // make sure instance can be contacted
-    if check_connected(program_name, user) != 0 {
-        return 1
-    }
+    check_connected(program_name, user)?;
 
     // spawn the listener and wait for sci to run the command
     let mut vm_exec = user.run(defaults::SOCAT);
@@ -603,151 +488,125 @@ pub fn execute_command_at_instance(
             vsock_uds_path, exec_port
         ));
     debug(&format!("sudo {:?}", vm_exec.get_args()));
-    match vm_exec.spawn() {
-        Ok(mut child) => {
-            status_code = send_command_to_instance(
-                program_name, user, exec_port
-            );
-            match child.wait() {
-                Ok(ecode) => {
-                    status_code = ecode.code().unwrap();
-                },
-                Err(error) => {
-                    error!("command failed with: {}", error);
-                }
-            }
-        },
-        Err(error) => {
-            error!("UNIX-LISTEN failed with: {:?}", error);
-            status_code = 1
-        }
-    }
-    status_code
+    let child = vm_exec.spawn()?;
+    send_command_to_instance(
+        program_name, user, exec_port
+    );
+    handle_output(child.wait_with_output(), vm_exec.get_args())?;
+    Ok(())
 }
 
 pub fn create_firecracker_config(
     program_name: &String,
     config_file: &NamedTempFile
-) {
+) -> Result<(), FlakeError> {
     /*!
     Create json config to call firecracker
     !*/
-    match std::fs::File::open(defaults::FIRECRACKER_TEMPLATE) {
-        Ok(template) => {
-            match serde_json::from_reader::<File, FireCrackerConfig>(template) {
-                Ok(mut firecracker_config) => {
-                    let mut boot_args: Vec<String> = Vec::new();
-                    let RuntimeSection { resume, firecracker: engine_section, .. } = config().runtime();
+    let template = File::open(defaults::FIRECRACKER_TEMPLATE)?;
+    let mut firecracker_config: FireCrackerConfig = serde_json::from_reader(template)?;
+    let mut boot_args: Vec<String> = Vec::new();
+    let RuntimeSection { resume, firecracker: engine_section, .. } = config().runtime();
 
-                    // set kernel_image_path
-                    firecracker_config.boot_source.kernel_image_path = engine_section.kernel_image_path.to_owned();
+    // set kernel_image_path
+    firecracker_config.boot_source.kernel_image_path = engine_section.kernel_image_path.to_owned();
 
-                    // set initrd_path
-                    if let Some(initrd_path) = engine_section.initrd_path {
-                        firecracker_config.boot_source.initrd_path = initrd_path.to_owned();
-                    }
-
-                    // setup run commandline for the command call
-                    let run = get_run_cmdline(
-                        program_name, true
-                    );
-
-                    // set boot_args
-                    if is_debug() {
-                        boot_args.push("PILOT_DEBUG=1".to_string());
-                    }
-                    if engine_section.overlay_size.is_some() {
-                        boot_args.push("overlay_root=/dev/vdb".to_string());
-                    }
-                    for boot_option in engine_section.boot_args
-                    {
-                        if resume
-                            && ! is_debug()
-                            && boot_option.starts_with("console=")
-                        {
-                            // in resume mode the communication is handled
-                            // through vsocks. Thus we don't need a serial
-                            // console and only provide one in debug mode
-                            boot_args.push("console=".to_string());
-                        } else {
-                            boot_args.push(boot_option.to_owned());
-                        }
-                        }
-                    if ! firecracker_config.boot_source.boot_args.is_empty() {
-                        firecracker_config.boot_source.boot_args.push(' ');
-                    }
-                    firecracker_config.boot_source.boot_args.push_str(
-                        &boot_args.join(" ")
-                    );
-                    if resume {
-                        firecracker_config.boot_source.boot_args.push_str(
-                            " run=vsock"
-                        )
-                    } else {
-                        firecracker_config.boot_source.boot_args.push_str(
-                            &format!(" run=\"{}\"", run.join(" "))
-                        )
-                    }
-
-                    // set path_on_host for rootfs
-                    firecracker_config.drives[0].path_on_host = engine_section.rootfs_image_path.to_owned();
-
-                    // set drive section for overlay
-                    if engine_section.overlay_size.is_some() {
-                        let vm_overlay_file = get_meta_file_name(
-                            program_name,
-                            defaults::FIRECRACKER_OVERLAY_DIR,
-                            "ext2"
-                        );
-
-                        let cache_type = engine_section.cache_type.unwrap_or_default().to_string();
-
-                        let drive = FireCrackerDrive {
-                            drive_id: "overlay".to_string(),
-                            path_on_host: vm_overlay_file,
-                            is_root_device: false,
-                            is_read_only: false,
-                            cache_type
-                        };
-                        firecracker_config.drives.push(drive);
-                    }
-
-                    // set tap device name
-                    firecracker_config.network_interfaces[0].host_dev_name =
-                        format!("tap-{}", get_meta_name(program_name));
-
-                    // set vsock name
-                    firecracker_config.vsock.guest_cid = defaults::VM_CID;
-                    firecracker_config.vsock.uds_path = format!(
-                        "/run/sci_cmd_{}.sock", get_meta_name(program_name)
-                    );
-
-                    // set mem_size_mib
-                    if let Some(mem_size_mib) = engine_section.mem_size_mib {
-                        firecracker_config.machine_config.mem_size_mib = mem_size_mib
-                    }
-
-                    // set vcpu_count
-                    if let Some(vcpu_count) = engine_section.vcpu_count {
-                        firecracker_config.machine_config.vcpu_count = vcpu_count;
-                    }
-
-                    debug(&serde_json::to_string(&firecracker_config).unwrap());
-                    serde_json::to_writer(
-                        config_file, &firecracker_config
-                    ).unwrap();
-                },
-                Err(error) => {
-                    panic!("Failed to import config template: {}", error);
-                }
-            }
-        },
-        Err(error) => {
-            panic!(
-                "Failed to open {}: {}", defaults::FIRECRACKER_TEMPLATE, error
-            )
-        }
+    // set initrd_path
+    if let Some(initrd_path) = engine_section.initrd_path {
+        firecracker_config.boot_source.initrd_path = initrd_path.to_owned();
     }
+
+    // setup run commandline for the command call
+    let run = get_run_cmdline(
+        program_name, true
+    );
+
+    // set boot_args
+    if is_debug() {
+        boot_args.push("PILOT_DEBUG=1".to_string());
+    }
+    if engine_section.overlay_size.is_some() {
+        boot_args.push("overlay_root=/dev/vdb".to_string());
+    }
+    for boot_option in engine_section.boot_args
+    {
+        if resume
+            && ! is_debug()
+            && boot_option.starts_with("console=")
+        {
+            // in resume mode the communication is handled
+            // through vsocks. Thus we don't need a serial
+            // console and only provide one in debug mode
+            boot_args.push("console=".to_string());
+        } else {
+            boot_args.push(boot_option.to_owned());
+        }
+        }
+    if ! firecracker_config.boot_source.boot_args.is_empty() {
+        firecracker_config.boot_source.boot_args.push(' ');
+    }
+    firecracker_config.boot_source.boot_args.push_str(
+        &boot_args.join(" ")
+    );
+    if resume {
+        firecracker_config.boot_source.boot_args.push_str(
+            " run=vsock"
+        )
+    } else {
+        firecracker_config.boot_source.boot_args.push_str(
+            &format!(" run=\"{}\"", run.join(" "))
+        )
+    }
+
+    // set path_on_host for rootfs
+    firecracker_config.drives[0].path_on_host = engine_section.rootfs_image_path.to_owned();
+
+    // set drive section for overlay
+    if engine_section.overlay_size.is_some() {
+        let vm_overlay_file = get_meta_file_name(
+            program_name,
+            defaults::FIRECRACKER_OVERLAY_DIR,
+            "ext2"
+        );
+
+        let cache_type = engine_section.cache_type.unwrap_or_default().to_string();
+
+        let drive = FireCrackerDrive {
+            drive_id: "overlay".to_string(),
+            path_on_host: vm_overlay_file,
+            is_root_device: false,
+            is_read_only: false,
+            cache_type
+        };
+        firecracker_config.drives.push(drive);
+    }
+
+    // set tap device name
+    firecracker_config.network_interfaces[0].host_dev_name =
+        format!("tap-{}", get_meta_name(program_name));
+
+    // set vsock name
+    firecracker_config.vsock.guest_cid = defaults::VM_CID;
+    firecracker_config.vsock.uds_path = format!(
+        "/run/sci_cmd_{}.sock", get_meta_name(program_name)
+    );
+
+    // set mem_size_mib
+    if let Some(mem_size_mib) = engine_section.mem_size_mib {
+        firecracker_config.machine_config.mem_size_mib = mem_size_mib
+    }
+
+    // set vcpu_count
+    if let Some(vcpu_count) = engine_section.vcpu_count {
+        firecracker_config.machine_config.vcpu_count = vcpu_count;
+    }
+
+    debug(&serde_json::to_string(&firecracker_config)?);
+    serde_json::to_writer(
+        config_file, &firecracker_config
+    )?;
+
+    Ok(())
 }
 
 pub fn get_target_app_path(
@@ -764,15 +623,11 @@ pub fn get_target_app_path(
 
 }
 
-pub fn init_meta_dirs() {
-    let mut meta_dirs: Vec<&str> = Vec::new();
-    meta_dirs.push(defaults::FIRECRACKER_OVERLAY_DIR);
-    meta_dirs.push(defaults::FIRECRACKER_VMID_DIR);
-    for meta_dir in meta_dirs {
-        if ! Path::new(meta_dir).is_dir() && ! mkdir(meta_dir, "777", User::ROOT) {
-            panic!("Failed to create {}", meta_dir);
-        }
-    }
+pub fn init_meta_dirs() -> Result<(), CommandError>{
+    [defaults::FIRECRACKER_OVERLAY_DIR, defaults::FIRECRACKER_VMID_DIR].iter()
+        .filter(|path| !Path::new(path).is_dir())
+        .map(|path| mkdir(&path, "777", User::ROOT))
+        .collect()
 }
 
 pub fn get_run_cmdline(
@@ -801,28 +656,20 @@ pub fn get_run_cmdline(
     run
 }
 
-pub fn vm_running(vmid: &String, user: User) -> bool {
+pub fn vm_running(vmid: &String, user: User) -> Result<bool, FlakeError> {
     /*!
     Check if VM with specified vmid is running
     !*/
-    let mut running_status = false;
+    debug(&format!("vm id is {vmid}"));
     if vmid == "0" {
-        return running_status
+        return Ok(false)
     }
     let mut running = user.run("kill");
     running.arg("-0").arg(vmid);
     debug(&format!("{:?}", running.get_args()));
-    match running.output() {
-        Ok(output) => {
-            if output.status.code().unwrap() == 0 {
-                running_status = true
-            }
-        },
-        Err(error) => {
-            panic!("Failed to execute kill -0: {:?}", error)
-        }
-    }
-    running_status
+    
+    let output = running.output()?;
+    Ok(output.status.success())
 }
 
 pub fn get_meta_file_name(
@@ -856,7 +703,7 @@ pub fn get_meta_name(program_name: &String) -> String {
 
 pub fn gc_meta_files(
     vm_id_file: &String, user: User, program_name: &String, resume: bool
-) -> bool {
+) -> Result<bool, FlakeError> {
     /*!
     Check if VM exists according to the specified
     vm_id_file. Garbage cleanup the vm_id_file and the vsock socket
@@ -866,7 +713,7 @@ pub fn gc_meta_files(
     let mut vmid_status = false;
     match fs::read_to_string(vm_id_file) {
         Ok(vmid) => {
-            if ! vm_running(&vmid, user) {
+            if ! vm_running(&vmid, user)? {
                 debug(&format!("Deleting {}", vm_id_file));
                 match fs::remove_file(vm_id_file) {
                     Ok(_) => { },
@@ -882,10 +729,14 @@ pub fn gc_meta_files(
                     delete_file(&vsock_uds_path, user);
                 }
                 let vm_overlay_file = format!(
-                    "{}/{}", defaults::FIRECRACKER_OVERLAY_DIR,
+                    "{}/{}", 
+                    defaults::FIRECRACKER_OVERLAY_DIR,
                     Path::new(&vm_id_file)
-                        .file_name().unwrap().to_str().unwrap()
-                        .replace(".vmid", ".ext2")
+                        .file_name()
+                        .map(OsStr::to_str)
+                        .flatten()
+                        .map(|x| x.replace(".vmid", ".ext2"))
+                        .unwrap()
                 );
                 if Path::new(&vm_overlay_file).exists() && ! resume {
                     debug(&format!("Deleting {}", vm_overlay_file));
@@ -904,22 +755,22 @@ pub fn gc_meta_files(
             error!("Error reading VMID: {:?}", error);
         }
     }
-    vmid_status
+    Ok(vmid_status)
 }
 
-pub fn gc(user: User, program_name: &String) {
+pub fn gc(user: User, program_name: &String) -> Result<(), FlakeError> {
     /*!
     Garbage collect VMID files for which no VM exists anymore
     !*/
-    let mut vmid_file_names: Vec<String> = Vec::new();
-    let mut vmid_file_count: i32 = 0;
-    let paths = fs::read_dir(defaults::FIRECRACKER_VMID_DIR).unwrap();
-    for path in paths {
-        vmid_file_names.push(format!("{}", path.unwrap().path().display()));
-        vmid_file_count += 1;
-    }
-    if vmid_file_count <= defaults::GC_THRESHOLD {
-        return
+    let vmid_file_names: Vec<_> = fs::read_dir(defaults::FIRECRACKER_VMID_DIR)?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|x| x.path()
+            .to_str()
+            .map(ToOwned::to_owned))
+        .collect();
+
+    if vmid_file_names.len() <= defaults::GC_THRESHOLD {
+        return Ok(())
     }
     for vm_id_file in vmid_file_names {
         // collective garbage collect but do not delete overlay
@@ -927,8 +778,9 @@ pub fn gc(user: User, program_name: &String) {
         // The cleanup of overlay images from resume type instances
         // must be done by an explicit user action to avoid deleting
         // user data in overlay images eventually preserved for later.
-        gc_meta_files(&vm_id_file, user, program_name, true);
+        gc_meta_files(&vm_id_file, user, program_name, true).ok();
     }
+    Ok(())
 }
 
 pub fn delete_file(filename: &String, user: User) -> bool {
@@ -947,61 +799,45 @@ pub fn delete_file(filename: &String, user: User) -> bool {
     true
 }
 
+// Todo: unifiy with podman
 pub fn sync_includes(
-    target: &str, user: User
-) -> bool {
+    target: &String, user: User
+) -> Result<(), FlakeError> {
     /*!
     Sync custom include data to target path
     !*/
-    let tar_includes = config().tars();
-    let mut status_code = 0;
+    let tar_includes = &config().tars();
+    
     for tar in tar_includes {
         debug(&format!("Adding tar include: [{}]", tar));
         let mut call = user.run("tar");
         call.arg("-C").arg(target)
             .arg("-xf").arg(tar);
         debug(&format!("{:?}", call.get_args()));
-        match call.output() {
-            Ok(output) => {
-                debug(&String::from_utf8_lossy(&output.stdout));
-                debug(&String::from_utf8_lossy(&output.stderr));
-                status_code = output.status.code().unwrap();
-            },
-            Err(error) => {
-                panic!("Failed to execute tar: {:?}", error)
-            }
-        }
+        let output = call.perform()?;
+        debug(&String::from_utf8_lossy(&output.stdout));
+        debug(&String::from_utf8_lossy(&output.stderr));
     }
-    if status_code == 0 {
-        return true
-    }
-    false
+    Ok(())
 }
 
 pub fn mount_vm(
     sub_dir: &str, rootfs_image_path: &str,
     overlay_path: &str, user: User
-) -> String {
+) -> Result<String, FlakeError> {
     /*!
     Mount VM with overlay below given sub_dir
     !*/
-    let failed = "".to_string();
     // 1. create overlay image mount structure
-    for image_dir in [
+    [
         defaults::IMAGE_ROOT,
         defaults::IMAGE_OVERLAY
-    ].iter() {
-        let dir_path = format!("{}/{}", sub_dir, image_dir);
-        if ! Path::new(&dir_path).exists() {
-            match fs::create_dir_all(&dir_path) {
-                Ok(_) => { },
-                Err(error) => {
-                    error!("Error creating directory {}: {}", dir_path, error);
-                    return failed
-                }
-            }
-        }
-    }
+    ].iter()
+        .map(|p| format!("{}/{}", sub_dir, p))
+        .filter(|path| !Path::new(path).exists())
+        .map(fs::create_dir_all)
+        .collect::<std::io::Result<_>>()?;
+
     // 2. mount VM image
     let image_mount_point = format!(
         "{}/{}", sub_dir, defaults::IMAGE_ROOT
@@ -1010,21 +846,7 @@ pub fn mount_vm(
     mount_image.arg(rootfs_image_path)
         .arg(&image_mount_point);
     debug(&format!("{:?}", mount_image.get_args()));
-    match mount_image.output() {
-        Ok(output) => {
-            if ! output.status.success() {
-                error!(
-                    "Failed to mount VM image: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                return failed
-            }
-        },
-        Err(error) => {
-            error!("Failed to execute mount: {:?}", error);
-            return failed
-        }
-    }
+    mount_image.perform()?;
     // 3. mount Overlay image
     let overlay_mount_point = format!(
         "{}/{}", sub_dir, defaults::IMAGE_OVERLAY
@@ -1033,32 +855,18 @@ pub fn mount_vm(
     mount_overlay.arg(overlay_path)
         .arg(&overlay_mount_point);
     debug(&format!("{:?}", mount_overlay.get_args()));
-    match mount_overlay.output() {
-        Ok(output) => {
-            if ! output.status.success() {
-                error!(
-                    "Failed to mount VM image: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                return failed
-            }
-        },
-        Err(error) => {
-            error!("Failed to execute mount: {:?}", error);
-            return failed
-        }
-    }
+    mount_overlay.perform()?;
     // 4. mount as overlay
-    for overlay_dir in [
+    [
         defaults::OVERLAY_ROOT,
         defaults::OVERLAY_UPPER,
         defaults::OVERLAY_WORK
-    ].iter() {
-        let dir_path = format!("{}/{}", sub_dir, overlay_dir);
-        if ! Path::new(&dir_path).exists() && ! mkdir(&dir_path, "755", User::ROOT) {
-            return failed
-        }
-    }
+    ].iter()
+        .map(|p| format!("{}/{}", sub_dir, p))
+        .filter(|path| !Path::new(path).exists())
+        .map(|path| mkdir(&path, "755", User::ROOT))
+        .collect::<Result<(), CommandError>>()?;
+    
     let root_mount_point = format!("{}/{}", sub_dir, defaults::OVERLAY_ROOT);
     let mut mount_overlay = user.run("mount");
     mount_overlay.arg("-t")
@@ -1072,66 +880,26 @@ pub fn mount_vm(
         ))
         .arg(&root_mount_point);
     debug(&format!("{:?}", mount_overlay.get_args()));
-    match mount_overlay.output() {
-        Ok(output) => {
-            if ! output.status.success() {
-                error!(
-                    "Failed to overlay mount VM image: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                return failed
-            }
-        },
-        Err(error) => {
-            error!("Failed to execute mount: {:?}", error);
-            return failed
-        }
-    }
-    root_mount_point
+    mount_overlay.perform()?;
+    Ok(root_mount_point)
 }
 
-pub fn umount_vm(sub_dir: &str, user: User) -> bool {
+pub fn umount_vm(sub_dir: &str, user: User) -> Result<(), CommandError> {
     /*!
     Umount VM image
     !*/
-    let mut status_code = 0;
-    for mount_point in [
+    let x: Vec<_> = [
         defaults::OVERLAY_ROOT,
         defaults::IMAGE_OVERLAY,
         defaults::IMAGE_ROOT,
-    ].iter() {
+    ].iter().map(|mount_point| {
         let mut umount = user.run("umount");
         umount.stderr(Stdio::null());
         umount.stdout(Stdio::null());
         umount.arg(format!("{}/{}", &sub_dir, &mount_point));
         debug(&format!("{:?}", umount.get_args()));
-        match umount.status() {
-            Ok(status) => {
-                status_code += status.code().unwrap();
-            },
-            Err(error) => {
-                error!("Failed to execute umount: {:?}", error)
-            }
-        }
-    }
-    if status_code > 0 {
-        return false
-    }
-    true
-}
+        umount.perform().map(|_| ())
+    }).collect();
 
-pub fn mkdir(dirname: &str, mode: &str, user: User) -> bool {
-    /*!
-    Make directory via sudo
-    !*/
-    let mut call = user.run("mkdir");
-    call.arg("-p").arg("-m").arg(mode).arg(dirname);
-    match call.status() {
-        Ok(_) => { },
-        Err(error) => {
-            error!("Failed to mkdir: {}: {:?}", dirname, error);
-            return false
-        }
-    }
-    true
+    x.into_iter().collect()
 }
