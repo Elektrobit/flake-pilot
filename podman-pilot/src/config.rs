@@ -1,9 +1,9 @@
-use flakes::user::User;
+use flakes::{user::User, cwd::MountMode};
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::{env, path::PathBuf, fs};
 
-use crate::{defaults, cwd::MountMode};
+use crate::defaults;
 
 lazy_static! {
     static ref CONFIG: Config<'static> = load_config();

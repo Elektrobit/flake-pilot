@@ -1,4 +1,3 @@
-use crate::app_config::MountMode;
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
@@ -23,6 +22,7 @@ use crate::app_config::MountMode;
 // SOFTWARE.
 //
 use crate::{app_config, defaults, firecracker, podman};
+use flakes::cwd::MountMode;
 use glob::glob;
 use std::fs;
 use std::os::unix::fs::symlink;

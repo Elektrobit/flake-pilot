@@ -1,3 +1,4 @@
+use flakes::cwd;
 use flakes::user::User;
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
@@ -36,7 +37,7 @@ use std::fs::File;
 use std::io::Seek;
 use std::io::SeekFrom;
 
-use crate::{defaults, cwd};
+use crate::defaults;
 
 pub fn create(
     program_name: &String
@@ -163,7 +164,7 @@ pub fn create(
 
 
     if let Some(working_dir) = config().mount() {
-        let mount_cmd = cwd::mount_working_directory(working_dir, "/working_dir", &config().container.dir_mount);
+        let mount_cmd = cwd::format_mount_command(working_dir, "/working_dir", &config().container.dir_mount);
         app.arg("--mount").arg(mount_cmd);
         app.arg("--workdir").arg("/working_dir");
     }

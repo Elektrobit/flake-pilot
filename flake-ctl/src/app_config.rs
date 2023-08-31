@@ -23,6 +23,7 @@
 //
 use std::io::{Error, ErrorKind};
 use std::path::Path;
+use flakes::cwd::MountMode;
 use serde::{Serialize, Deserialize};
 use serde_yaml::{self};
 use crate::defaults;
@@ -85,16 +86,6 @@ pub struct AppFireCrackerEngine {
     pub mem_size_mib: Option<i32>,
     pub vcpu_count: Option<i32>,
     pub cache_type: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub enum MountMode {
-    Bind,
-    // Devpts,
-    // Glob,
-    // Image,
-    // Tmpfs,
-    // Volume,
 }
 
 impl AppConfig {
@@ -171,7 +162,7 @@ impl AppConfig {
         }
         if let Some(dir) = dir {
             container_config.dir = Some(dir);
-            container_config.mount_dir = mount_dir.unwrap_or(MountMode::Bind);
+            container_config.mount_dir = mount_dir.unwrap_or_default();
         }
 
         let config = std::fs::OpenOptions::new()

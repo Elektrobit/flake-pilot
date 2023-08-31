@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum MountMode {
     Bind,
     // Devpts,
@@ -12,10 +12,10 @@ pub enum MountMode {
     // Volume,
 }
 
-pub fn mount_working_directory<Source: AsRef<Path>, Target: AsRef<Path>>(source: Source, target: Target, mode: &MountMode) -> String {
+pub fn format_mount_command<Source: AsRef<Path>, Target: AsRef<Path>>(source: Source, target: Target, mode: &MountMode) -> String {
 
-    let source = source.as_ref().to_str().unwrap_or_default();
-    let target = target.as_ref().to_str().unwrap_or_default();
+    let source = source.as_ref().to_string_lossy();
+    let target = target.as_ref().to_string_lossy();
 
     match mode {
         MountMode::Bind => format!("type=bind,source={source},destination={target}"),
