@@ -1,0 +1,35 @@
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+
+name: Robot Full Test
+jobs:
+  robot_test:
+    runs-on: ubuntu-latest
+    name: Run Robot Framework Tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt -y install python3-docutils
+          sudo apt -y install python3
+          pip install robotframework
+          sudo apt install podman
+      - name: Build Flake-Pilot
+        run:  make build
+      - name: Install Flake-Pilot
+        run:  sudo make install
+      - name: Run Robot Framework
+        run:  python3 -m robot robot_tests
+      - name: Upload Log
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: robot-log
+          path: /home/runner/work/flake-pilot/flake-pilot/log.html
+          retention-days: 5
+          

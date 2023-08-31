@@ -27,12 +27,7 @@ package: clean vendor sourcetar
 	@echo "Find package data at package/build"
 
 vendor:
-	(cd podman-pilot && cargo vendor)
-	(cd firecracker-pilot && cargo vendor)
-	(cd flake-ctl && cargo vendor)
-	(cd firecracker-pilot/firecracker-service/service && cargo vendor)
-	(cd firecracker-pilot/firecracker-service/service-communication && cargo vendor)
-	(cd firecracker-pilot/guestvm-tools/sci && cargo vendor)
+	cargo vendor
 
 sourcetar:
 	rm -rf package/flake-pilot
@@ -43,18 +38,31 @@ sourcetar:
 	cp -a firecracker-pilot package/flake-pilot/
 	cp -a doc package/flake-pilot/
 	cp -a utils package/flake-pilot/
+	cp -a vendor package/flake-pilot
+	cp Cargo.toml package/flake-pilot
+
+	# Delete any target directories that may be present
+	find package/flake-pilot -type d -wholename "*/target" -prune -exec rm -rf {} \;
+
+	# Delete large chunk windows and wasm dependencies
+	# Use filtered vendoring in the future
+	# https://github.com/rust-lang/cargo/issues/7058
+	find package/flake-pilot -type d -wholename "*/vendor/winapi*" -prune -exec \
+		rm -rf {}/src \; -exec mkdir -p {}/src \; -exec touch {}/src/lib.rs \; -exec rm -rf {}/lib \;
+	find package/flake-pilot -type d -wholename "*/vendor/windows*" -prune -exec \
+		rm -rf {}/src \; -exec mkdir -p {}/src \;  -exec touch {}/src/lib.rs \; -exec rm -rf {}/lib \;
+
+	rm -rf package/flake-pilot/vendor/web-sys/src/*
+	rm -rf package/flake-pilot/vendor/web-sys/webidls
+	touch package/flake-pilot/vendor/web-sys/src/lib.rs
+
 	tar -C package -cf package/flake-pilot.tar flake-pilot
 	rm -rf package/flake-pilot
 
 .PHONY:build
 build: man
 	cargo build -v --release
-
-	upx --best --lzma target/release/podman-pilot
-	upx --best --lzma target/release/flake-ctl
-	upx --best --lzma target/release/firecracker-service
-	cd firecracker-pilot/guestvm-tools/sci && RUSTFLAGS='-C target-feature=+crt-static' cargo build -v --release --target $(ARCH)-unknown-linux-gnu; cd ..
-	upx --best --lzma target/release/firecracker-pilot
+	cd firecracker-pilot/guestvm-tools/sci && RUSTFLAGS='-C target-feature=+crt-static' cargo build -v --release --target $(ARCH)-unknown-linux-gnu
 
 clean:
 	cd podman-pilot && cargo -v clean

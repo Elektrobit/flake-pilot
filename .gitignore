@@ -15,5 +15,10 @@ oci-pilot.tar.gz
 # Packaging files
 package/build/
 
+# Robot Test Results
+log.html
+output.xml
+report.html
+
 # Ignore tmp doc files
 doc/*.8

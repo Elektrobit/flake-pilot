@@ -127,7 +127,7 @@ impl CommandExtTrait for Command {
                     output.into()
                 }
             }
-            Err(err) => err.into(),
+            Err(err) => err,
         };
 
         Err(CommandError {

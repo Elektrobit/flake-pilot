@@ -22,7 +22,7 @@
 # SOFTWARE.
 #
 Name:           flake-pilot
-Version:        2.2.17
+Version:        2.2.19
 Release:        0
 Summary:        Launcher for flake applications
 License:        MIT
@@ -44,7 +44,6 @@ BuildRequires:  python3-docutils
 %if 0%{?suse_version}
 BuildRequires:  rust
 BuildRequires:  cargo
-BuildRequires:  upx
 BuildRequires:  openssl-devel
 BuildRequires:  glibc-devel-static
 BuildRequires:  kiwi-settings
@@ -52,7 +51,6 @@ BuildRequires:  python3-Pygments
 %endif
 %if 0%{?debian} || 0%{?ubuntu}
 BuildRequires:  rust-all
-BuildRequires:  upx-ucl
 BuildRequires:  libssl-dev
 BuildRequires:  openssl
 BuildRequires:  pkg-config
@@ -145,16 +143,8 @@ Guest VM tools to help with firecracker workloads
 sudo bash %{SOURCE2}
 %endif
 
-mkdir -p podman-pilot/.cargo
-mkdir -p firecracker-pilot/.cargo
-mkdir -p flake-ctl/.cargo
-mkdir -p firecracker-pilot/firecracker-service/service/.cargo
-mkdir -p firecracker-pilot/guestvm-tools/sci/.cargo
-cp %{SOURCE1} podman-pilot/.cargo/config
-cp %{SOURCE1} firecracker-pilot/.cargo/config
-cp %{SOURCE1} flake-ctl/.cargo/config
-cp %{SOURCE1} firecracker-pilot/firecracker-service/service/.cargo/config
-cp %{SOURCE1} firecracker-pilot/guestvm-tools/sci/.cargo/config
+mkdir -p .cargo
+cp %{SOURCE1} .cargo/config
 make build
 
 %install

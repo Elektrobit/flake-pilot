@@ -1,3 +1,4 @@
+use flakes::user::User;
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
@@ -156,11 +157,8 @@ pub fn create(
     let RuntimeSection { runas, resume, attach, .. } = config().runtime();
     let runas = runas.to_owned();
 
-    let mut app = Command::new("sudo");
-    if let Some(user) = runas {
-        app.arg("--user").arg(&user);
-    }
-    app.arg("podman").arg("create")
+    let mut app = runas.run("podman");
+    app.arg("create")
         .arg("--cidfile").arg(&container_cid_file);
 
 
@@ -263,7 +261,7 @@ fn run_podman_creation(
     mut app: Command, 
     delta_container: bool, 
     has_includes: bool, 
-    runas: Option<&str>,
+    runas: User,
     container_name: &str,
     mut layers: Vec<String>,
     container_cid_file: &str
@@ -370,7 +368,7 @@ pub fn get_target_app_path(
 
 pub fn call_instance(
     action: &str, cid: &str, program_name: &str,
-    user: Option<&str>
+    user: User
 ) -> Result<(), FlakeError> {
     /*!
     Call container ID based podman commands
@@ -379,15 +377,12 @@ pub fn call_instance(
 
     let RuntimeSection { resume, .. } = config().runtime();
 
-    let mut call = Command::new("sudo");
+    let mut call = user.run("podman");
     if action == "create" || action == "rm" {
         call.stderr(Stdio::null());
         call.stdout(Stdio::null());
     }
-    if let Some(user) = user {
-        call.arg("--user").arg(user);
-    }
-    call.arg("podman").arg(action);
+    call.arg(action);
     if action == "exec" {
         call.arg("--interactive");
         call.arg("--tty");
@@ -416,22 +411,19 @@ pub fn call_instance(
 }
 
 pub fn mount_container(
-    container_name: &str, user: Option<&str>, as_image: bool
+    container_name: &str, user: User, as_image: bool
 ) -> Result<String, FlakeError> {
     /*!
     Mount container and return mount point
     !*/
-    let mut call = Command::new("sudo");
-    if let Some(user) = user {
-        call.arg("--user").arg(user);
-    }
+    let mut call = user.run("podman");
     if as_image {
         if ! container_image_exists(container_name, user)? {
             pull(container_name, user)?;
         }
-        call.arg("podman").arg("image").arg("mount").arg(container_name);
+        call.arg("image").arg("mount").arg(container_name);
     } else {
-        call.arg("podman").arg("mount").arg(container_name);
+        call.arg("mount").arg(container_name);
     }
     debug(&format!("{:?}", call.get_args()));
 
@@ -441,21 +433,18 @@ pub fn mount_container(
 }
 
 pub fn umount_container(
-    mount_point: &str, user: Option<&str>, as_image: bool
+    mount_point: &str, user: User, as_image: bool
 ) -> Result<(), FlakeError> {
     /*!
     Umount container image
     !*/
-    let mut call = Command::new("sudo");
+    let mut call = user.run("podman");
     call.stderr(Stdio::null());
     call.stdout(Stdio::null());
-    if let Some(user) = user {
-        call.arg("--user").arg(user);
-    }
     if as_image {
-        call.arg("podman").arg("image").arg("umount").arg(mount_point);
+        call.arg("image").arg("umount").arg(mount_point);
     } else {
-        call.arg("podman").arg("umount").arg(mount_point);
+        call.arg("umount").arg(mount_point);
     }
     debug(&format!("{:?}", call.get_args()));
     call.perform()?;
@@ -463,7 +452,7 @@ pub fn umount_container(
 }
 
 pub fn sync_includes(
-    target: &String, user: Option<&str>
+    target: &String, user: User
 ) -> Result<(), FlakeError> {
     /*!
     Sync custom include data to target path
@@ -472,12 +461,8 @@ pub fn sync_includes(
     
     for tar in tar_includes {
         debug(&format!("Adding tar include: [{}]", tar));
-        let mut call = Command::new("sudo");
-        if let Some(user) = user {
-            call.arg("--user").arg(user);
-        }
-        call.arg("tar")
-            .arg("-C").arg(target)
+        let mut call = user.run("tar");
+        call.arg("-C").arg(target)
             .arg("-xf").arg(tar);
         debug(&format!("{:?}", call.get_args()));
         let output = call.perform()?;
@@ -488,17 +473,13 @@ pub fn sync_includes(
 }
 
 pub fn sync_delta(
-    source: &String, target: &String, user: Option<&str>
+    source: &String, target: &String, user: User
 ) -> Result<(), CommandError> {
     /*!
     Sync data from source path to target path
     !*/
-    let mut call = Command::new("sudo");
-    if let Some(user) = user {
-        call.arg("--user").arg(user);
-    }
-    call.arg("rsync")
-        .arg("-av")
+    let mut call = user.run("rsync");
+    call.arg("-av")
         .arg(format!("{}/", &source))
         .arg(format!("{}/", &target));
     debug(&format!("{:?}", call.get_args()));
@@ -509,7 +490,7 @@ pub fn sync_delta(
 }
 
 pub fn sync_host(
-    target: &String, mut removed_files: &File, user: Option<&str>
+    target: &String, mut removed_files: &File, user: User
 ) -> Result<(), FlakeError> {
     /*!
     Sync files/dirs specified in target/defaults::HOST_DEPENDENCIES
@@ -528,12 +509,8 @@ pub fn sync_host(
 
     File::create(&host_deps)?.write_all(removed_files_contents.as_bytes())?;
 
-    let mut call = Command::new("sudo");
-    if let Some(user) = user {
-        call.arg("--user").arg(user);
-    }
-    call.arg("rsync")
-        .arg("-av")
+    let mut call = user.run("rsync");
+    call.arg("-av")
         .arg("--ignore-missing-args")
         .arg("--files-from").arg(&host_deps)
         .arg("/")
@@ -546,23 +523,19 @@ pub fn sync_host(
 
 pub fn init_cid_dir() -> Result<(), FlakeError> {
     if ! Path::new(defaults::CONTAINER_CID_DIR).is_dir() {
-        chmod(defaults::CONTAINER_DIR, "755", Some("root"))?;
-        mkdir(defaults::CONTAINER_CID_DIR, "777", Some("root"))?;
+        chmod(defaults::CONTAINER_DIR, "755", User::ROOT)?;
+        mkdir(defaults::CONTAINER_CID_DIR, "777", User::ROOT)?;
     }
     Ok(())
 }
 
-pub fn container_running(cid: &str, user: Option<&str>) -> Result<bool, CommandError> {
+pub fn container_running(cid: &str, user: User) -> Result<bool, CommandError> {
     /*!
     Check if container with specified cid is running
     !*/
     let mut running_status = false;
-    let mut running = Command::new("sudo");
-    if let Some(user) = user {
-        running.arg("--user").arg(user);
-    }
-    running.arg("podman")
-        .arg("ps").arg("--format").arg("{{.ID}}");
+    let mut running = user.run("podman");
+    running.arg("ps").arg("--format").arg("{{.ID}}");
     debug(&format!("{:?}", running.get_args()));
 
     let output = running.perform()?;
@@ -580,39 +553,28 @@ pub fn container_running(cid: &str, user: Option<&str>) -> Result<bool, CommandE
     Ok(running_status)
 }
 
-pub fn container_image_exists(name: &str, user: Option<&str>) -> Result<bool, std::io::Error> {
+pub fn container_image_exists(name: &str, user: User) -> Result<bool, std::io::Error> {
     /*!
     Check if container image is present in local registry
     !*/
-    let mut exists = Command::new("sudo");
-    if let Some(user) = user {
-        exists.arg("--user").arg(user);
-    }
-    exists.arg("podman")
-        .arg("image").arg("exists").arg(name);
+    let mut exists = user.run("podman");
+    exists.arg("image").arg("exists").arg(name);
     debug(&format!("{:?}", exists.get_args()));
     Ok(exists.status()?.success())
 }
 
-pub fn pull(uri: &str, user: Option<&str>) -> Result<(), FlakeError> {
+pub fn pull(uri: &str, user: User) -> Result<(), FlakeError> {
     /*!
     Call podman pull and prune with the provided uri
     !*/
-    let mut pull = Command::new("sudo");
-    if let Some(user) = user {
-        pull.arg("--user").arg(user);
-    }
-    pull.arg("podman").arg("pull").arg(uri);
+    let mut pull = user.run("podman");
+    pull.arg("pull").arg(uri);
     debug(&format!("{:?}", pull.get_args()));
 
     pull.perform()?;
 
-    let mut prune = Command::new("sudo");
-    if let Some(user) = user {
-        prune.arg("--user").arg(user);
-    }
-
-    prune.arg("podman").arg("image").arg("prune").arg("--force");
+    let mut prune = user.run("podman");
+    prune.arg("image").arg("prune").arg("--force");
     match prune.status() {
         Ok(status) => { debug(&format!("{:?}", status)) },
         Err(error) => { debug(&format!("{:?}", error)) }
@@ -639,7 +601,7 @@ pub fn update_removed_files(
     Ok(())
 }
 
-pub fn gc_cid_file(container_cid_file: &String, user: Option<&str>) -> Result<bool, FlakeError> {
+pub fn gc_cid_file(container_cid_file: &String, user: User) -> Result<bool, FlakeError> {
     /*!
     Check if container exists according to the specified
     container_cid_file. Garbage cleanup the container_cid_file
@@ -647,12 +609,8 @@ pub fn gc_cid_file(container_cid_file: &String, user: Option<&str>) -> Result<bo
     exists, in any other case return false.
     !*/
     let cid = fs::read_to_string(container_cid_file)?;
-    let mut exists = Command::new("sudo");
-    if let Some(user) = user {
-        exists.arg("--user").arg(user);
-    }
-    exists.arg("podman")
-        .arg("container").arg("exists").arg(&cid);
+    let mut exists = user.run("podman");
+        exists.arg("container").arg("exists").arg(&cid);
 
 
     if !exists.status()?.success() {
@@ -663,31 +621,23 @@ pub fn gc_cid_file(container_cid_file: &String, user: Option<&str>) -> Result<bo
     }
 }
 
-pub fn chmod(filename: &str, mode: &str, user: Option<&str>) -> Result<(), CommandError> {
+pub fn chmod(filename: &str, mode: &str, user: User) -> Result<(), CommandError> {
     /*!
     Chmod filename via sudo
     !*/
-    let mut call = Command::new("sudo");
-    if let Some(user) = user {
-        call.arg("--user").arg(user);
-    }
-    call.arg("chmod").arg(mode).arg(filename).perform()?;
+    user.run("chmod").arg(mode).arg(filename).perform()?;
     Ok(())
 }
 
-pub fn mkdir(dirname: &str, mode: &str, user: Option<&str>) -> Result<(), CommandError> {
+pub fn mkdir(dirname: &str, mode: &str, user: User) -> Result<(), CommandError> {
     /*!
     Make directory via sudo
     !*/
-    let mut call = Command::new("sudo");
-    if let Some(user) = user {
-        call.arg("--user").arg(user);
-    }
-    call.arg("mkdir").arg("-p").arg("-m").arg(mode).arg(dirname).perform()?;
+    user.run("mkdir").arg("-p").arg("-m").arg(mode).arg(dirname).perform()?;
     Ok(())
 }
 
-pub fn gc(user: Option<&str>) -> Result<(), std::io::Error> {
+pub fn gc(user: User) -> Result<(), std::io::Error> {
     /*!
     Garbage collect CID files for which no container exists anymore
     !*/
