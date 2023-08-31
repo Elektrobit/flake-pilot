@@ -9,7 +9,7 @@ ${FLAKES_DIR} =  /usr/share/flakes
 
 *** Keywords ***
 Register Podman Container
-    [Arguments]    ${container}    ${name}    ${base}=None    ${target}=/
+    [Arguments]    ${container}    ${name}    ${base}=None    ${target}=/    ${working_dir}=None
 
     ${args} =  Create List    sudo    flake-ctl    podman    register
 
@@ -18,6 +18,11 @@ Register Podman Container
 
     IF    "${base}" != "None"
         Append To List    ${args}    --base    ${base}
+    END
+
+
+    IF    "${working_dir}" != "None"
+        Append To List    ${args}    --working-dir        
     END
 
     Append To List  ${args}    --target    ${target}
