@@ -51,7 +51,7 @@ sourcetar:
 		rm -rf {}/src \; -exec mkdir -p {}/src \; -exec touch {}/src/lib.rs \; -exec rm -rf {}/lib \;
 	find package/flake-pilot -type d -wholename "*/vendor/windows*" -prune -exec \
 		rm -rf {}/src \; -exec mkdir -p {}/src \;  -exec touch {}/src/lib.rs \; -exec rm -rf {}/lib \;
-	
+
 	rm -rf package/flake-pilot/vendor/web-sys/src/*
 	rm -rf package/flake-pilot/vendor/web-sys/webidls
 	touch package/flake-pilot/vendor/web-sys/src/lib.rs
@@ -62,11 +62,7 @@ sourcetar:
 .PHONY:build
 build: man
 	cargo build -v --release
-	upx --best --lzma target/release/podman-pilot
-	upx --best --lzma target/release/flake-ctl
-	upx --best --lzma target/release/firecracker-service
 	cd firecracker-pilot/guestvm-tools/sci && RUSTFLAGS='-C target-feature=+crt-static' cargo build -v --release --target $(ARCH)-unknown-linux-gnu
-	upx --best --lzma target/release/firecracker-pilot
 
 clean:
 	cd podman-pilot && cargo -v clean
