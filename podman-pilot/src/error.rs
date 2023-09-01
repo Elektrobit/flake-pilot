@@ -17,8 +17,10 @@ pub enum FlakeError {
     /// This flake is already running
     #[error("Container id in use by another instance, consider @NAME argument")]
     AlreadyRunning,
-}
 
+    #[error("Access Denied")]
+    AccessDenied,
+}
 
 impl Termination for FlakeError {
     /// A failed sub command will forward its error code
