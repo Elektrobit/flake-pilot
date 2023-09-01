@@ -317,31 +317,40 @@ pub fn call_instance(action: &str, cid: &str, program_name: &str, user: User) ->
     let RuntimeSection { resume, .. } = config().runtime();
 
     let mut call = user.run("podman");
+    call.arg(action);
+
+    // Mute STDOUT/STDERR on create and removal
     if action == "create" || action == "rm" {
         call.stderr(Stdio::null());
         call.stdout(Stdio::null());
     }
-    call.arg(action);
-    if action == "exec" {
-        call.arg("--interactive");
-        call.arg("--tty");
-    }
-    if action == "start" && !resume {
-        call.arg("--attach");
-    } else if action == "start" {
-        // start detached, we are not interested in the
-        // start output in this case
+
+    // Mute STDOUT on start when resuming
+    // start detached, we are not interested in the
+    // start output in this case
+    if action == "start" && resume {
         call.stdout(Stdio::null());
     }
+
+    if action == "exec" {
+        call.arg("--interactive").arg("--tty");
+    }
+
+    if action == "start" && !resume {
+        call.arg("--attach");
+    }
+
     call.arg(cid);
+
     if action == "exec" {
         call.arg(get_target_app_path(program_name));
-        for arg in &args[1..] {
+        for arg in &env::args().collect::<Vec<String>>()[1..] {
             if !arg.starts_with('@') {
                 call.arg(arg);
             }
         }
     }
+
     debug(&format!("{:?}", call.get_args()));
     call.status()?;
     Ok(())
