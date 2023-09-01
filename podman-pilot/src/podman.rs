@@ -244,7 +244,7 @@ fn run_podman_creation(mut app: Command) -> Result<String, FlakeError> {
             sync_delta(&app_mount_point, &instance_mount_point, runas)?;
 
             // TODO: Behaviour (continue on error) retained from previous implementation, is this correct?
-            let _ = umount_container(&layer, runas, true);
+            let _ = umount_container(layer, runas, true);
         }
         debug("Syncing host dependencies...");
         sync_host(&instance_mount_point, &removed_files, runas)?;
