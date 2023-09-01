@@ -446,9 +446,19 @@ pub fn sync_host(target: &String, mut removed_files: &File, user: User) -> Resul
 }
 
 pub fn init_cid_dir() -> Result<(), FlakeError> {
-    if !Path::new(defaults::CONTAINER_CID_DIR).is_dir() {
-        chmod(defaults::CONTAINER_DIR, "755", User::ROOT)?;
-        mkdir(defaults::CONTAINER_CID_DIR, "777", User::ROOT)?;
+    if !Path::new(defaults::CONTAINER_CID_DIR).exists() {
+        if !unistd::geteuid().is_root() {
+            return Err(FlakeError::AccessDenied);
+        }
+
+        fs::set_permissions(defaults::CONTAINER_DIR, fs::Permissions::from_mode(0o755))?;
+        fs::create_dir_all(defaults::CONTAINER_CID_DIR)?;
+
+        // XXX: Potential CVE?
+        //
+        // This should not do 777. However, if this needs to be temporary,
+        // then this should go to /tmp/flakes/... instead.
+        fs::set_permissions(defaults::CONTAINER_CID_DIR, fs::Permissions::from_mode(0o777))?;
     }
     Ok(())
 }
