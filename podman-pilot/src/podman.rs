@@ -375,19 +375,20 @@ pub fn mount_container(container_name: &str, user: User, as_image: bool) -> Resu
     Ok(String::from_utf8_lossy(&call.perform()?.stdout).trim().to_string())
 }
 
+/// Umount container image
 pub fn umount_container(mount_point: &str, user: User, as_image: bool) -> Result<(), FlakeError> {
-    /*!
-    Umount container image
-    !*/
     let mut call = user.run("podman");
     call.stderr(Stdio::null());
     call.stdout(Stdio::null());
+
     if as_image {
-        call.arg("image").arg("umount").arg(mount_point);
-    } else {
-        call.arg("umount").arg(mount_point);
+        call.arg("image");
     }
+
+    call.arg("umount").arg(mount_point);
+
     debug(&format!("{:?}", call.get_args()));
+
     call.perform()?;
     Ok(())
 }
