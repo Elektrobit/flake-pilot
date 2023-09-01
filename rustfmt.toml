@@ -1,0 +1,23 @@
+# Don't argue on 130 width. :-) Just don't.
+# No more IBM punchcards here, and your monitor
+# is at least 28 inches wide with a decent resolution.
+#
+# Welcome to the 21st century.
+
+max_width = 130
+fn_call_width = 130
+chain_width = 130
+single_line_let_else_max_width = 130
+single_line_if_else_max_width = 130
+use_small_heuristics = "Max"
+
+# Parser version
+edition = "2021"
+
+# Emacs!
+tab_spaces = 4
+
+# Perks
+use_field_init_shorthand = true
+fn_args_layout = "Compressed"
+use_try_shorthand = true
