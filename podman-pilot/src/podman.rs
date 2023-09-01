@@ -271,7 +271,12 @@ fn run_podman_creation(
             debug("Syncing host dependencies...");
             sync_host(&instance_mount_point, &removed_files, runas)?;
 
-            let _ = umount_container(&cid, runas, false);
+            match umount_container(&cid, runas, false) {
+                Ok(_) => {}
+                Err(err) => {
+                    warn!("{}", err);
+                }
+            }
         }
 
         if has_includes {
