@@ -18,3 +18,4 @@ serde = { version = "1.0.175", features = ["derive"] }
 serde_yaml = "0.9.25"
 thiserror = "1.0.44"
 flakes = { version = "0.1.0 ", path = "../common" }
+nix = { version = "0.27.1", features = ["user", "fs", "hostname"] }
