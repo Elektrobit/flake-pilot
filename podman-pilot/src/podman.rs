@@ -244,9 +244,7 @@ fn run_podman_creation(
     mut app: Command, delta_container: bool, has_includes: bool, runas: User, container_name: &str, mut layers: Vec<String>,
     container_cid_file: &str,
 ) -> Result<(String, String), FlakeError> {
-    let output = app.perform()?;
-
-    let cid = String::from_utf8_lossy(&output.stdout).trim_end_matches('\n').to_owned();
+    let cid = String::from_utf8_lossy(&app.perform()?.stdout).trim_end_matches('\n').to_owned();
 
     if delta_container || has_includes {
         debug("Mounting instance for provisioning workload");
