@@ -527,22 +527,6 @@ pub fn gc_cid_file(container_cid_file: &String, user: User) -> Result<bool, Flak
     }
 }
 
-pub fn chmod(filename: &str, mode: &str, user: User) -> Result<(), CommandError> {
-    /*!
-    Chmod filename via sudo
-    !*/
-    user.run("chmod").arg(mode).arg(filename).perform()?;
-    Ok(())
-}
-
-pub fn mkdir(dirname: &str, mode: &str, user: User) -> Result<(), CommandError> {
-    /*!
-    Make directory via sudo
-    !*/
-    user.run("mkdir").arg("-p").arg("-m").arg(mode).arg(dirname).perform()?;
-    Ok(())
-}
-
 // Garbage collect CID files for which no container exists anymore
 pub fn gc(user: User) -> Result<(), std::io::Error> {
     let mut cid_file_names: Vec<String> = Vec::new();
