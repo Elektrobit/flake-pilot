@@ -265,8 +265,13 @@ fn run_podman_creation(
                 let app_mount_point = mount_container(&layer, runas, true)?;
                 update_removed_files(&app_mount_point, &removed_files)?;
                 sync_delta(&app_mount_point, &instance_mount_point, runas)?;
-                // TODO: Behaviour (continue on error) retained from previous implementation, is this correct?
-                let _ = umount_container(&layer, runas, true);
+
+                match umount_container(&layer, runas, true) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        warn!("{}", err);
+                    }
+                }
             }
             debug("Syncing host dependencies...");
             sync_host(&instance_mount_point, &removed_files, runas)?;
