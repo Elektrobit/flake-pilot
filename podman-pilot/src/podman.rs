@@ -393,10 +393,8 @@ pub fn umount_container(mount_point: &str, user: User, as_image: bool) -> Result
     Ok(())
 }
 
+/// Sync custom include data to target path
 pub fn sync_includes(target: &String, user: User) -> Result<(), FlakeError> {
-    /*!
-    Sync custom include data to target path
-    !*/
     let tar_includes = &config().tars();
 
     for tar in tar_includes {
@@ -411,24 +409,21 @@ pub fn sync_includes(target: &String, user: User) -> Result<(), FlakeError> {
     Ok(())
 }
 
+/// Sync data from source path to target path
 pub fn sync_delta(source: &String, target: &String, user: User) -> Result<(), CommandError> {
-    /*!
-    Sync data from source path to target path
-    !*/
+    // XXX: This is an external dependency, not always present.
     let mut call = user.run("rsync");
+
     call.arg("-av").arg(format!("{}/", &source)).arg(format!("{}/", &target));
     debug(&format!("{:?}", call.get_args()));
-
     call.perform()?;
 
     Ok(())
 }
 
+/// Sync files/dirs specified in target/defaults::HOST_DEPENDENCIES
+/// from the running host to the target path
 pub fn sync_host(target: &String, mut removed_files: &File, user: User) -> Result<(), FlakeError> {
-    /*!
-    Sync files/dirs specified in target/defaults::HOST_DEPENDENCIES
-    from the running host to the target path
-    !*/
     let mut removed_files_contents = String::new();
     let host_deps = format!("{}/{}", &target, defaults::HOST_DEPENDENCIES);
     removed_files.seek(SeekFrom::Start(0))?;
@@ -457,11 +452,8 @@ pub fn init_cid_dir() -> Result<(), FlakeError> {
     Ok(())
 }
 
+// Check if container with specified cid is running
 pub fn container_running(cid: &str, user: User) -> Result<bool, CommandError> {
-    /*!
-    Check if container with specified cid is running
-    !*/
-    let mut running_status = false;
     let mut running = user.run("podman");
     running.arg("ps").arg("--format").arg("{{.ID}}");
     debug(&format!("{:?}", running.get_args()));
@@ -479,20 +471,16 @@ pub fn container_running(cid: &str, user: User) -> Result<bool, CommandError> {
     Ok(running_status)
 }
 
+// Check if container image is present in local registry
 pub fn container_image_exists(name: &str, user: User) -> Result<bool, std::io::Error> {
-    /*!
-    Check if container image is present in local registry
-    !*/
     let mut exists = user.run("podman");
     exists.arg("image").arg("exists").arg(name);
     debug(&format!("{:?}", exists.get_args()));
     Ok(exists.status()?.success())
 }
 
+/// Call podman pull and prune with the provided uri
 pub fn pull(uri: &str, user: User) -> Result<(), FlakeError> {
-    /*!
-    Call podman pull and prune with the provided uri
-    !*/
     let mut pull = user.run("podman");
     pull.arg("pull").arg(uri);
     debug(&format!("{:?}", pull.get_args()));
@@ -509,11 +497,8 @@ pub fn pull(uri: &str, user: User) -> Result<(), FlakeError> {
     Ok(())
 }
 
+// Take the contents of the given removed_file and append it to the accumulated_file.
 pub fn update_removed_files(target: &String, mut accumulated_file: &File) -> Result<(), std::io::Error> {
-    /*!
-    Take the contents of the given removed_file and append it
-    to the accumulated_file
-    !*/
     let host_deps = format!("{}/{}", &target, defaults::HOST_DEPENDENCIES);
     debug(&format!("Looking up host deps from {}", host_deps));
     if Path::new(&host_deps).exists() {
@@ -525,13 +510,11 @@ pub fn update_removed_files(target: &String, mut accumulated_file: &File) -> Res
     Ok(())
 }
 
+// Check if container exists according to the specified
+// container_cid_file. Garbage cleanup the container_cid_file
+// if no longer present. Return a true value if the container
+// exists, in any other case return false.
 pub fn gc_cid_file(container_cid_file: &String, user: User) -> Result<bool, FlakeError> {
-    /*!
-    Check if container exists according to the specified
-    container_cid_file. Garbage cleanup the container_cid_file
-    if no longer present. Return a true value if the container
-    exists, in any other case return false.
-    !*/
     let cid = fs::read_to_string(container_cid_file)?;
     let mut exists = user.run("podman");
     exists.arg("container").arg("exists").arg(&cid);
@@ -560,10 +543,8 @@ pub fn mkdir(dirname: &str, mode: &str, user: User) -> Result<(), CommandError> 
     Ok(())
 }
 
+// Garbage collect CID files for which no container exists anymore
 pub fn gc(user: User) -> Result<(), std::io::Error> {
-    /*!
-    Garbage collect CID files for which no container exists anymore
-    !*/
     let mut cid_file_names: Vec<String> = Vec::new();
     let mut cid_file_count: i32 = 0;
     let paths = fs::read_dir(defaults::CONTAINER_CID_DIR)?;
