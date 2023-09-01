@@ -22,7 +22,6 @@
 // SOFTWARE.
 //
 use crate::{app_config, defaults, firecracker, podman};
-use flakes::cwd::MountMode;
 use glob::glob;
 use std::fs;
 use std::os::unix::fs::symlink;
@@ -100,8 +99,7 @@ pub fn create_container_config(
     attach: bool,
     run_as: Option<&String>,
     opts: Option<Vec<String>>,
-    dir: Option<String>,
-    mount_dir: Option<MountMode>
+    dir: Option<String>
 ) -> bool {
     /*!
     Create app configuration for the container engine.
@@ -136,8 +134,7 @@ pub fn create_container_config(
         attach,
         run_as,
         opts,
-        dir, 
-        mount_dir
+        dir
     ) {
         Ok(_) => true,
         Err(error) => {

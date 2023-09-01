@@ -1,4 +1,4 @@
-use flakes::{user::User, cwd::MountMode};
+use flakes::user::User;
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::{env, path::PathBuf, fs};
@@ -99,10 +99,6 @@ impl<'a> Config<'a> {
     pub fn tars(&self) -> Vec<&'a str> {
         self.include.tar.as_ref().cloned().unwrap_or_default()
     }
-
-    pub fn mount(&self) -> Option<&'a str> {
-        self.container.dir
-    }
 }
 
 #[derive(Deserialize)]
@@ -122,18 +118,6 @@ pub struct ContainerSection<'a> {
 
     /// Path of the program to register on the host
     pub host_app_path: &'a str,
-
-    /// Which directory to mount as the cwd inside the container.
-    /// 
-    /// No directory is mounted if `dir` is not given.
-    /// 
-    /// Otherwise the directory from the host will be mounted into the container and the
-    /// the target app will be run with that directory as the cwd.
-    pub dir: Option<&'a str>,
-
-    /// How to mount the working directory (ignored if `dir` is not given)
-    #[serde(default)]
-    pub dir_mount: MountMode,
 
     /// Optional base container to use with a delta 'container: name'
     ///

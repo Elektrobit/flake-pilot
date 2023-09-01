@@ -23,7 +23,6 @@
 //
 use std::io::{Error, ErrorKind};
 use std::path::Path;
-use flakes::cwd::MountMode;
 use serde::{Serialize, Deserialize};
 use serde_yaml::{self};
 use crate::defaults;
@@ -46,8 +45,7 @@ pub struct AppContainer {
     pub base_container: Option<String>,
     pub layers: Option<Vec<String>>,
     pub runtime: Option<AppContainerRuntime>,
-    pub dir: Option<String>,
-    pub mount_dir: MountMode
+    pub dir: Option<String>
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppContainerRuntime {
@@ -103,7 +101,6 @@ impl AppConfig {
         run_as: Option<&String>,
         opts: Option<Vec<String>>,
         dir: Option<String>,
-        mount_dir: Option<MountMode>
     ) -> Result<(), GenericError> {
         /*!
         save stores an AppConfig to the given file
@@ -161,8 +158,10 @@ impl AppConfig {
             );
         }
         if let Some(dir) = dir {
-            container_config.dir = Some(dir);
-            container_config.mount_dir = mount_dir.unwrap_or_default();
+            let mut l = container_config.runtime.as_ref().unwrap().podman.clone().unwrap_or_default();
+            l.push(format!("--volume {dir}:/mountedwd"));
+            l.push(format!("--workdir /mountedwd"));
+            container_config.runtime.as_mut().unwrap().podman = Some(l)
         }
 
         let config = std::fs::OpenOptions::new()

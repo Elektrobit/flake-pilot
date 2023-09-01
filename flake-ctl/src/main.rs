@@ -164,8 +164,7 @@ async fn main() -> Result<ExitCode, Box<dyn std::error::Error>> {
                                 *attach,
                                 run_as.as_ref(),
                                 opt.as_ref().cloned(),
-                                dir,
-                                None
+                                dir
                             );
                         }
                         if ! ok {

@@ -1,5 +1,3 @@
-use flakes::cwd;
-use flakes::user::User;
 //
 // Copyright (c) 2022 Elektrobit Automotive GmbH
 //
@@ -36,6 +34,7 @@ use std::io::{Write, Read};
 use std::fs::File;
 use std::io::Seek;
 use std::io::SeekFrom;
+use flakes::user::User;
 
 use crate::defaults;
 
@@ -43,9 +42,9 @@ pub fn create(
     program_name: &String
 ) -> Result<(String, String), FlakeError> {
     /*!
-    Create container for later execution of program_name.
-    The container name and all other settings to run the program
-    inside of the container are taken from the config file(s)
+     Create container for later execution of program_name.
+     The container name and all other settings to run the program
+     inside of the container are taken from the config file(s)
 
     CONTAINER_FLAKE_DIR/
        ├── program_name.d
@@ -161,13 +160,6 @@ pub fn create(
     let mut app = runas.run("podman");
     app.arg("create")
         .arg("--cidfile").arg(&container_cid_file);
-
-
-    if let Some(working_dir) = config().mount() {
-        let mount_cmd = cwd::format_mount_command(working_dir, "/working_dir", &config().container.dir_mount);
-        app.arg("--mount").arg(mount_cmd);
-        app.arg("--workdir").arg("/working_dir");
-    }
 
     // Make sure CID dir exists
     init_cid_dir()?;
