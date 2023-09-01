@@ -361,24 +361,20 @@ pub fn call_instance(action: &str, cid: &str, program_name: &str, user: User) ->
     Ok(())
 }
 
+/// Mount container and return mount point
 pub fn mount_container(container_name: &str, user: User, as_image: bool) -> Result<String, FlakeError> {
-    /*!
-    Mount container and return mount point
-    !*/
     let mut call = user.run("podman");
     if as_image {
         if !container_image_exists(container_name, user)? {
             pull(container_name, user)?;
         }
-        call.arg("image").arg("mount").arg(container_name);
-    } else {
-        call.arg("mount").arg(container_name);
+        call.arg("image");
     }
+    call.arg("mount").arg(container_name);
+
     debug(&format!("{:?}", call.get_args()));
 
-    let output = call.perform()?;
-
-    Ok(String::from_utf8_lossy(&output.stdout).trim_end_matches('\n').to_owned())
+    Ok(String::from_utf8_lossy(&call.perform()?.stdout).trim().to_string())
 }
 
 pub fn umount_container(mount_point: &str, user: User, as_image: bool) -> Result<(), FlakeError> {
