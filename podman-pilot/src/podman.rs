@@ -467,19 +467,16 @@ pub fn init_cid_dir() -> Result<(), FlakeError> {
 pub fn container_running(cid: &str, user: User) -> Result<bool, CommandError> {
     let mut running = user.run("podman");
     running.arg("ps").arg("--format").arg("{{.ID}}");
+
     debug(&format!("{:?}", running.get_args()));
 
-    let output = running.perform()?;
-    let mut running_cids = String::new();
-    running_cids.push_str(&String::from_utf8_lossy(&output.stdout));
-    for running_cid in running_cids.lines() {
+    for running_cid in String::from_utf8(running.perform()?.stdout).unwrap_or_default().lines() {
         if cid.starts_with(running_cid) {
-            running_status = true;
-            break;
+            return Ok(true);
         }
     }
 
-    Ok(running_status)
+    Ok(false)
 }
 
 // Check if container image is present in local registry
@@ -526,9 +523,8 @@ pub fn update_removed_files(target: &String, mut accumulated_file: &File) -> Res
 // if no longer present. Return a true value if the container
 // exists, in any other case return false.
 pub fn gc_cid_file(container_cid_file: &String, user: User) -> Result<bool, FlakeError> {
-    let cid = fs::read_to_string(container_cid_file)?;
     let mut exists = user.run("podman");
-    exists.arg("container").arg("exists").arg(&cid);
+    exists.arg("container").arg("exists").arg(fs::read_to_string(container_cid_file)?);
 
     if !exists.status()?.success() {
         fs::remove_file(container_cid_file)?;
