@@ -303,24 +303,17 @@ pub fn start(program_name: &str, cid: &str) -> Result<(), FlakeError> {
     Ok(())
 }
 
+/// Setup application command path name
+///
+/// This is either the program name specified at registration
+/// time or the configured target application from the flake
+/// configuration file
 pub fn get_target_app_path(program_name: &str) -> String {
-    /*!
-    setup application command path name
-
-    This is either the program name specified at registration
-    time or the configured target application from the flake
-    configuration file
-    !*/
-
     config().container.target_app_path.unwrap_or(program_name).to_owned()
 }
 
+/// Call container ID based podman commands
 pub fn call_instance(action: &str, cid: &str, program_name: &str, user: User) -> Result<(), FlakeError> {
-    /*!
-    Call container ID based podman commands
-    !*/
-    let args: Vec<String> = env::args().collect();
-
     let RuntimeSection { resume, .. } = config().runtime();
 
     let mut call = user.run("podman");
