@@ -25,8 +25,8 @@ use flakes::user::User;
 use crate::config::{config, RuntimeSection};
 use crate::defaults::debug;
 use crate::error::{CommandError, CommandExtTrait, FlakeError};
+use nix::unistd;
 use spinoff::{spinners, Color, Spinner};
-use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::Seek;
@@ -34,6 +34,7 @@ use std::io::SeekFrom;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::{env, os::unix::prelude::PermissionsExt};
 use tempfile::tempfile;
 
 use crate::defaults;
