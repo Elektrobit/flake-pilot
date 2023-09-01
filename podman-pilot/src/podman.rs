@@ -38,78 +38,76 @@ use tempfile::tempfile;
 
 use crate::defaults;
 
+/// Create container for later execution of program_name.
+/// The container name and all other settings to run the program
+/// inside of the container are taken from the config file(s)
+///
+/// CONTAINER_FLAKE_DIR/
+///    ├── program_name.d
+///    │   └── other.yaml
+///    └── program_name.yaml
+///
+/// All commandline options will be passed to the program_name
+/// called in the container. An example program config file
+/// looks like the following:
+///
+/// container:
+///   name: name
+///   target_app_path: path/to/program/in/container
+///   host_app_path: path/to/program/on/host
+///
+///   # Optional base container to use with a delta 'container: name'
+///   # If specified the given 'container: name' is expected to be
+///   # an overlay for the specified base_container. podman-pilot
+///   # combines the 'container: name' with the base_container into
+///   # one overlay and starts the result as a container instance
+///   #
+///   # Default: not_specified
+///   base_container: name
+///
+///   # Optional additional container layers on top of the
+///   # specified base container
+///   layers:
+///     - name_A
+///     - name_B
+///
+///   runtime:
+///     # Run the container engine as a user other than the
+///     # default target user root. The user may be either
+///     # a user name or a numeric user-ID (UID) prefixed
+///     # with the ‘#’ character (e.g. #0 for UID 0). The call
+///     # of the container engine is performed by sudo.
+///     # The behavior of sudo can be controlled via the
+///     # file /etc/sudoers
+///     runas: root
+///
+///     # Resume the container from previous execution.
+///     # If the container is still running, the app will be
+///     # executed inside of this container instance.
+///     #
+///     # Default: false
+///     resume: true|false
+///
+///     # Attach to the container if still running, rather than
+///     # executing the app again. Only makes sense for interactive
+///     # sessions like a shell running as app in the container.
+///     #
+///     # Default: false
+///     attach: true|false
+///
+///     podman:
+///       - --storage-opt size=10G
+///       - --rm
+///       - -ti
+///
+///   Calling this method returns a vector including the
+///   container ID and and the name of the container ID
+///   file.
+///
+/// include:
+///   tar:
+///     - tar-archive-file-name-to-include
 pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
-    /*!
-    Create container for later execution of program_name.
-    The container name and all other settings to run the program
-    inside of the container are taken from the config file(s)
-
-    CONTAINER_FLAKE_DIR/
-       ├── program_name.d
-       │   └── other.yaml
-       └── program_name.yaml
-
-    All commandline options will be passed to the program_name
-    called in the container. An example program config file
-    looks like the following:
-
-    container:
-      name: name
-      target_app_path: path/to/program/in/container
-      host_app_path: path/to/program/on/host
-
-      # Optional base container to use with a delta 'container: name'
-      # If specified the given 'container: name' is expected to be
-      # an overlay for the specified base_container. podman-pilot
-      # combines the 'container: name' with the base_container into
-      # one overlay and starts the result as a container instance
-      #
-      # Default: not_specified
-      base_container: name
-
-      # Optional additional container layers on top of the
-      # specified base container
-      layers:
-        - name_A
-        - name_B
-
-      runtime:
-        # Run the container engine as a user other than the
-        # default target user root. The user may be either
-        # a user name or a numeric user-ID (UID) prefixed
-        # with the ‘#’ character (e.g. #0 for UID 0). The call
-        # of the container engine is performed by sudo.
-        # The behavior of sudo can be controlled via the
-        # file /etc/sudoers
-        runas: root
-
-        # Resume the container from previous execution.
-        # If the container is still running, the app will be
-        # executed inside of this container instance.
-        #
-        # Default: false
-        resume: true|false
-
-        # Attach to the container if still running, rather than
-        # executing the app again. Only makes sense for interactive
-        # sessions like a shell running as app in the container.
-        #
-        # Default: false
-        attach: true|false
-
-        podman:
-          - --storage-opt size=10G
-          - --rm
-          - -ti
-
-      Calling this method returns a vector including the
-      container ID and and the name of the container ID
-      file.
-
-    include:
-      tar:
-        - tar-archive-file-name-to-include
-    !*/
     let args: Vec<String> = env::args().collect();
     let mut layers: Vec<String> = Vec::new();
 
