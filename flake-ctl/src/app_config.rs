@@ -160,7 +160,7 @@ impl AppConfig {
         if let Some(dir) = dir {
             let mut l = container_config.runtime.as_ref().unwrap().podman.clone().unwrap_or_default();
             l.push(format!("--volume {dir}:/mountedwd"));
-            l.push(format!("--workdir /mountedwd"));
+            l.push("--workdir /mountedwd".to_owned());
             container_config.runtime.as_mut().unwrap().podman = Some(l)
         }
 
