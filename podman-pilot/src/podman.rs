@@ -287,31 +287,18 @@ fn run_podman_creation(
     Ok((cid, container_cid_file.to_owned()))
 }
 
+/// Start container with the given container ID
 pub fn start(program_name: &str, cid: &str) -> Result<(), FlakeError> {
-    /*!
-    Start container with the given container ID
-    !*/
-
     let RuntimeSection { runas, resume, attach, .. } = config().runtime();
 
-    let is_running = container_running(cid, runas)?;
-
-    if is_running {
-        if attach {
-            // 1. Attach to running container
-            call_instance("attach", cid, program_name, runas)?;
-        } else {
-            // 2. Execute app in running container
+    if container_running(cid, runas)? {
+        call_instance(if attach { "attach" } else { "exec" }, cid, program_name, runas)?;
+    } else {
+        call_instance("start", cid, program_name, runas)?;
+        if resume {
             call_instance("exec", cid, program_name, runas)?;
         }
-    } else if resume {
-        // 3. Startup resume type container and execute app
-        call_instance("start", cid, program_name, runas)?;
-        call_instance("exec", cid, program_name, runas)?;
-    } else {
-        // 4. Startup container
-        call_instance("start", cid, program_name, runas)?;
-    };
+    }
 
     Ok(())
 }
