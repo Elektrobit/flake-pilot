@@ -103,10 +103,6 @@ pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
 
     let container_section = &config().container;
 
-    // check for includes
-    let tar_includes = &config().tars();
-    let has_includes = !tar_includes.is_empty();
-
     // setup podman container to use
     let container_name = container_section.name;
 
@@ -205,7 +201,7 @@ pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
     debug(&format!("{:?}", app.get_args()));
     let spinner = Spinner::new_with_stream(spinners::Line, "Launching flake...", Color::Yellow, spinoff::Streams::Stderr);
 
-    match run_podman_creation(app, delta_container, has_includes, runas, container_name, layers, &container_cid_file) {
+    match run_podman_creation(app, container_name, layers, &container_cid_file) {
         Ok(container) => {
             spinner.success("Launching flake");
             Ok(container)
@@ -219,16 +215,18 @@ pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
 
 /// Create podman
 fn run_podman_creation(
-    mut app: Command, delta_container: bool, has_includes: bool, runas: User, container_name: &str, mut layers: Vec<String>,
-    container_cid_file: &str,
+    mut app: Command, container_name: &str, mut layers: Vec<String>, container_cid_file: &str,
 ) -> Result<(String, String), FlakeError> {
+    let runas = config().runtime().runas;
+    let is_delta = config().container.base_container.is_some();
     let cid = String::from_utf8_lossy(&app.perform()?.stdout).trim_end_matches('\n').to_owned();
+    let has_includes = !config().tars().is_empty();
 
-    if delta_container || has_includes {
+    if is_delta || has_includes {
         debug("Mounting instance for provisioning workload");
         let instance_mount_point = mount_container(&cid, runas, false)?;
 
-        if delta_container {
+        if is_delta {
             // Create tmpfile to hold accumulated removed data
             let removed_files = tempfile()?;
 
