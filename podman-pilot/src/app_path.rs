@@ -24,8 +24,8 @@
 extern crate yaml_rust;
 
 use std::env;
-use which::which;
 use std::path::Path;
+use which::which;
 
 pub fn program_abs_path() -> String {
     /*!

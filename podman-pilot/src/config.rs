@@ -1,7 +1,7 @@
 use flakes::user::User;
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use std::{env, path::PathBuf, fs};
+use std::{env, fs, path::PathBuf};
 
 use crate::defaults;
 
