@@ -43,8 +43,6 @@ pub fn basename(program_path: &String) -> String {
     Get basename from given program path
     !*/
     let mut program_name = String::new();
-    program_name.push_str(
-        Path::new(program_path).file_name().unwrap().to_str().unwrap()
-    );
+    program_name.push_str(Path::new(program_path).file_name().unwrap().to_str().unwrap());
     program_name
 }
