@@ -265,7 +265,7 @@ fn run_podman_creation(
                 update_removed_files(&app_mount_point, &removed_files)?;
                 sync_delta(&app_mount_point, &instance_mount_point, runas)?;
 
-                let _ = umount_container(&layer, runas, true).map_err(|e| warn!("{e}"));
+                umount_container(&layer, runas, true).map_err(|e| warn!("{e}")).ok();
             }
             debug("Syncing host dependencies...");
             sync_host(&instance_mount_point, &removed_files, runas)?;
