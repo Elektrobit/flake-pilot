@@ -1,7 +1,7 @@
-use flakes::user::User;
 use crate::config::{config, RuntimeSection};
 use crate::defaults::debug;
 use crate::error::{CommandError, CommandExtTrait, FlakeError};
+use flakes::user::User;
 use nix::unistd;
 use spinoff::{spinners, Color, Spinner};
 use std::fs;
