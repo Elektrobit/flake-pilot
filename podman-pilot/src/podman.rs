@@ -1,30 +1,7 @@
-use flakes::user::User;
-//
-// Copyright (c) 2022 Elektrobit Automotive GmbH
-//
-// This file is part of flake-pilot
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
 use crate::config::{config, RuntimeSection};
 use crate::defaults::debug;
 use crate::error::{CommandError, CommandExtTrait, FlakeError};
+use flakes::user::User;
 use nix::unistd;
 use spinoff::{spinners, Color, Spinner};
 use std::fs;
@@ -126,10 +103,6 @@ pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
 
     let container_section = &config().container;
 
-    // check for includes
-    let tar_includes = &config().tars();
-    let has_includes = !tar_includes.is_empty();
-
     // setup podman container to use
     let container_name = container_section.name;
 
@@ -228,66 +201,73 @@ pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
     debug(&format!("{:?}", app.get_args()));
     let spinner = Spinner::new_with_stream(spinners::Line, "Launching flake...", Color::Yellow, spinoff::Streams::Stderr);
 
-    match run_podman_creation(app, delta_container, has_includes, runas, container_name, layers, &container_cid_file) {
-        Ok(container) => {
-            spinner.success("Launching flake");
-            Ok(container)
+    match prepare_container(app) {
+        Ok(cid) => {
+            spinner.success(&format!("Launching \"{program_name}\" flake..."));
+            Ok((cid, container_cid_file))
         }
+
         Err(err) => {
-            spinner.fail("Flake launch has failed");
+            spinner.fail(&format!("Launching flake \"{program_name}\" has failed"));
             Err(err)
         }
     }
 }
 
-/// Create podman
-fn run_podman_creation(
-    mut app: Command, delta_container: bool, has_includes: bool, runas: User, container_name: &str, mut layers: Vec<String>,
-    container_cid_file: &str,
-) -> Result<(String, String), FlakeError> {
+/// Prepare a podman process (create)
+fn prepare_container(mut app: Command) -> Result<String, FlakeError> {
+    let runas = config().runtime().runas;
+    let is_delta = config().container.base_container.is_some();
     let cid = String::from_utf8_lossy(&app.perform()?.stdout).trim_end_matches('\n').to_owned();
+    let has_includes = !config().tars().is_empty();
 
-    if delta_container || has_includes {
-        debug("Mounting instance for provisioning workload");
-        let instance_mount_point = mount_container(&cid, runas, false)?;
+    if !is_delta && !has_includes {
+        return Ok(cid);
+    }
 
-        if delta_container {
-            // Create tmpfile to hold accumulated removed data
-            let removed_files = tempfile()?;
+    debug("Mounting instance for provisioning workload");
+    let instance_mount_point = mount_container(&cid, runas, false)?;
 
-            debug("Provisioning delta container...");
-            update_removed_files(&instance_mount_point, &removed_files)?;
-            debug(&format!("Adding main app [{}] to layer list", container_name));
-            layers.push(container_name.to_string());
-            for layer in layers {
-                debug(&format!("Syncing delta dependencies [{}]...", layer));
-                let app_mount_point = mount_container(&layer, runas, true)?;
-                update_removed_files(&app_mount_point, &removed_files)?;
-                sync_delta(&app_mount_point, &instance_mount_point, runas)?;
+    if is_delta {
+        // Create tmpfile to hold accumulated removed data
+        let removed_files = tempfile()?;
 
-                umount_container(&layer, runas, true).map_err(|e| warn!("{e}")).ok();
-            }
-            debug("Syncing host dependencies...");
-            sync_host(&instance_mount_point, &removed_files, runas)?;
+        debug("Provisioning delta container...");
+        update_removed_files(&instance_mount_point, &removed_files)?;
 
-            match umount_container(&cid, runas, false) {
-                Ok(_) => {}
-                Err(err) => {
-                    warn!("{}", err);
-                }
-            }
+        for layer in
+            config().layers().into_iter().inspect(|l| debug(&format!("Adding layer: [{l}]"))).chain(Some(config().container.name))
+        {
+            debug(&format!("Syncing delta dependencies [{}]...", layer));
+            let app_mount_point = mount_container(layer, runas, true)?;
+            update_removed_files(&app_mount_point, &removed_files)?;
+            sync_delta(&app_mount_point, &instance_mount_point, runas)?;
+
+            // Warn here, but still continue
+            umount_container(layer, runas, true).map_err(|e| warn!("{e}")).ok();
         }
+        debug("Syncing host dependencies...");
+        sync_host(&instance_mount_point, &removed_files, runas)?;
 
-        if has_includes {
-            debug("Syncing includes...");
-            sync_includes(&instance_mount_point, runas)?;
+        match umount_container(&cid, runas, false) {
+            Ok(_) => {}
+            Err(err) => {
+                warn!("{}", err);
+            }
         }
     }
-    Ok((cid, container_cid_file.to_owned()))
+
+    if has_includes {
+        debug("Syncing includes...");
+        sync_includes(&instance_mount_point, runas)?;
+    }
+
+    Ok(cid)
 }
 
 /// Start container with the given container ID
-pub fn start(program_name: &str, cid: &str) -> Result<(), FlakeError> {
+pub fn start(program_name: &str) -> Result<(), FlakeError> {
+    let cid = &create(&program_name.to_string())?.0;
     let RuntimeSection { runas, resume, attach, .. } = config().runtime();
 
     if container_running(cid, runas)? {

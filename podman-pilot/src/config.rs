@@ -1,7 +1,7 @@
 use flakes::user::User;
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use std::{env, path::PathBuf, fs};
+use std::{env, fs, path::PathBuf};
 
 use crate::defaults;
 
@@ -10,7 +10,7 @@ lazy_static! {
 }
 
 /// Returns the config singleton
-/// 
+///
 /// Will initialize the config on first call and return the cached version afterwards
 pub fn config() -> &'static Config<'static> {
     &CONFIG
@@ -34,21 +34,15 @@ fn load_config() -> Config<'static> {
     is send to the Yaml parser
     !*/
     let base_path = get_base_path();
-    let base_path  = base_path.file_name().unwrap().to_str().unwrap();
+    let base_path = base_path.file_name().unwrap().to_str().unwrap();
     let base_yaml = fs::read_to_string(config_file(base_path));
 
-    let mut extra_yamls: Vec<_> = fs::read_dir(config_dir(base_path))
-        .into_iter()
-        .flatten()
-        .flatten()
-        .map(|x| x.path()).collect();
+    let mut extra_yamls: Vec<_> = fs::read_dir(config_dir(base_path)).into_iter().flatten().flatten().map(|x| x.path()).collect();
 
     extra_yamls.sort();
-        
 
     let full_yaml: String = base_yaml.into_iter().chain(extra_yamls.into_iter().flat_map(fs::read_to_string)).collect();
     config_from_str(&full_yaml)
-
 }
 
 fn config_from_str(input: &str) -> Config<'static> {
@@ -63,7 +57,7 @@ fn config_from_str(input: &str) -> Config<'static> {
     // Can not use serde_yaml::from_value because of lifetime limitations
     // Safety: This does not cause a reocurring memory leak since `load_config` is only called once
     let content = Box::leak(buffer.into_boxed_str());
-    
+
     serde_yaml::from_str(content).unwrap()
 }
 
@@ -80,7 +74,7 @@ pub struct Config<'a> {
     #[serde(borrow)]
     pub container: ContainerSection<'a>,
     #[serde(borrow)]
-    pub include: IncludeSection<'a>
+    pub include: IncludeSection<'a>,
 }
 
 impl<'a> Config<'a> {
@@ -104,7 +98,7 @@ impl<'a> Config<'a> {
 #[derive(Deserialize)]
 pub struct IncludeSection<'a> {
     #[serde(borrow)]
-    tar: Option<Vec<&'a str>>
+    tar: Option<Vec<&'a str>>,
 }
 
 #[derive(Deserialize)]
@@ -187,19 +181,20 @@ mod test {
     #[test]
     fn simple_config() {
         let cfg = config_from_str(
-r#"container:
+            r#"container:
  name: JoJo
  host_app_path: /myapp
 include:
  tar: ~
-"#);
+"#,
+        );
         assert_eq!(cfg.container.name, "JoJo");
     }
-    
+
     #[test]
     fn combine_configs() {
         let cfg = config_from_str(
-r#"container:
+            r#"container:
  name: JoJo
  host_app_path: /myapp
 include:
@@ -207,7 +202,8 @@ include:
 container:
  name: Dio
  host_app_path: /other
-"#);
+"#,
+        );
         assert_eq!(cfg.container.name, "Dio");
     }
 
