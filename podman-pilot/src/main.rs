@@ -30,7 +30,7 @@ fn run() -> Result<(), FlakeError> {
         .unwrap()
         .to_string();
 
-    podman::start(&program_name, &podman::create(&program_name)?.0)
+    podman::start(&program_name)
 }
 
 fn main() -> ExitCode {

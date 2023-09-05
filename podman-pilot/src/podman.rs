@@ -201,20 +201,21 @@ pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
     debug(&format!("{:?}", app.get_args()));
     let spinner = Spinner::new_with_stream(spinners::Line, "Launching flake...", Color::Yellow, spinoff::Streams::Stderr);
 
-    match run_podman_creation(app, &container_cid_file) {
-        Ok(container) => {
-            spinner.success("Launching flake");
-            Ok(container)
+    match prepare_container(app) {
+        Ok(cid) => {
+            spinner.success(&format!("Launching \"{program_name}\" flake..."));
+            Ok((cid, container_cid_file))
         }
+
         Err(err) => {
-            spinner.fail("Flake launch has failed");
+            spinner.fail(&format!("Launching flake \"{program_name}\" has failed"));
             Err(err)
         }
     }
 }
 
-/// Create podman
-fn run_podman_creation(mut app: Command, container_cid_file: &str) -> Result<(String, String), FlakeError> {
+/// Prepare a podman process (create)
+fn prepare_container(mut app: Command) -> Result<String, FlakeError> {
     let runas = config().runtime().runas;
     let is_delta = config().container.base_container.is_some();
     let cid = String::from_utf8_lossy(&app.perform()?.stdout).trim_end_matches('\n').to_owned();
@@ -259,11 +260,12 @@ fn run_podman_creation(mut app: Command, container_cid_file: &str) -> Result<(St
             sync_includes(&instance_mount_point, runas)?;
         }
     }
-    Ok((cid, container_cid_file.to_owned()))
+    Ok(cid)
 }
 
 /// Start container with the given container ID
-pub fn start(program_name: &str, cid: &str) -> Result<(), FlakeError> {
+pub fn start(program_name: &str) -> Result<(), FlakeError> {
+    let cid = &create(&program_name.to_string())?.0;
     let RuntimeSection { runas, resume, attach, .. } = config().runtime();
 
     if container_running(cid, runas)? {
