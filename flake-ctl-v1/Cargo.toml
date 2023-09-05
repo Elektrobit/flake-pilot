@@ -1,5 +1,5 @@
 [package]
-name = "flake-ctl"
+name = "flake-ctl-v1"
 version = "2.2.19"
 authors = ["Marcus Schäfer <marcus.schaefer@elektrobit.com>"]
 edition = "2018"
