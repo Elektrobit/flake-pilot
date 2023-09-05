@@ -221,45 +221,47 @@ fn prepare_container(mut app: Command) -> Result<String, FlakeError> {
     let cid = String::from_utf8_lossy(&app.perform()?.stdout).trim_end_matches('\n').to_owned();
     let has_includes = !config().tars().is_empty();
 
-    if is_delta || has_includes {
-        debug("Mounting instance for provisioning workload");
-        let instance_mount_point = mount_container(&cid, runas, false)?;
+    if !is_delta && !has_includes {
+        return Ok(cid);
+    }
 
-        if is_delta {
-            // Create tmpfile to hold accumulated removed data
-            let removed_files = tempfile()?;
+    debug("Mounting instance for provisioning workload");
+    let instance_mount_point = mount_container(&cid, runas, false)?;
 
-            debug("Provisioning delta container...");
-            update_removed_files(&instance_mount_point, &removed_files)?;
+    if is_delta {
+        // Create tmpfile to hold accumulated removed data
+        let removed_files = tempfile()?;
 
-            let layers = config().layers(); // lifetime
-            let layers = layers.iter().inspect(|l| debug(&format!("Adding layer: [{l}]"))).chain(Some(&config().container.name));
+        debug("Provisioning delta container...");
+        update_removed_files(&instance_mount_point, &removed_files)?;
 
-            for layer in layers {
-                debug(&format!("Syncing delta dependencies [{}]...", layer));
-                let app_mount_point = mount_container(layer, runas, true)?;
-                update_removed_files(&app_mount_point, &removed_files)?;
-                sync_delta(&app_mount_point, &instance_mount_point, runas)?;
+        for layer in
+            config().layers().into_iter().inspect(|l| debug(&format!("Adding layer: [{l}]"))).chain(Some(config().container.name))
+        {
+            debug(&format!("Syncing delta dependencies [{}]...", layer));
+            let app_mount_point = mount_container(layer, runas, true)?;
+            update_removed_files(&app_mount_point, &removed_files)?;
+            sync_delta(&app_mount_point, &instance_mount_point, runas)?;
 
-                // Warn here, but still continue
-                umount_container(layer, runas, true).map_err(|e| warn!("{e}")).ok();
-            }
-            debug("Syncing host dependencies...");
-            sync_host(&instance_mount_point, &removed_files, runas)?;
-
-            match umount_container(&cid, runas, false) {
-                Ok(_) => {}
-                Err(err) => {
-                    warn!("{}", err);
-                }
-            }
+            // Warn here, but still continue
+            umount_container(layer, runas, true).map_err(|e| warn!("{e}")).ok();
         }
+        debug("Syncing host dependencies...");
+        sync_host(&instance_mount_point, &removed_files, runas)?;
 
-        if has_includes {
-            debug("Syncing includes...");
-            sync_includes(&instance_mount_point, runas)?;
+        match umount_container(&cid, runas, false) {
+            Ok(_) => {}
+            Err(err) => {
+                warn!("{}", err);
+            }
         }
     }
+
+    if has_includes {
+        debug("Syncing includes...");
+        sync_includes(&instance_mount_point, runas)?;
+    }
+
     Ok(cid)
 }
 
