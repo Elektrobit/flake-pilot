@@ -201,7 +201,7 @@ pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
     debug(&format!("{:?}", app.get_args()));
     let spinner = Spinner::new_with_stream(spinners::Line, "Launching flake...", Color::Yellow, spinoff::Streams::Stderr);
 
-    match run_podman_creation(app, container_name, layers, &container_cid_file) {
+    match run_podman_creation(app, &container_cid_file) {
         Ok(container) => {
             spinner.success("Launching flake");
             Ok(container)
@@ -214,9 +214,7 @@ pub fn create(program_name: &String) -> Result<(String, String), FlakeError> {
 }
 
 /// Create podman
-fn run_podman_creation(
-    mut app: Command, container_name: &str, mut layers: Vec<String>, container_cid_file: &str,
-) -> Result<(String, String), FlakeError> {
+fn run_podman_creation(mut app: Command, container_cid_file: &str) -> Result<(String, String), FlakeError> {
     let runas = config().runtime().runas;
     let is_delta = config().container.base_container.is_some();
     let cid = String::from_utf8_lossy(&app.perform()?.stdout).trim_end_matches('\n').to_owned();
@@ -232,14 +230,17 @@ fn run_podman_creation(
 
             debug("Provisioning delta container...");
             update_removed_files(&instance_mount_point, &removed_files)?;
-            debug(&format!("Adding main app [{}] to layer list", container_name));
-            layers.push(container_name.to_string());
+
+            let layers = config().layers(); // lifetime
+            let layers = layers.iter().inspect(|l| debug(&format!("Adding layer: [{l}]"))).chain(Some(&config().container.name));
+
             for layer in layers {
                 debug(&format!("Syncing delta dependencies [{}]...", layer));
                 let app_mount_point = mount_container(&layer, runas, true)?;
                 update_removed_files(&app_mount_point, &removed_files)?;
                 sync_delta(&app_mount_point, &instance_mount_point, runas)?;
 
+                // Warn here, but still continue
                 umount_container(&layer, runas, true).map_err(|e| warn!("{e}")).ok();
             }
             debug("Syncing host dependencies...");
