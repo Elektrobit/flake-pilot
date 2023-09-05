@@ -236,12 +236,12 @@ fn run_podman_creation(mut app: Command, container_cid_file: &str) -> Result<(St
 
             for layer in layers {
                 debug(&format!("Syncing delta dependencies [{}]...", layer));
-                let app_mount_point = mount_container(&layer, runas, true)?;
+                let app_mount_point = mount_container(layer, runas, true)?;
                 update_removed_files(&app_mount_point, &removed_files)?;
                 sync_delta(&app_mount_point, &instance_mount_point, runas)?;
 
                 // Warn here, but still continue
-                umount_container(&layer, runas, true).map_err(|e| warn!("{e}")).ok();
+                umount_container(layer, runas, true).map_err(|e| warn!("{e}")).ok();
             }
             debug("Syncing host dependencies...");
             sync_host(&instance_mount_point, &removed_files, runas)?;
