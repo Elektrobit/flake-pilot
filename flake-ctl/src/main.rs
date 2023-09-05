@@ -1,21 +1,47 @@
-use std::{process::{Command, ExitCode, Stdio}, convert::Infallible, env::Args, io::stdout, path::Path};
+mod builtin;
 
-fn main() -> Result<ExitCode, std::io::Error>{
+use std::{
+    env::Args,
+    process::{Command, ExitCode},
+};
+
+use builtin::{help, list};
+
+fn main() -> ExitCode {
     let mut args = std::env::args();
-    let name = args.next().map(format!());
-    match name {
-        Some(name) => {
-            if Command::new(name).args(args).status()?.success() {
-                Ok(ExitCode::SUCCESS)
-            } else {
-                Ok(ExitCode::FAILURE)
-            }
+    args.next();
 
+    match args.next() {
+        None => help(args),
+        Some(name) => match name.as_str() {
+            "help" => help(args),
+            "list" => list(),
+            name => external(name, args),
         },
-        None => help(),
     }
 }
 
-fn help() -> Result<ExitCode, std::io::Error>{
-    Ok(ExitCode::SUCCESS)
+fn external(name: &str, args: Args) -> ExitCode {
+    let full_name = format!("flake-ctl-{name}");
+    match Command::new(full_name).args(args).status() {
+        Ok(output) => {
+            if output.success() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        Err(error) => {
+            match error.kind() {
+                std::io::ErrorKind::PermissionDenied => {
+                    eprintln!("You do not have permission to run \"flake-ctl {name}\", maybe try sudo.")
+                }
+                std::io::ErrorKind::NotFound => {
+                    eprintln!("Unknown sub command \"{name}\". See `flake-ctl help` for a list of available commands.")
+                }
+                _ => eprintln!("Could not run \"flake-ctl-{name}\". Underlying cause: {error}"),
+            };
+            ExitCode::FAILURE
+        }
+    }
 }
