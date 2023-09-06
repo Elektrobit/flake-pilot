@@ -183,11 +183,13 @@ impl Register {
             },
         };
 
+        let base_name = Path::new(&app).file_stem().unwrap_or_default();
+
         serde_yaml::to_writer(
             OpenOptions::new()
                 .write(true)
                 .create(true)
-                .open(Path::new(defaults::FLAKE_DIR).join(app).with_extension("yaml"))
+                .open(Path::new(defaults::FLAKE_DIR).join(&base_name).with_extension("yaml"))
                 .context("Could not open yaml file")?,
             &config,
         )?;
