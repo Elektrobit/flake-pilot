@@ -27,11 +27,7 @@ fn external(name: &str, args: Args) -> ExitCode {
     let full_name = format!("flake-ctl-{name}");
     match Command::new(full_name).args(args).status() {
         Ok(output) => {
-            if output.success() {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
-            }
+            (output.code().unwrap_or_default() as u8).into()
         }
         Err(error) => {
             match error.kind() {
