@@ -189,7 +189,7 @@ impl Register {
             OpenOptions::new()
                 .write(true)
                 .create(true)
-                .open(Path::new(defaults::FLAKE_DIR).join(&base_name).with_extension("yaml"))
+                .open(Path::new(defaults::FLAKE_DIR).join(base_name).with_extension("yaml"))
                 .context("Could not open yaml file")?,
             &config,
         )?;

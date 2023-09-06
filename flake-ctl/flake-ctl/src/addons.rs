@@ -27,9 +27,9 @@ impl Addons {
 impl Display for Addons {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (kind, list) in &self.addons {
-            write!(f, "\n-- {kind}s --\n")?;
+            writeln!(f, "\n-- {kind}s --")?;
             for Addon { name, description, .. } in list {
-                write!(f, "{name}\t\t{}\n", description.as_ref().map(|s| s.as_str()).unwrap_or(""))?
+                writeln!(f, "{name}\t\t{}", description.as_ref().map(|s| s.as_str()).unwrap_or(""))?
             }
         };
         Ok(())
