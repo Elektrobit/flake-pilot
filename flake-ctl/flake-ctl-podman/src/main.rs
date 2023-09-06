@@ -49,7 +49,7 @@ fn main() -> Result<ExitCode> {
         Podman::Remove { .. } => unreachable!(),
         Podman::BuildDeb { .. } => todo!(),
         Podman::About => {
-            println!("ENGINE;Manage podman/oci based flakes");
+            println!("Manage podman/oci based flakes;ENGINE");
             Ok(())
         }
         // cli::Podman::BuildDeb { oci, app, repo, arch } => {

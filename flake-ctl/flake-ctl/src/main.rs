@@ -1,4 +1,5 @@
 mod builtin;
+pub mod addons;
 
 use std::{
     env::Args,
@@ -16,6 +17,7 @@ fn main() -> ExitCode {
         Some(name) => match name.as_str() {
             "help" => help(args),
             "list" => list(),
+            "-V" => {println!("2.0.0"); ExitCode::SUCCESS},
             name => external(name, args),
         },
     }
