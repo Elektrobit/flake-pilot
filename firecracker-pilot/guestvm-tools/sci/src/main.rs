@@ -128,7 +128,7 @@ fn main() {
                 }
             }
             if ok {
-                let overlay_dirs = vec![
+                let overlay_dirs = [
                     defaults::OVERLAY_ROOT,
                     defaults::OVERLAY_UPPER,
                     defaults::OVERLAY_WORK
