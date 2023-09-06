@@ -21,7 +21,7 @@ jobs:
       # flake-ctl
       - name: Run SPDX Creation for flake-ctl
         run: |
-          cd flake-ctl
+          cd flake-ctl/flake-ctl
           cargo bom
       - name: Get Dependency Licenses of flake-ctl
         run: |
