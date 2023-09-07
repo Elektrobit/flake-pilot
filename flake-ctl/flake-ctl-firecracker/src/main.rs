@@ -25,10 +25,8 @@ use env_logger::Env;
 use std::process::{exit, ExitCode};
 
 pub mod cli;
-pub mod podman;
 pub mod firecracker;
 pub mod app;
-pub mod deb;
 pub mod app_config;
 pub mod defaults;
 pub mod fetch;

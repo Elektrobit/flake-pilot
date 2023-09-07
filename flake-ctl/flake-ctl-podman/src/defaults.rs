@@ -25,27 +25,9 @@ pub const FLAKE_DIR: &str =
     "/usr/share/flakes";
 pub const PODMAN_PILOT: &str =
     "/usr/bin/podman-pilot";
-pub const FIRECRACKER_PILOT: &str =
-    "/usr/bin/firecracker-pilot";
 pub const OCIDEB: &str =
     "/usr/bin/oci-deb";
 pub const OCIDEB_PACKAGE: &str =
     "oci-deb";
 pub const PODMAN_PATH:&str =
     "/usr/bin/podman";
-pub const FLAKE_TEMPLATE_CONTAINER:&str =
-    "/etc/flakes/container-flake.yaml";
-pub const FLAKE_TEMPLATE_FIRECRACKER:&str =
-    "/etc/flakes/firecracker-flake.yaml";
-pub const FIRECRACKER_REGISTRY_DIR:&str =
-    "/var/lib/firecracker";
-pub const FIRECRACKER_IMAGES_DIR:&str =
-    "/var/lib/firecracker/images";
-pub const FIRECRACKER_INITRD_NAME:&str =
-    "initrd";
-pub const FIRECRACKER_KERNEL_NAME:&str =
-    "kernel";
-pub const FIRECRACKER_ROOTFS_NAME:&str =
-    "rootfs";
-pub const FIRECRACKER_SCI:&str =
-    "/usr/lib/flake-pilot/sci";
