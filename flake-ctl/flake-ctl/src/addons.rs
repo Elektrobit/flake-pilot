@@ -11,7 +11,7 @@ use std::{
 use itertools::Itertools;
 
 pub struct Addons {
-    addons: HashMap<AddonType, Vec<Addon>>,
+    pub addons: HashMap<AddonType, Vec<Addon>>,
 }
 
 impl Addons {
@@ -19,8 +19,8 @@ impl Addons {
         self.addons.entry(addon.ty.clone().unwrap_or_default()).or_default().push(addon);
     }
 
-    pub fn all(&self) -> Vec<Addon> {
-        self.addons.values().flatten().cloned().collect()
+    pub fn all(&self) -> Vec<&Addon> {
+        self.addons.values().flatten().collect()
     }
 }
 
@@ -49,6 +49,15 @@ pub enum AddonType {
     Tool,
     Other(String),
 }
+impl AddonType {
+    pub fn name(&self) -> &str {
+        match self {
+            AddonType::Engine => "Engines",
+            AddonType::Tool => "Tools",
+            AddonType::Other(s) => &s,
+        }
+    }
+}
 
 impl Default for AddonType {
     fn default() -> Self {
@@ -58,11 +67,7 @@ impl Default for AddonType {
 
 impl Display for AddonType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AddonType::Engine => f.write_str("Engine"),
-            AddonType::Tool => f.write_str("Tool"),
-            AddonType::Other(s) => f.write_str(s),
-        }
+        f.write_str(self.name())
     }
 }
 

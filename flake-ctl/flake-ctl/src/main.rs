@@ -7,22 +7,26 @@ use std::{
 };
 
 use builtin::{help, list};
+use clap::{arg, App, Arg};
 
 fn main() -> ExitCode {
-    let mut args = std::env::args();
-    args.next();
+    let addons = addons::find_addons();
 
-    match args.next() {
-        None => help(args),
-        Some(name) => match name.as_str() {
-            "help" => help(args),
-            "list" => list(),
-            "-V" => {
-                println!("2.0.0");
-                ExitCode::SUCCESS
-            }
-            name => external(name, args),
-        },
+    let mut args =
+        App::new("flake-ctl").next_help_heading("Builtin").arg(Arg::new("list").help(Some("List all registered flakes")));
+
+    for (kind, list) in addons.addons.iter() {
+        args = args.next_help_heading(kind.name());
+        for addon in list {
+            args = args.subcommand(App::new(addon.name.as_str()));
+        }
+    }
+
+    match args.get_matches().subcommand() {
+        Some(("list", _)) => list(),
+        _ => ExitCode::FAILURE
+            // "-V" => {println!("2.0.0"); ExitCode::SUCCESS},
+            // name => external(name, args),
     }
 }
 
