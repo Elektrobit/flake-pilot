@@ -102,9 +102,9 @@ install:
 		$(DESTDIR)$(BINDIR)/flake-ctl
 	install -m 755 target/release/flake-ctl-podman \
 		$(DESTDIR)$(BINDIR)/flake-ctl-podman
-	install -m 755 flake-ctl-v1/debbuild/oci-deb \
+	install -m 755 flake-ctl/flake-ctl-podman/debbuild/oci-deb \
 		$(DESTDIR)$(BINDIR)/oci-deb
-	install -m 644 flake-ctl-v1/debbuild/container.spec.in \
+	install -m 644 flake-ctl/flake-ctl-podman/debbuild/container.spec.in \
 		$(DESTDIR)$(SHAREDIR)/container.spec.in
 	install -m 644 flake-ctl-v1/template/container-flake.yaml \
 		$(DESTDIR)$(TEMPLATEDIR)/container-flake.yaml
