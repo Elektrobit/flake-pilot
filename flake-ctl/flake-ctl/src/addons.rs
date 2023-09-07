@@ -54,7 +54,7 @@ impl AddonType {
         match self {
             AddonType::Engine => "Engines",
             AddonType::Tool => "Tools",
-            AddonType::Other(s) => &s,
+            AddonType::Other(s) => s,
         }
     }
 }

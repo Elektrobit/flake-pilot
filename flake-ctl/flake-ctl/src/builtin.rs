@@ -1,17 +1,6 @@
-use std::{env::Args, fs, process::ExitCode};
+use std::{fs, process::ExitCode};
 
 use itertools::Itertools;
-
-use crate::addons;
-
-pub fn help(_args: Args) -> ExitCode {
-    println!("-- Builtin --");
-    [("help", "Print this list"), ("list", "List all installed flakes")]
-        .into_iter()
-        .for_each(|(name, desc)| println!("{name}\t\t{desc}"));
-    println!("{}", addons::find_addons());
-    ExitCode::SUCCESS
-}
 
 pub fn list() -> ExitCode {
     match fs::read_dir("/usr/share/flakes") {
