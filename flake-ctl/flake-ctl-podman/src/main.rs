@@ -33,6 +33,7 @@ pub mod app;
 // pub mod deb;
 pub mod app_config;
 pub mod defaults;
+pub mod deb;
 // pub mod fetch;
 
 fn main() -> Result<ExitCode> {
@@ -47,14 +48,13 @@ fn main() -> Result<ExitCode> {
         Podman::Remove { app: Some(app), .. } => app::remove(Path::new(&app)),
         Podman::Remove { container: Some(container), .. } => podman::purge_container(&container),
         Podman::Remove { .. } => unreachable!(),
-        Podman::BuildDeb { .. } => todo!(),
+        cli::Podman::BuildDeb { oci, app, repo, arch } => {
+            exit(deb::ocideb(&oci, &repo, &app, arch.as_deref()));
+        }
         Podman::About => {
             println!("Manage podman/oci based flakes;ENGINE");
             Ok(())
         }
-        // cli::Podman::BuildDeb { oci, app, repo, arch } => {
-        //     exit(deb::ocideb(oci, repo, app, arch.as_ref()));
-        // }
     }?;
     Ok(ExitCode::SUCCESS)
 }
