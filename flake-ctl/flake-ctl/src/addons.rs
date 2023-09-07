@@ -31,7 +31,7 @@ impl Display for Addons {
             for Addon { name, description, .. } in list {
                 writeln!(f, "{name}\t\t{}", description.as_ref().map(|s| s.as_str()).unwrap_or(""))?
             }
-        };
+        }
         Ok(())
     }
 }
@@ -79,7 +79,7 @@ impl FromStr for AddonType {
 
 pub fn find_addons() -> Addons {
     let mut addons = Addons { addons: HashMap::new() };
-    
+
     split_paths(&env::var_os("PATH").unwrap_or_default())
         .map(fs::read_dir)
         .filter_map(Result::ok)

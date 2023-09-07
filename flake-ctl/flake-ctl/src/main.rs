@@ -1,5 +1,5 @@
-mod builtin;
 pub mod addons;
+mod builtin;
 
 use std::{
     env::Args,
@@ -17,7 +17,10 @@ fn main() -> ExitCode {
         Some(name) => match name.as_str() {
             "help" => help(args),
             "list" => list(),
-            "-V" => {println!("2.0.0"); ExitCode::SUCCESS},
+            "-V" => {
+                println!("2.0.0");
+                ExitCode::SUCCESS
+            }
             name => external(name, args),
         },
     }
@@ -26,9 +29,7 @@ fn main() -> ExitCode {
 fn external(name: &str, args: Args) -> ExitCode {
     let full_name = format!("flake-ctl-{name}");
     match Command::new(full_name).args(args).status() {
-        Ok(output) => {
-            (output.code().unwrap_or_default() as u8).into()
-        }
+        Ok(output) => (output.code().unwrap_or_default() as u8).into(),
         Err(error) => {
             match error.kind() {
                 std::io::ErrorKind::PermissionDenied => {
