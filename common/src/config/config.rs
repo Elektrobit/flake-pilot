@@ -1,6 +1,8 @@
 use std::{
+    error::Error,
     fmt::{Debug, Display},
-    path::PathBuf,
+    fs::{self, OpenOptions},
+    path::{Path, PathBuf},
 };
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -150,11 +152,11 @@ impl PartialCofig {
     }
 
     /// Update this `PartialConfig` with another, consuming both.
-    /// 
+    ///
     /// The values from the other `PartialConfig` take precedence unless they are `null`/`None`.
-    /// 
+    ///
     /// `Mappings` are combined recursively, all other values will be replaced.
-    /// 
+    ///
     /// The lists of combined configs of the other `PartialConfig` are appended to this ones
     pub fn update(mut self, other: PartialCofig) -> Self {
         self.name = other.name.or(self.name);
@@ -174,12 +176,24 @@ impl PartialCofig {
                     base.insert(key, Self::merge_values(old, value));
                 }
                 base.into()
-            },
+            }
             (base, Value::Null) => base,
-            (_, update) => update
+            (_, update) => update,
         };
         result
     }
+}
+
+/// Load the config for a given flake
+// TODO: return FlakeError once that is in common
+pub fn load_config<R: Runtime + DeserializeOwned>(path: impl AsRef<Path>) -> Result<Config<R>, Box<dyn Error>> {
+    let path = PathBuf::from(path.as_ref());
+    let mut base: PartialCofig = serde_yaml::from_reader(OpenOptions::new().read(true).open(path.with_extension("yaml"))?)?;
+    for entry in fs::read_dir(path.with_extension("d"))? {
+        let other = serde_yaml::from_reader(OpenOptions::new().read(true).open(entry?.path())?)?;
+        base = base.update(other);
+    }
+    Ok(base.finish()?)
 }
 
 #[cfg(test)]
@@ -312,27 +326,35 @@ mod test {
         };
 
         let extension_1 = PartialCofig {
-            host_path: Some(PathBuf::from("/path/to/the/app")),            
+            host_path: Some(PathBuf::from("/path/to/the/app")),
             merged: vec!["extension_1.yaml".to_owned()],
-            runtime: Value::Mapping([
-                ("base".into(), "ubuntu".into()),
-                ("resume".into(), Value::Null),
-                ("attach".into(), Value::Bool(true)),
-                ("runas".into(), "someuser".into()),
-                ("args".into(), Value::Null),
-            ].into_iter().collect()),
+            runtime: Value::Mapping(
+                [
+                    ("base".into(), "ubuntu".into()),
+                    ("resume".into(), Value::Null),
+                    ("attach".into(), Value::Bool(true)),
+                    ("runas".into(), "someuser".into()),
+                    ("args".into(), Value::Null),
+                ]
+                .into_iter()
+                .collect(),
+            ),
             ..Default::default()
         };
 
         let extension_2 = PartialCofig {
-            host_path: Some(PathBuf::from("/path/to/the/app")),            
+            host_path: Some(PathBuf::from("/path/to/the/app")),
             merged: vec!["extension_2.yaml".to_owned()],
-            runtime: Value::Mapping([
-                ("resume".into(), Value::Bool(true)),
-                ("attach".into(), Value::Bool(true)),
-                ("runas".into(), Value::Null),
-                ("args".into(), Value::Sequence(Default::default())),
-            ].into_iter().collect()),
+            runtime: Value::Mapping(
+                [
+                    ("resume".into(), Value::Bool(true)),
+                    ("attach".into(), Value::Bool(true)),
+                    ("runas".into(), Value::Null),
+                    ("args".into(), Value::Sequence(Default::default())),
+                ]
+                .into_iter()
+                .collect(),
+            ),
             ..Default::default()
         };
 
@@ -348,7 +370,6 @@ mod test {
         assert_eq!(result.runtime.args, Vec::<String>::new());
     }
 
-
     #[test]
     fn test_combine_firecracker() {
         let base = PartialCofig {
@@ -359,31 +380,39 @@ mod test {
         };
 
         let extension_1 = PartialCofig {
-            host_path: Some(PathBuf::from("/path/to/the/app")),            
+            host_path: Some(PathBuf::from("/path/to/the/app")),
             merged: vec!["extension_1.yaml".to_owned()],
-            runtime: Value::Mapping([
-                ("base".into(), "ubuntu".into()),
-                ("resume".into(), Value::Null),
-                ("runas".into(), "someuser".into()),
-                ("vm".into(), Value::Mapping([
-                    ("mem_size_mib".into(), 1024.into()),
-                ].into_iter().collect())),
-            ].into_iter().collect()),
+            runtime: Value::Mapping(
+                [
+                    ("base".into(), "ubuntu".into()),
+                    ("resume".into(), Value::Null),
+                    ("runas".into(), "someuser".into()),
+                    ("vm".into(), Value::Mapping([("mem_size_mib".into(), 1024.into())].into_iter().collect())),
+                ]
+                .into_iter()
+                .collect(),
+            ),
             ..Default::default()
         };
 
         let extension_2 = PartialCofig {
-            host_path: Some(PathBuf::from("/path/to/the/app")),            
+            host_path: Some(PathBuf::from("/path/to/the/app")),
             merged: vec!["extension_2.yaml".to_owned()],
-            runtime: Value::Mapping([
-                ("resume".into(), Value::Bool(true)),
-                ("runas".into(), Value::Null),
-                ("args".into(), Value::Sequence(Default::default())),
-                ("vm".into(), Value::Mapping([
-                    ("mem_size_mib".into(), 4096.into()),
-                    ("overlay_size".into(), "2MiB".into()),
-                ].into_iter().collect())),
-            ].into_iter().collect()),
+            runtime: Value::Mapping(
+                [
+                    ("resume".into(), Value::Bool(true)),
+                    ("runas".into(), Value::Null),
+                    ("args".into(), Value::Sequence(Default::default())),
+                    (
+                        "vm".into(),
+                        Value::Mapping(
+                            [("mem_size_mib".into(), 4096.into()), ("overlay_size".into(), "2MiB".into())].into_iter().collect(),
+                        ),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
             ..Default::default()
         };
 
@@ -396,5 +425,4 @@ mod test {
         assert_eq!(result.runtime.vm.mem_size_mib, 4096);
         assert_eq!(result.runtime.vm.overlay_size, "2MiB");
     }
-
 }
