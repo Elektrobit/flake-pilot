@@ -168,7 +168,7 @@ impl PartialCofig {
     }
 
     fn merge_values(base: Value, update: Value) -> Value {
-        let result = match (base, update) {
+        match (base, update) {
             (Value::Mapping(mut base), Value::Mapping(update)) => {
                 // TODO: This could be written nicer by somebody who wants to fight with the lifetimes of `Mapping::entry`
                 for (key, value) in update {
@@ -179,8 +179,7 @@ impl PartialCofig {
             }
             (base, Value::Null) => base,
             (_, update) => update,
-        };
-        result
+        }
     }
 }
 
