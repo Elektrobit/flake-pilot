@@ -987,7 +987,7 @@ pub fn mount_vm(
     !*/
     let failed = "".to_string();
     // 1. create overlay image mount structure
-    for image_dir in vec![
+    for image_dir in [
         defaults::IMAGE_ROOT,
         defaults::IMAGE_OVERLAY
     ].iter() {
@@ -1049,7 +1049,7 @@ pub fn mount_vm(
         }
     }
     // 4. mount as overlay
-    for overlay_dir in vec![
+    for overlay_dir in [
         defaults::OVERLAY_ROOT,
         defaults::OVERLAY_UPPER,
         defaults::OVERLAY_WORK
@@ -1095,7 +1095,7 @@ pub fn umount_vm(sub_dir: &str, user: User) -> bool {
     Umount VM image
     !*/
     let mut status_code = 0;
-    for mount_point in vec![
+    for mount_point in [
         defaults::OVERLAY_ROOT,
         defaults::IMAGE_OVERLAY,
         defaults::IMAGE_ROOT,
