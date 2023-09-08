@@ -7,4 +7,7 @@ crate-type = "lib"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+derive_builder = "0.12.0"
 serde = { version = "1.0.185", features = ["derive"] }
+serde_yaml = "0.9.25"
+thiserror = "1.0.48"
