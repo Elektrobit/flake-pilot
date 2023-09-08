@@ -138,7 +138,7 @@ pub enum MergeErrorKind {
 impl PartialCofig {
     /// Turn this `PartialConfig` into a `Config<R>`
     pub fn finish<R: Runtime + DeserializeOwned>(self) -> Result<Config<R>, ConfigMergeError> {
-        Ok(Config {
+        Config {
             name: self.name.ok_or(ConfigMergeError { kind: MergeErrorKind::MissingName, configs: self.merged.clone() })?,
             host_path: self
                 .host_path
@@ -148,7 +148,7 @@ impl PartialCofig {
             runtime: self.runtime,
         }
         .try_conversion()
-        .map_err(|err| ConfigMergeError { kind: err.into(), configs: self.merged })?)
+        .map_err(|err| ConfigMergeError { kind: err.into(), configs: self.merged })
     }
 
     /// Update this `PartialConfig` with another, consuming both.
