@@ -7,30 +7,42 @@ use std::{
 };
 
 use builtin::list;
-use clap::{arg, App};
+use clap::arg;
+use colored::Colorize;
 
 fn main() -> ExitCode {
     let addons = addons::find_addons();
 
-    let mut args = App::new("flake-ctl")
+    let mut args = clap::Command::new("flake-ctl")
         // .trailing_var_arg(true)
         .arg_required_else_help(true)
         .version("2.0.0")
         .about("Manage Flake Applications")
-        .subcommand(App::new("list").about(Some("List all registered flakes")));
+        .subcommand(clap::Command::new("list").about(Some("List all registered flakes")));
 
-    for (_kind, list) in addons.addons.iter() {
-        // TODO: Needs clap 4.x.x to properly work
-        // args = args.subcommand_help_heading(kind.name());
+    let mut after_help = String::new();
+    
+    for (kind, list) in addons.addons.iter() {
+        // TODO: Add kind base headings once clap has them
+        // https://github.com/clap-rs/clap/issues/1553
+
+        // Until then
+        after_help.push_str(&format!("{}:\n", kind.name().underline().bold()));
         for addon in list {
             args = args.subcommand(
-                App::new(addon.name.as_str())
-                    .about(addon.description.as_deref())
-                    .trailing_var_arg(true)
-                    .arg(arg!(<cmd> ... "args for the tool").required(false)),
+                clap::Command::new(clap::builder::Str::from(addon.name.clone()))
+                .about(addon.description.as_ref().cloned().unwrap_or_default())
+                .trailing_var_arg(true)
+                .arg(arg!(<cmd> ... "args for the tool").required(false))
+                // Remove this when subcommand headings work
+                .hide(true),
             );
+            after_help.push_str(&format!("  {: <16}{}\n", addon.name.bold(), addon.description.as_deref().unwrap_or_default()));
         }
+        after_help.push('\n');
     }
+
+    args = args.after_help(after_help);
 
     match args.get_matches().subcommand() {
         Some(("list", _)) => list(),
