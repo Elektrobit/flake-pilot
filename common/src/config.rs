@@ -25,13 +25,16 @@ pub struct Config<R> {
     /// A flake should be run with "`<engine>-pilot`"
     ///
     /// If engine is `None` this flake should not be run at all
-    pub engine: Option<String>,
+    pub engine_type: Option<String>,
     /// The runtime specific options for this engine
     #[serde(default)]
     pub runtime: R,
 }
 
-pub trait Runtime {
+pub trait EngineConfig {
+    /// The type of engine, e.g. "container" or "vm"
+    fn engine_type() -> Option<String>;
+    /// The specific engine to be used, e.g. "podman", "runc", "firecracker"
     fn engine() -> Option<String>;
 }
 
@@ -45,23 +48,26 @@ type GenericValue = serde_yaml::Value;
 /// for the specified `engine`
 pub type FlakeConfig = Config<GenericValue>;
 
-impl<R: Runtime + Serialize> Config<R> {
+impl<R: EngineConfig + Serialize> Config<R> {
     /// Change the runtime of the flake
     ///
     /// **Note:** This will not migrate compatible options or update the symlink on disk,
     /// it will simply drop any associated runtime information and replace the name of the engine
-    pub fn with_runtime<New: Runtime>(self, runtime: New) -> Config<New> {
+    pub fn with_runtime<New: EngineConfig>(self, runtime: New) -> Config<New> {
         let Self { name, host_path, include, .. } = self;
-        Config { name, host_path, engine: New::engine(), runtime, include }
+        Config { name, host_path, engine_type: New::engine_type(), runtime, include }
     }
 
     pub fn into_generic(self) -> FlakeConfig {
-        let Self { name, host_path, include, engine, runtime } = self;
-        Config { name, host_path, engine, runtime: serde_yaml::to_value(runtime).expect("Can always be converted"), include }
+        let Self { name, host_path, include, engine_type: engine, runtime } = self;
+        Config { name, host_path, engine_type: engine, runtime: serde_yaml::to_value(runtime).expect("Can always be converted"), include }
     }
 }
 
-impl Runtime for GenericValue {
+impl EngineConfig for GenericValue {
+    fn engine_type() -> Option<String> {
+        None
+    }
     fn engine() -> Option<String> {
         None
     }
@@ -69,20 +75,26 @@ impl Runtime for GenericValue {
 
 #[derive(Debug, Error)]
 pub enum ConfigConvertionError {
-    #[error("The engines of the runtime and the generic config must be the same")]
-    WrongEngine,
+    #[error("This config is for a \"{}\"-type engine, a \"{}\"-type is required", .0, .1)]
+    WrongEngineType(String, String),
     #[error(transparent)]
     SyntaxError(#[from] serde_yaml::Error),
 }
 
 impl FlakeConfig {
-    /// Try to convert the Config into a config for the given runtime
-    pub fn try_conversion<R: Runtime + DeserializeOwned>(self) -> Result<Config<R>, ConfigConvertionError> {
-        if R::engine() != self.engine {
-            return Err(ConfigConvertionError::WrongEngine);
+    /// Try to convert the Config into a config for the given runtime by combining the engine-type and engine entries in the runtime mapping
+    /// 
+    /// Engine specific settings take precedent over type settings
+    /// 
+    /// Engines may specify settings not present in the generic type
+    pub fn try_conversion<R: EngineConfig + DeserializeOwned>(self) -> Result<Config<R>, ConfigConvertionError> {
+        if R::engine_type() != self.engine_type {
+            return Err(ConfigConvertionError::WrongEngineType(R::engine_type().unwrap_or_default(), self.engine_type.unwrap_or_default()));
         }
-        let new_runtime: R = serde_yaml::from_value(self.runtime.clone())?;
-        Ok(self.with_runtime(new_runtime))
+        let type_cfg = self.engine_type.as_ref().and_then(|x| self.runtime.get(x)).cloned().unwrap_or(Value::Null);
+        let engine_cfg = self.runtime.get(R::engine().unwrap_or_default()).cloned().unwrap_or(Value::Null);
+
+        Ok(self.with_runtime(serde_yaml::from_value(merge_values(type_cfg, engine_cfg))?))
     }
 }
 
@@ -103,12 +115,13 @@ pub struct PartialCofig {
     /// A flake should be run with "`<engine>-pilot`"
     ///
     /// If engine is `None` this flake should not be run at all
-    pub engine: Option<String>,
+    pub engine_type: Option<String>,
     /// The runtime specific options for this engine
     #[serde(default)]
     pub runtime: GenericValue,
 
     /// An ordered list of all configs that have been merged into this one
+    #[serde(default)]
     merged: Vec<String>,
 }
 
@@ -137,14 +150,14 @@ pub enum MergeErrorKind {
 
 impl PartialCofig {
     /// Turn this `PartialConfig` into a `Config<R>`
-    pub fn finish<R: Runtime + DeserializeOwned>(self) -> Result<Config<R>, ConfigMergeError> {
+    pub fn finish<R: EngineConfig + DeserializeOwned>(self) -> Result<Config<R>, ConfigMergeError> {
         Config {
             name: self.name.ok_or(ConfigMergeError { kind: MergeErrorKind::MissingName, configs: self.merged.clone() })?,
             host_path: self
                 .host_path
                 .ok_or(ConfigMergeError { kind: MergeErrorKind::MissingHostPath, configs: self.merged.clone() })?,
             include: self.include,
-            engine: self.engine,
+            engine_type: self.engine_type,
             runtime: self.runtime,
         }
         .try_conversion()
@@ -161,33 +174,35 @@ impl PartialCofig {
     pub fn update(mut self, other: PartialCofig) -> Self {
         self.name = other.name.or(self.name);
         self.host_path = other.host_path.or(self.host_path);
-        self.engine = other.engine.or(self.engine);
+        self.engine_type = other.engine_type.or(self.engine_type);
         self.merged.extend(other.merged);
-        self.runtime = Self::merge_values(self.runtime, other.runtime);
+        self.runtime = merge_values(self.runtime, other.runtime);
         self
     }
 
-    fn merge_values(base: Value, update: Value) -> Value {
-        match (base, update) {
-            (Value::Mapping(mut base), Value::Mapping(update)) => {
-                // TODO: This could be written nicer by somebody who wants to fight with the lifetimes of `Mapping::entry`
-                for (key, value) in update {
-                    let old = base.get(&key).cloned().unwrap_or_default();
-                    base.insert(key, Self::merge_values(old, value));
-                }
-                base.into()
+}
+
+fn merge_values(base: Value, update: Value) -> Value {
+    match (base, update) {
+        (Value::Mapping(mut base), Value::Mapping(update)) => {
+            // TODO: This could be written nicer by somebody who wants to fight with the lifetimes of `Mapping::entry`
+            for (key, value) in update {
+                let old = base.get(&key).cloned().unwrap_or_default();
+                base.insert(key, merge_values(old, value));
             }
-            (base, Value::Null) => base,
-            (_, update) => update,
+            base.into()
         }
+        (base, Value::Null) => base,
+        (_, update) => update,
     }
 }
 
 /// Load the config for a given flake
 // TODO: return FlakeError once that is in common
-pub fn load_config<R: Runtime + DeserializeOwned>(path: impl AsRef<Path>) -> Result<Config<R>, Box<dyn Error>> {
+pub fn load_config<R: EngineConfig + DeserializeOwned>(path: impl AsRef<Path>) -> Result<Config<R>, Box<dyn Error>> {
     let path = PathBuf::from(path.as_ref());
     let mut base: PartialCofig = serde_yaml::from_reader(OpenOptions::new().read(true).open(path.with_extension("yaml"))?)?;
+    // TODO stabilize alphanumeric sorting
     for entry in fs::read_dir(path.with_extension("d"))? {
         let other = serde_yaml::from_reader(OpenOptions::new().read(true).open(entry?.path())?)?;
         base = base.update(other);
@@ -199,8 +214,8 @@ pub fn load_config<R: Runtime + DeserializeOwned>(path: impl AsRef<Path>) -> Res
 mod test {
     use crate::config::*;
     use serde::{Deserialize, Serialize};
-    use serde_yaml::Value;
-    use std::{path::PathBuf, vec};
+    
+    use std::path::PathBuf;
 
     #[derive(Debug, Deserialize, Serialize)]
     struct PodmanRuntime {
@@ -214,10 +229,14 @@ mod test {
         #[serde(default)]
         attach: bool,
         runas: Option<String>,
+        #[serde(default)]
         args: Vec<String>,
     }
 
-    impl Runtime for PodmanRuntime {
+    impl EngineConfig for PodmanRuntime {
+        fn engine_type() -> Option<String> {
+            Some("container".to_owned())
+        }
         fn engine() -> Option<String> {
             Some("podman".to_owned())
         }
@@ -232,6 +251,7 @@ mod test {
         target: Option<PathBuf>,
         #[serde(default)]
         resume: bool,
+        #[serde(flatten)]
         vm: FirecrackerVMSettings,
     }
 
@@ -248,114 +268,48 @@ mod test {
         cache_type: Option<String>,
     }
 
-    impl Runtime for FirecrackerRuntime {
+    impl EngineConfig for FirecrackerRuntime {
+        fn engine_type() -> Option<String> {
+            Some("vm".to_owned())
+        }
         fn engine() -> Option<String> {
             Some("firecracker".to_owned())
         }
     }
 
     #[test]
-    fn test_type_conversions() {
-        let podman = Config {
-            name: "my_podman_flake".to_owned(),
-            host_path: PathBuf::from("/usr/bin/my_flake"),
-            include: vec![],
-            engine: Some("podman".to_owned()),
-            runtime: PodmanRuntime {
-                base: "ubuntu".to_owned(),
-                target: None,
-                layers: vec![],
-                resume: false,
-                attach: false,
-                runas: None,
-                args: vec!["-ti".to_owned()],
-            },
-        };
-
-        let firecracker = Config {
-            name: "my_firecracker_flake".to_owned(),
-            host_path: PathBuf::from("/usr/bin/my_flake"),
-            include: vec![],
-            engine: Some("firecracker".to_owned()),
-            runtime: FirecrackerRuntime {
-                base: "ubuntu".to_owned(),
-                layers: vec![],
-                target: None,
-                resume: false,
-                vm: FirecrackerVMSettings {
-                    boot_args: vec![
-                        "init=/usr/sbin/sci".to_owned(),
-                        "console=ttyS0".to_owned(),
-                        "root=/dev/vda".to_owned(),
-                        "acpi=off".to_owned(),
-                        "rd.neednet=1".to_owned(),
-                        "ip=dhcp".to_owned(),
-                        "quiet".to_owned(),
-                    ],
-                    overlay_size: "2GiB".to_owned(),
-                    rootfs_image_path: None,
-                    kernel_image_path: None,
-                    initrd_path: None,
-                    mem_size_mib: 4096,
-                    vcpu_count: None,
-                    cache_type: None,
-                },
-            },
-        };
-
-        println!("{}", serde_yaml::to_string(&podman).unwrap());
-        println!("{}", serde_yaml::to_string(&firecracker).unwrap());
-        // println!("{}", serde_yaml::to_string(&podman.into_generic()).unwrap());
-        // println!("{}", serde_yaml::to_string(&firecracker.into_generic()).unwrap());
-
-        let as_generic: FlakeConfig = serde_yaml::from_str(&serde_yaml::to_string(&firecracker).unwrap()).unwrap();
-        println!("{}", serde_yaml::to_string(&as_generic).unwrap());
-        println!("{}", as_generic.try_conversion::<FirecrackerRuntime>().unwrap().name);
-
-        let _x = vec![podman.into_generic(), firecracker.into_generic()];
-    }
-
-    #[test]
     fn test_combine_podman() {
-        let base = PartialCofig {
-            name: Some("Base".to_owned()),
-            engine: Some("podman".to_owned()),
-            merged: vec!["base.yaml".to_owned()],
-            ..Default::default()
-        };
+        let base: PartialCofig = serde_yaml::from_str(r#"
+        name: Base
+        engine_type: container
+        engine: podman
+        "#).unwrap();
 
-        let extension_1 = PartialCofig {
-            host_path: Some(PathBuf::from("/path/to/the/app")),
-            merged: vec!["extension_1.yaml".to_owned()],
-            runtime: Value::Mapping(
-                [
-                    ("base".into(), "ubuntu".into()),
-                    ("resume".into(), Value::Null),
-                    ("attach".into(), Value::Bool(true)),
-                    ("runas".into(), "someuser".into()),
-                    ("args".into(), Value::Null),
-                ]
-                .into_iter()
-                .collect(),
-            ),
-            ..Default::default()
-        };
+        let extension_1: PartialCofig = serde_yaml::from_str(r#"
+        host_path: path/to/the/app
+        runtime:
+            container:
+                base: ubuntu
+                runas: someuser
+                resume: ~
+                attach: true
+            podman:
+                args: ~
+            docker:
+                args: ~
+        "#).unwrap();
 
-        let extension_2 = PartialCofig {
-            host_path: Some(PathBuf::from("/path/to/the/app")),
-            merged: vec!["extension_2.yaml".to_owned()],
-            runtime: Value::Mapping(
-                [
-                    ("resume".into(), Value::Bool(true)),
-                    ("attach".into(), Value::Bool(true)),
-                    ("runas".into(), Value::Null),
-                    ("args".into(), Value::Sequence(Default::default())),
-                ]
-                .into_iter()
-                .collect(),
-            ),
-            ..Default::default()
-        };
+        let extension_2: PartialCofig = serde_yaml::from_str(r#"
+        host_path: path/to/the/app
+        runtime:
+            podman:
+                resume: true
+                attach: true
+                runas: ~
+                args: ~
+        "#).unwrap();
+        
+
 
         let result = base;
         let result = result.update(extension_1);
@@ -371,49 +325,34 @@ mod test {
 
     #[test]
     fn test_combine_firecracker() {
-        let base = PartialCofig {
-            name: Some("Base".to_owned()),
-            engine: Some("firecracker".to_owned()),
-            merged: vec!["base.yaml".to_owned()],
-            ..Default::default()
-        };
+        let base: PartialCofig = serde_yaml::from_str(r#"
+        name: Base
+        host_path: path/to/the/app
+        engine_type: vm
+        "#).unwrap();
 
-        let extension_1 = PartialCofig {
-            host_path: Some(PathBuf::from("/path/to/the/app")),
-            merged: vec!["extension_1.yaml".to_owned()],
-            runtime: Value::Mapping(
-                [
-                    ("base".into(), "ubuntu".into()),
-                    ("resume".into(), Value::Null),
-                    ("runas".into(), "someuser".into()),
-                    ("vm".into(), Value::Mapping([("mem_size_mib".into(), 1024.into())].into_iter().collect())),
-                ]
-                .into_iter()
-                .collect(),
-            ),
-            ..Default::default()
-        };
+        let extension_1: PartialCofig = serde_yaml::from_str(r#"
+        host_path: path/to/the/app
+        runtime:
+            vm:
+                base: ubuntu
+                resume: ~
+                runas: ~
+                mem_size_mib: 1024
+        "#).unwrap();
 
-        let extension_2 = PartialCofig {
-            host_path: Some(PathBuf::from("/path/to/the/app")),
-            merged: vec!["extension_2.yaml".to_owned()],
-            runtime: Value::Mapping(
-                [
-                    ("resume".into(), Value::Bool(true)),
-                    ("runas".into(), Value::Null),
-                    ("args".into(), Value::Sequence(Default::default())),
-                    (
-                        "vm".into(),
-                        Value::Mapping(
-                            [("mem_size_mib".into(), 4096.into()), ("overlay_size".into(), "2MiB".into())].into_iter().collect(),
-                        ),
-                    ),
-                ]
-                .into_iter()
-                .collect(),
-            ),
-            ..Default::default()
-        };
+
+        let extension_2: PartialCofig = serde_yaml::from_str(r#"
+        host_path: path/to/the/app
+        runtime:
+            vm:
+                base: ubuntu
+                resume: true
+                runas: ~
+                mem_size_mib: 4096
+                overlay_size: 2MiB
+        "#).unwrap();
+
 
         let result = base;
         let result = result.update(extension_1);
