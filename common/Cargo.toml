@@ -8,3 +8,4 @@ crate-type = "lib"
 
 [dependencies]
 serde = { version = "1.0.185", features = ["derive"] }
+thiserror = "1.0.47"

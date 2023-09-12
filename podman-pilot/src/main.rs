@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate log;
 
-pub mod error;
-
 use std::{
     env, fs,
     path::{Path, PathBuf},
@@ -11,7 +9,7 @@ use std::{
 
 use config::config;
 use env_logger::Env;
-use error::FlakeError;
+use flakes::error::FlakeError;
 
 pub mod config;
 pub mod defaults;
