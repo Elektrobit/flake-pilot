@@ -106,10 +106,6 @@ install:
 		$(DESTDIR)$(BINDIR)/oci-deb
 	install -m 644 flake-ctl/flake-ctl-podman/debbuild/container.spec.in \
 		$(DESTDIR)$(SHAREDIR)/container.spec.in
-	install -m 644 flake-ctl-v1/template/container-flake.yaml \
-		$(DESTDIR)$(TEMPLATEDIR)/container-flake.yaml
-	install -m 644 flake-ctl-v1/template/firecracker-flake.yaml \
-		$(DESTDIR)$(TEMPLATEDIR)/firecracker-flake.yaml
 	install -m 644 firecracker-pilot/template/firecracker.json \
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker.json
 	install -m 644 doc/*.8 ${DESTDIR}/usr/share/man/man8

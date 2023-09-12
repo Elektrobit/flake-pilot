@@ -9,6 +9,7 @@ edition = "2021"
 itertools = "0.11.0"
 colored = "2.0.4"
 
-# Fix these two in place for now because ubuntu ruts is still at 1.66
+# Fix these three in place for now because ubuntu ruts is still at 1.66
 clap = { version = "=4.3.24", features=["string"] }
 clap_lex = {version = "=0.5.0"}
+anstyle = {version = "=1.0.2"}
