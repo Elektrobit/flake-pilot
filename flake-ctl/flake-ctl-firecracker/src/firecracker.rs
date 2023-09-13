@@ -24,6 +24,7 @@
 use std::ffi::OsStr;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
+use log::{error, info};
 use tempfile::tempdir;
 use std::path::Path;
 use std::borrow::Cow;

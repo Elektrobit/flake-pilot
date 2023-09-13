@@ -33,26 +33,9 @@ type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppConfig {
     pub include: AppInclude,
-    pub container: Option<AppContainer>,
     pub vm: Option<AppFireCracker>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AppContainer {
-    pub name: String,
-    pub target_app_path: String,
-    pub host_app_path: String,
-    pub base_container: Option<String>,
-    pub layers: Option<Vec<String>>,
-    pub runtime: Option<AppContainerRuntime>,
-}
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AppContainerRuntime {
-    pub runas: Option<String>,
-    pub resume: Option<bool>,
-    pub attach: Option<bool>,
-    pub podman: Option<Vec<String>>,
-}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppInclude {
     pub tar: Option<Vec<String>>,
@@ -86,85 +69,6 @@ pub struct AppFireCrackerEngine {
 }
 
 impl AppConfig {
-    #[allow(clippy::too_many_arguments)]
-    pub fn save_container(
-        config_file: &Path,
-        container: &str,
-        target_app_path: &str,
-        host_app_path: &str,
-        base: Option<&String>,
-        layers: Option<Vec<String>>,
-        includes_tar: Option<Vec<String>>,
-        resume: bool,
-        attach: bool,
-        run_as: Option<&String>,
-        opts: Option<Vec<String>>,
-    ) -> Result<(), GenericError> {
-        /*!
-        save stores an AppConfig to the given file
-        !*/
-        let template = std::fs::File::open(defaults::FLAKE_TEMPLATE_CONTAINER)
-            .unwrap_or_else(|_| panic!("Failed to open {}", defaults::FLAKE_TEMPLATE_CONTAINER));
-        let mut yaml_config: AppConfig =
-            serde_yaml::from_reader(template).expect("Failed to import config template");
-        let container_config = yaml_config.container.as_mut().unwrap();
-
-        container_config.name = container.to_string();
-        container_config.target_app_path = target_app_path.to_string();
-        container_config.host_app_path = host_app_path.to_string();
-        if let Some(base) = base {
-            container_config.base_container = Some(
-                base.to_string()
-            );
-        }
-        if layers.is_some() {
-            container_config.layers = Some(
-                layers.as_ref().unwrap().to_vec()
-            );
-        }
-        if resume {
-            container_config.runtime.as_mut().unwrap()
-                .resume = Some(resume);
-        } else if attach {
-            container_config.runtime.as_mut().unwrap()
-                .attach = Some(attach);
-        } else {
-            // default: remove the container if no resume/attach is set
-            container_config.runtime.as_mut().unwrap()
-                .podman.as_mut().unwrap().push("--rm".to_string());
-        }
-        if let Some(run_as) = run_as {
-            container_config.runtime.as_mut().unwrap()
-                .runas = Some(run_as.to_string());
-        }
-        if includes_tar.is_some() {
-            yaml_config.include.tar = Some(
-                includes_tar.as_ref().unwrap().to_vec()
-            );
-        }
-        if opts.is_some() {
-            let mut final_opts: Vec<String> = Vec::new();
-            for opt in opts.as_ref().unwrap() {
-                if let Some(stripped_opt) = opt.strip_prefix('\\') {
-                    final_opts.push(stripped_opt.to_string())
-                } else {
-                    final_opts.push(opt.to_string())
-                }
-            }
-            container_config.runtime.as_mut().unwrap().podman = Some(
-                final_opts
-            );
-        }
-
-        let config = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(config_file)
-            .unwrap_or_else(|_| panic!("Failed to open {:?}", config_file));
-        serde_yaml::to_writer(config, &yaml_config).unwrap();
-        Ok(())
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub fn save_vm(
         config_file: &Path,

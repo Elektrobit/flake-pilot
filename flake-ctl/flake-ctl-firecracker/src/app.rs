@@ -21,15 +21,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-use crate::{app_config, defaults, firecracker, podman};
+use crate::{app_config, defaults, firecracker};
 use glob::glob;
+use log::{error, info};
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::Path;
 
 pub fn register(app: Option<&String>, target: Option<&String>, engine: &str) -> bool {
     /*!
-    Register container application for specified engine.
 
     Create an app symlink pointing to the engine launcher.
     !*/
@@ -85,64 +85,6 @@ pub fn register(app: Option<&String>, target: Option<&String>, engine: &str) -> 
         }
     }
     true
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn create_container_config(
-    container: &str,
-    app: Option<&String>,
-    target: Option<&String>,
-    base: Option<&String>,
-    layers: Option<Vec<String>>,
-    includes_tar: Option<Vec<String>>,
-    resume: bool,
-    attach: bool,
-    run_as: Option<&String>,
-    opts: Option<Vec<String>>,
-) -> bool {
-    /*!
-    Create app configuration for the container engine.
-
-    Create an app configuration file as FLAKE_DIR/app.yaml
-    containing the required information to launch the
-    application inside of the container engine.
-    !*/
-    if base.is_none() && layers.is_some() {
-        error!("Layer(s) specified without a base");
-        return false;
-    }
-    let host_app_path = app.unwrap();
-
-    let target_app_path = target.unwrap_or(host_app_path);
-
-    let app_basename = Path::new(app.unwrap())
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap();
-    let app_config_file = format!("{}/{}.yaml", defaults::FLAKE_DIR, &app_basename);
-    match app_config::AppConfig::save_container(
-        Path::new(&app_config_file),
-        container,
-        target_app_path,
-        host_app_path,
-        base,
-        layers,
-        includes_tar,
-        resume,
-        attach,
-        run_as,
-        opts,
-    ) {
-        Ok(_) => true,
-        Err(error) => {
-            error!(
-                "Failed to create AppConfig {}: {:?}",
-                app_config_file, error
-            );
-            false
-        }
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -311,9 +253,6 @@ pub fn purge(app: &str, engine: &str) {
     Iterate over all yaml config files and delete all app
     registrations and its connected resources for the specified app
     !*/
-    if engine == defaults::PODMAN_PILOT {
-        podman::purge_container(app)
-    }
     if engine == defaults::FIRECRACKER_PILOT {
         firecracker::purge_vm(app)
     }

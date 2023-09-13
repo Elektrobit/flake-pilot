@@ -21,9 +21,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
+use anyhow::{Context, Result};
+use log::{error, info, warn};
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
+
 use crate::defaults;
 use crate::{app, app_config};
 
@@ -35,31 +38,25 @@ pub fn pull(uri: &String) -> i32 {
 
     info!("Fetching from registry...");
     info!("podman pull {}", uri);
-    let status = Command::new(defaults::PODMAN_PATH)
-        .arg("pull")
-        .arg(uri)
-        .status();
+    let status = Command::new(defaults::PODMAN_PATH).arg("pull").arg(uri).status();
 
     match status {
         Ok(status) => {
             status_code = status.code().unwrap();
-            if ! status.success() {
+            if !status.success() {
                 error!("Failed, error message(s) reported");
             } else {
                 info!("podman prune");
-                let _ = Command::new(defaults::PODMAN_PATH)
-                    .arg("image")
-                    .arg("prune")
-                    .arg("--force")
-                    .status();
+                let _ = Command::new(defaults::PODMAN_PATH).arg("image").arg("prune").arg("--force").status();
             }
         }
-        Err(status) => { error!("Process terminated by signal: {}", status) }
+        Err(status) => {
+            error!("Process terminated by signal: {}", status)
+        }
     }
 
     status_code
 }
-
 
 pub fn load(oci: &String) -> i32 {
     /*!
@@ -69,45 +66,40 @@ pub fn load(oci: &String) -> i32 {
 
     info!("Loading OCI image...");
     info!("podman load -i {}", oci);
-    let status = Command::new(defaults::PODMAN_PATH)
-        .arg("load")
-        .arg("-i")
-        .arg(oci)
-        .status();
+    let status = Command::new(defaults::PODMAN_PATH).arg("load").arg("-i").arg(oci).status();
 
     match status {
         Ok(status) => {
             status_code = status.code().unwrap();
-            if ! status.success() {
+            if !status.success() {
                 error!("Failed, error message(s) reported");
             }
         }
-        Err(status) => { error!("Process terminated by signal: {}", status) }
+        Err(status) => {
+            error!("Process terminated by signal: {}", status)
+        }
     }
 
     status_code
 }
 
-pub fn rm(container: &String){
+pub fn rm(container: &String) {
     /*!
     Call podman image rm with force option to remove all running containers
     !*/
     info!("Removing image and all running containers...");
     info!("podman rm -f  {}", container);
-    let status = Command::new(defaults::PODMAN_PATH)
-        .arg("image")
-        .arg("rm")
-        .arg("-f")
-        .arg(container)
-        .status();
+    let status = Command::new(defaults::PODMAN_PATH).arg("image").arg("rm").arg("-f").arg(container).status();
 
     match status {
         Ok(status) => {
-            if ! status.success() {
+            if !status.success() {
                 error!("Failed, error message(s) reported");
             }
         }
-        Err(status) => { error!("Process terminated by signal: {}", status) }
+        Err(status) => {
+            error!("Process terminated by signal: {}", status)
+        }
     }
 }
 
@@ -116,22 +108,13 @@ pub fn mount_container(container_name: &str) -> String {
     Mount container and return mount point,
     or an empty string in the error case
     !*/
-    match Command::new(defaults::PODMAN_PATH)
-        .arg("image")
-        .arg("mount")
-        .arg(container_name)
-        .output()
-    {
+    match Command::new(defaults::PODMAN_PATH).arg("image").arg("mount").arg(container_name).output() {
         Ok(output) => {
             if output.status.success() {
-                return String::from_utf8_lossy(&output.stdout)
-                    .strip_suffix('\n').unwrap().to_string()
+                return String::from_utf8_lossy(&output.stdout).strip_suffix('\n').unwrap().to_string();
             }
-            error!(
-                "Failed to mount container image: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        },
+            error!("Failed to mount container image: {}", String::from_utf8_lossy(&output.stderr));
+        }
         Err(error) => {
             error!("Failed to execute podman image mount: {:?}", error)
         }
@@ -154,7 +137,7 @@ pub fn umount_container(container_name: &str) -> i32 {
     {
         Ok(status) => {
             status_code = status.code().unwrap();
-        },
+        }
         Err(error) => {
             error!("Failed to execute podman image umount: {:?}", error)
         }
@@ -162,7 +145,7 @@ pub fn umount_container(container_name: &str) -> i32 {
     status_code
 }
 
-pub fn purge_container(container: &str) {
+pub fn purge_container(container: &str) -> Result<()> {
     /*!
     Iterate over all yaml config files and find those connected
     to the container. Delete all app registrations for this
@@ -170,64 +153,36 @@ pub fn purge_container(container: &str) {
     registry
     !*/
     for app_name in app::app_names() {
-        let config_file = format!(
-            "{}/{}.yaml", defaults::FLAKE_DIR, app_name
-        );
-        match app_config::AppConfig::init_from_file(Path::new(&config_file)) {
-            Ok(mut app_conf) => {
-                if app_conf.container.is_some() &&
-                    container == app_conf.container.as_mut().unwrap().name
-                {
-                    app::remove(
-                        &app_conf.container.as_mut().unwrap().host_app_path,
-                        defaults::PODMAN_PILOT, false
-                    );
-                }
-            },
-            Err(error) => {
-                error!(
-                    "Ignoring error on load or parse flake config {}: {:?}",
-                    config_file, error
-                );
+        let config_file = Path::new(defaults::FLAKE_DIR).join(app_name).with_extension("yaml");
+        match app_config::AppConfig::from_file(&config_file) {
+            Ok(app_conf) if app_conf.container.name == container => {
+                let path = &app_conf.container.host_app_path;
+                app::remove(Path::new(path)).map_err(|err| warn!("Could not delete {path}: {err}")).ok();
             }
+            Ok(_) => (),
+            Err(error) => warn!("Error in flake \"{}\": {}", config_file.to_string_lossy(), error),
         };
     }
     rm(&container.to_string());
+    Ok(())
 }
 
-pub fn print_container_info(container: &str) {
+pub fn print_container_info(container: &str) -> Result<()> {
     /*!
     Print app info file
 
     Lookup container_base_name.yaml file in the root of the
     specified container and print the file if it is present
     !*/
-    let container_basename = Path::new(
-        container
-    ).file_name().unwrap().to_str().unwrap();
+    let container_basename = Path::new(container).file_name().unwrap().to_str().unwrap();
     let image_mount_point = mount_container(container);
     if image_mount_point.is_empty() {
-        return
+        return Ok(());
     }
-    let info_file = format!(
-        "{}/{}.yaml", image_mount_point, container_basename
-    );
-    if Path::new(&info_file).exists() {
-        match fs::read_to_string(&info_file) {
-            Ok(data) => {
-                println!("{}", &String::from_utf8_lossy(
-                    data.as_bytes()
-                ).to_string());
-            },
-            Err(error) => {
-                // info_file file exists but could not be read
-                error!("Error reading {}: {:?}", info_file, error);
-            }
-        }
-    } else {
-        error!("No info file {}.yaml found in container: {}",
-            container_basename, container
-        );
-    }
+    let info_file = format!("{}/{}.yaml", image_mount_point, container_basename);
+
+    let data = fs::read_to_string(&info_file).context(format!("Failed to read {info_file}"))?;
+    println!("{data}");
     umount_container(container);
+    Ok(())
 }

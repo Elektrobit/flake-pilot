@@ -24,10 +24,12 @@
 use std::process::Command;
 use std::path::Path;
 use std::fs;
+use log::{error, info, warn};
+
 use crate::defaults;
 
 pub fn ocideb(
-    oci: &String, repo: &String, apps: &Vec<String>, arch: Option<&String>
+    oci: &str, repo: &str, apps: &[String], arch: Option<&str>
 ) -> i32 {
     /*!
     Call oci-deb to create a debian package from the given OCI

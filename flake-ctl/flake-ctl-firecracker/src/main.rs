@@ -21,17 +21,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-#[macro_use]
-extern crate log;
-
 use env_logger::Env;
 use std::process::{exit, ExitCode};
 
 pub mod cli;
-pub mod podman;
 pub mod firecracker;
 pub mod app;
-pub mod deb;
 pub mod app_config;
 pub mod defaults;
 pub mod fetch;
@@ -43,21 +38,6 @@ async fn main() -> Result<ExitCode, Box<dyn std::error::Error>> {
     let args = cli::parse_args();
 
     match &args.command {
-        // list
-        cli::Commands::List { } => {
-            info!("Registered applications:");
-            let app_names = app::app_names();
-            if app_names.is_empty() {
-                println!("No application(s) registered");
-            } else {
-                for app in app_names {
-                    println!("- {}", app);
-                }
-            }
-        },
-        // firecracker engine
-        cli::Commands::Firecracker { command } => {
-            match &command {
                 // pull
                 cli::Firecracker::Pull {
                     name, kis_image, rootfs, kernel, initrd, force
@@ -123,79 +103,11 @@ async fn main() -> Result<ExitCode, Box<dyn std::error::Error>> {
                             defaults::FIRECRACKER_PILOT
                         );
                     }
+                },
+                cli::Firecracker::About => {
+                    println!("Manage firecracker micro vm flakes;ENGINE");
                 }
             }
-        },
-        // podman engine
-        cli::Commands::Podman { command } => {
-            match &command {
-                // pull
-                cli::Podman::Pull { uri } => {
-                    exit(podman::pull(uri));
-                },
-                // load
-                cli::Podman::Load { oci } => {
-                    exit(podman::load(oci));
-                },
-                // register
-                cli::Podman::Register {
-                    container, app, target, base,
-                    layer, include_tar, resume, attach, run_as, opt, info
-                } => {
-                    if *info {
-                        podman::print_container_info(container);
-                    } else if app::init(app.as_ref()) {
-                        let mut ok = app::register(
-                            app.as_ref(), target.as_ref(),
-                            defaults::PODMAN_PILOT
-                        );
-                        if ok {
-                            ok = app::create_container_config(
-                                container,
-                                app.as_ref(),
-                                target.as_ref(),
-                                base.as_ref(),
-                                layer.as_ref().cloned(),
-                                include_tar.as_ref().cloned(),
-                                *resume,
-                                *attach,
-                                run_as.as_ref(),
-                                opt.as_ref().cloned()
-                            );
-                        }
-                        if ! ok {
-                            app::remove(
-                                app.as_ref().map(String::as_str).unwrap(),
-                                defaults::PODMAN_PILOT, true
-                            );
-                            return Ok(ExitCode::FAILURE)
-                        }
-                    } else {
-                        return Ok(ExitCode::FAILURE)
-                    }
-                },
-                // remove
-                cli::Podman::Remove { container, app } => {
-                    if ! app.is_none() {
-                        app::remove(
-                            app.as_ref().map(String::as_str).unwrap(),
-                            defaults::PODMAN_PILOT, false
-                        );
-                    }
-                    if ! container.is_none() {
-                        app::purge(
-                            container.as_ref().map(String::as_str).unwrap(),
-                            defaults::PODMAN_PILOT
-                        );
-                    }
-                }
-                // build deb
-                cli::Podman::BuildDeb { oci, app, repo, arch } => {
-                    exit(deb::ocideb(oci, repo, app, arch.as_ref()));
-                }
-            }
-        },
-    }
     Ok(ExitCode::SUCCESS)
 }
 
