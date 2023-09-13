@@ -1,6 +1,6 @@
 # Automated Packaging of Flakes
 
-| Status        | (Proposed / Accepted / Implemented / Obsolete)       |
+| Status        |  Proposed                                            |
 :-------------- |:---------------------------------------------------- |
 | **RFC #**     | (update when you have a PR #)                        |
 | **Author(s)** | Michael Meyer (ichmed95@gmail.com)                   |
