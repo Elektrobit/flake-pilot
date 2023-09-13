@@ -14,7 +14,7 @@ use thiserror::Error;
 pub struct Config<R> {
     /// The unique name of this flake
     pub name: String,
-    /// Location of the coresponding pilot link
+    /// Location of the corresponding pilot link
     pub host_path: PathBuf,
 
     #[serde(default)]
@@ -62,8 +62,14 @@ impl<R> Config<R> {
     }
 }
 
+impl<Runtime: Serialize> Config<Runtime> {
+    pub fn raw(&self) -> serde_yaml::Result<String> {
+        serde_yaml::to_string(self)
+    }
+}
+
 #[derive(Debug, Error)]
-pub enum ConfigConvertionError {
+pub enum ConfigConversionError {
     #[error("This config is for a \"{}\"-type engine, a \"{}\"-type is required", .0, .1)]
     WrongEngineType(String, String),
     #[error(transparent)]
@@ -76,9 +82,9 @@ impl FlakeConfig {
     /// Engine specific settings take precedent over type settings
     ///
     /// Engines may specify settings not present in the type settings
-    pub fn try_conversion<R: EngineConfig + DeserializeOwned>(self) -> Result<Config<R>, ConfigConvertionError> {
+    pub fn try_conversion<R: EngineConfig + DeserializeOwned>(self) -> Result<Config<R>, ConfigConversionError> {
         if R::engine_type() != self.engine_type {
-            return Err(ConfigConvertionError::WrongEngineType(R::engine_type(), self.engine_type));
+            return Err(ConfigConversionError::WrongEngineType(R::engine_type(), self.engine_type));
         }
         let type_cfg = self.runtime.get(&self.engine_type).cloned().unwrap_or(Value::Null);
         let engine_cfg = self.runtime.get(R::engine().unwrap_or_default()).cloned().unwrap_or(Value::Null);
@@ -111,10 +117,10 @@ impl EngineConfig for AnyVm {
 
 /// Identical to Config<GenericValue> except all fields are optional
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct PartialCofig {
+pub struct PartialConfig {
     /// The unique name of this flake
     pub name: Option<String>,
-    /// Location of the coresponding pilot link
+    /// Location of the corresponding pilot link
     pub host_path: Option<PathBuf>,
 
     #[serde(default)]
@@ -138,16 +144,16 @@ pub struct PartialCofig {
 
 #[derive(Default)]
 pub struct ConfigBuilder<Engine: EngineConfig> {
-    inner: PartialCofig,
+    inner: PartialConfig,
     _engine: PhantomData<Engine>,
 }
 
 impl<Engine: EngineConfig> ConfigBuilder<Engine> {
     pub fn new() -> Self {
-        Self { inner: PartialCofig { engine_type: Some(Engine::engine_type()), ..Default::default() }, _engine: PhantomData }
+        Self { inner: PartialConfig { engine_type: Some(Engine::engine_type()), ..Default::default() }, _engine: PhantomData }
     }
 
-    pub fn build(self) -> PartialCofig {
+    pub fn build(self) -> PartialConfig {
         self.inner
     }
 
@@ -171,13 +177,13 @@ impl<Engine: EngineConfig> ConfigBuilder<Engine> {
     pub fn set_in_type(self, key: &str, value: impl Into<GenericValue>) -> Self {
         self.set_by_engine(&Engine::engine_type(), key, value)
     }
-    
+
     /// Directly set the given value for the given engine
     pub fn set_by_engine(mut self, engine: &str, key: &str, value: impl Into<GenericValue>) -> Self {
         self.inner.runtime[engine][key] = value.into();
         self
     }
-    
+
     pub fn configure<New: EngineConfig>(self) -> ConfigBuilder<New> {
         ConfigBuilder { inner: self.inner, _engine: PhantomData }
     }
@@ -212,10 +218,10 @@ pub enum MergeErrorKind {
     #[error("No engine type was given")]
     MissingEngineType,
     #[error(transparent)]
-    Conversion(#[from] ConfigConvertionError),
+    Conversion(#[from] ConfigConversionError),
 }
 
-impl PartialCofig {
+impl PartialConfig {
     /// Turn this `PartialConfig` into a `Config<R>`
     pub fn finish<R: EngineConfig + DeserializeOwned>(self) -> Result<Config<R>, ConfigMergeError> {
         Config {
@@ -240,7 +246,7 @@ impl PartialCofig {
     /// `Mappings` are combined recursively, all other values will be replaced.
     ///
     /// The lists of combined configs of the other `PartialConfig` are appended to this ones
-    pub fn update(mut self, other: PartialCofig) -> Self {
+    pub fn update(mut self, other: PartialConfig) -> Self {
         self.name = other.name.or(self.name);
         self.host_path = other.host_path.or(self.host_path);
         self.engine_type = other.engine_type.or(self.engine_type);
@@ -269,7 +275,7 @@ fn merge_values(base: Value, update: Value) -> Value {
 // TODO: return FlakeError once that is in common
 pub fn load_config<R: EngineConfig + DeserializeOwned>(path: impl AsRef<Path>) -> Result<Config<R>, Box<dyn Error>> {
     let path = PathBuf::from(path.as_ref());
-    let mut base: PartialCofig = serde_yaml::from_reader(OpenOptions::new().read(true).open(path.with_extension("yaml"))?)?;
+    let mut base: PartialConfig = serde_yaml::from_reader(OpenOptions::new().read(true).open(path.with_extension("yaml"))?)?;
     // TODO stabilize alphanumeric sorting
     for entry in fs::read_dir(path.with_extension("d"))? {
         let other = serde_yaml::from_reader(OpenOptions::new().read(true).open(entry?.path())?)?;
@@ -349,7 +355,7 @@ mod test {
 
     #[test]
     fn test_combine_podman() {
-        let base: PartialCofig = serde_yaml::from_str(
+        let base: PartialConfig = serde_yaml::from_str(
             r#"
         name: Base
         engine_type: container
@@ -358,7 +364,7 @@ mod test {
         )
         .unwrap();
 
-        let extension_1: PartialCofig = serde_yaml::from_str(
+        let extension_1: PartialConfig = serde_yaml::from_str(
             r#"
         host_path: path/to/the/app
         runtime:
@@ -375,7 +381,7 @@ mod test {
         )
         .unwrap();
 
-        let extension_2: PartialCofig = serde_yaml::from_str(
+        let extension_2: PartialConfig = serde_yaml::from_str(
             r#"
         host_path: path/to/the/app
         runtime:
@@ -402,7 +408,7 @@ mod test {
 
     #[test]
     fn test_combine_firecracker() {
-        let base: PartialCofig = serde_yaml::from_str(
+        let base: PartialConfig = serde_yaml::from_str(
             r#"
         name: Base
         host_path: path/to/the/app
@@ -411,7 +417,7 @@ mod test {
         )
         .unwrap();
 
-        let extension_1: PartialCofig = serde_yaml::from_str(
+        let extension_1: PartialConfig = serde_yaml::from_str(
             r#"
         host_path: path/to/the/app
         runtime:
@@ -424,7 +430,7 @@ mod test {
         )
         .unwrap();
 
-        let extension_2: PartialCofig = serde_yaml::from_str(
+        let extension_2: PartialConfig = serde_yaml::from_str(
             r#"
         host_path: path/to/the/app
         runtime:
