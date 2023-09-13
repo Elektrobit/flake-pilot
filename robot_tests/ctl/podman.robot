@@ -8,6 +8,10 @@ Test Teardown  Delete all Containers and Flakes
 Resource    ../common/ctl.robot
 
 *** Test Cases ***
+Smoke
+    ${result} =  Run Process    flake-ctl-podman  --help
+    Should Be Equal As Integers    ${result.rc}    0
+
 Pull a Container
     ${result} =    Pull Podman Container    docker.io/amazon/aws-cli
 
