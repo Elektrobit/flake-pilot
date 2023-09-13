@@ -102,6 +102,8 @@ install:
 		$(DESTDIR)$(BINDIR)/flake-ctl
 	install -m 755 target/release/flake-ctl-podman \
 		$(DESTDIR)$(BINDIR)/flake-ctl-podman
+	install -m 755 target/release/flake-ctl-firecracker \
+		$(DESTDIR)$(BINDIR)/flake-ctl-firecracker
 	install -m 755 flake-ctl/flake-ctl-podman/debbuild/oci-deb \
 		$(DESTDIR)$(BINDIR)/oci-deb
 	install -m 644 flake-ctl/flake-ctl-podman/debbuild/container.spec.in \
@@ -114,6 +116,7 @@ install:
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-podman
+	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-firecracker
 	rm -f $(DESTDIR)$(BINDIR)/podman-pilot
 	rm -f $(DESTDIR)$(BINDIR)/firecracker-pilot
 	rm -f $(DESTDIR)$(BINDIR)/firecracker-service
