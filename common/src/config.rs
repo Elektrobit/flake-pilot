@@ -167,13 +167,14 @@ impl<Engine: EngineConfig> ConfigBuilder<Engine> {
     }
 
     /// Set a value in the engine_type section of the config
-    pub fn set_in_type(self, key: &str, value: serde_yaml::Value) -> Self {
+    // TODO: Not happy with the function name
+    pub fn set_in_type(self, key: &str, value: impl Into<GenericValue>) -> Self {
         self.set_by_engine(&Engine::engine_type(), key, value)
     }
     
     /// Directly set the given value for the given engine
-    pub fn set_by_engine(mut self, engine: &str, key: &str, value: serde_yaml::Value) -> Self {
-        self.inner.runtime[engine][key] = value;
+    pub fn set_by_engine(mut self, engine: &str, key: &str, value: impl Into<GenericValue>) -> Self {
+        self.inner.runtime[engine][key] = value.into();
         self
     }
     
@@ -184,7 +185,7 @@ impl<Engine: EngineConfig> ConfigBuilder<Engine> {
 
 impl<Engine: ConcreteEngine> ConfigBuilder<Engine> {
     /// Set the value for the current engine
-    pub fn set(self, key: &str, value: serde_yaml::Value) -> Self {
+    pub fn set(self, key: &str, value: impl Into<GenericValue>) -> Self {
         self.set_by_engine(&Engine::concrete_engine(), key, value)
     }
 }
@@ -452,10 +453,9 @@ mod test {
         let result = ConfigBuilder::<PodmanRuntime>::new()
             .name("my_flake")
             .host_path("/bin/ein/socio/path")
-            .set("attach", true.into())
-            .set("resume", true.into())
-            .set("layers", Value::Sequence(vec![]))
-            .set("base", "ubuntu".into())
+            .set("attach", true)
+            .set("resume", true)
+            .set("base", "ubuntu")
             .build()
             .finish::<PodmanRuntime>()
             .unwrap();
