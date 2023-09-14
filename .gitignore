@@ -22,3 +22,4 @@ report.html
 
 # Ignore tmp doc files
 doc/*.8
+.vscode/
