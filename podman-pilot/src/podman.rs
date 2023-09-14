@@ -268,7 +268,7 @@ fn prepare_container(mut app: Command) -> Result<String, FlakeError> {
 /// Start container with the given container ID
 pub fn start(pth: PathBuf) -> Result<(), FlakeError> {
     //TODO: remove paths as strings from all over the place and use the PathBuf instead
-    let program_name = pth.to_str().unwrap();
+    let program_name = pth.file_name().unwrap().to_str().unwrap();
 
     let cid = &create(&program_name.to_string())?.0;
     let RuntimeSection { runas, resume, attach, .. } = config().runtime();
