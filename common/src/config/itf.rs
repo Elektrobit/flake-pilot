@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{default::Default, path::PathBuf};
 
 use crate::user::User;
 
@@ -35,8 +35,8 @@ pub struct FlakeCfgRuntime<'a> {
     paths: FlakeCfgPaths,
 }
 
-impl<'a> FlakeCfgRuntime<'a> {
-    pub fn default() -> Self {
+impl<'a> Default for FlakeCfgRuntime<'a> {
+    fn default() -> Self {
         Self {
             image_name: "".to_string(),
             base_layer: None,
@@ -68,8 +68,8 @@ pub struct FlakeCfgPaths {
     vm_initrd_path: Option<PathBuf>,
 }
 
-impl FlakeCfgPaths {
-    pub fn default() -> Self {
+impl Default for FlakeCfgPaths {
+    fn default() -> Self {
         Self {
             exported_app_path: PathBuf::new(),
             registered_app_path: PathBuf::new(),
@@ -103,7 +103,7 @@ pub enum CacheType {
     Writeback,
 }
 
-impl CacheType {
+impl Default for CacheType {
     fn default() -> Self {
         Self::Writeback
     }
@@ -138,8 +138,8 @@ pub struct FlakeCfgEngine {
     vm_overlay_size_mib: Option<u128>,
 }
 
-impl FlakeCfgEngine {
-    pub fn default() -> Self {
+impl Default for FlakeCfgEngine {
+    fn default() -> Self {
         Self {
             pilot: "".to_string(),
             args: vec![],
