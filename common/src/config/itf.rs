@@ -62,6 +62,43 @@ pub struct FlakeCfgRuntime<'a> {
     paths: FlakeCfgPaths,
 }
 
+impl<'a> FlakeCfgRuntime<'a> {
+    /// Get the image name.
+    ///
+    /// The image name is used mostly for the containers to be searched
+    /// in their registry. Can be used by other image storages, if needed.
+    pub fn image_name(&self) -> &str {
+        self.image_name.as_ref()
+    }
+
+    /// Get name of a base layer, if any.
+    pub fn base_layer(&self) -> Option<&String> {
+        self.base_layer.as_ref()
+    }
+
+    /// Get a list of layers on top of base later, if any.
+    pub fn layers(&self) -> Option<&Vec<String>> {
+        self.layers.as_ref()
+    }
+
+    /// Get a [`crate::user::User`] instance, used to run
+    /// as it. This is **discouraged** as it requires use of `sudo`.
+    pub fn run_as(&self) -> Option<User<'_>> {
+        self.run_as
+    }
+
+    /// Get instance mode which is described in [`InstanceMode`] enum.
+    /// Default is set to [`InstanceMode::Volatile`].
+    pub fn instance_mode(&self) -> &InstanceMode {
+        &self.instance_mode
+    }
+
+    /// Get `paths` namespace, represented by [`FlakeCfgPaths`] struct.
+    pub fn paths(&self) -> &FlakeCfgPaths {
+        &self.paths
+    }
+}
+
 impl<'a> Default for FlakeCfgRuntime<'a> {
     fn default() -> Self {
         Self {
