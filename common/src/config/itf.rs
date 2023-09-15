@@ -15,6 +15,33 @@ pub struct FlakeConfig<'a> {
     setup: FlakeCfgSetup,
 }
 
+impl FlakeConfig<'static> {
+    /// Create an instance of a FlakeConfig
+    pub fn new() -> Self {
+        FlakeConfig::default()
+    }
+
+    /// Get config version
+    pub fn version(&self) -> u8 {
+        self.version
+    }
+
+    /// Get runtime namespace
+    pub fn runtime(&self) -> &FlakeCfgRuntime {
+        &self.runtime
+    }
+
+    /// Get engine namespace
+    pub fn engine(&self) -> &FlakeCfgEngine {
+        &self.engine
+    }
+
+    /// Get setup namespace
+    pub fn setup(&self) -> &FlakeCfgSetup {
+        &self.setup
+    }
+}
+
 /// FlakeConfigRuntime is a namespace for all runtime-related
 /// configuration options
 #[derive(Debug)]
@@ -250,12 +277,5 @@ impl Default for FlakeConfig<'static> {
             engine: FlakeCfgEngine::default(),
             setup: FlakeCfgSetup {},
         }
-    }
-}
-
-impl FlakeConfig<'static> {
-    /// Create an instance of a FlakeConfig
-    pub fn new() -> Self {
-        FlakeConfig::default()
     }
 }
