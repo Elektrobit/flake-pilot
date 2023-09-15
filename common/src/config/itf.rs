@@ -172,6 +172,6 @@ impl Default for FlakeConfig<'static> {
 impl FlakeConfig<'static> {
     /// Create an instance of a FlakeConfig
     pub fn new() -> Self {
-        FlakeConfig::new()
+        FlakeConfig::default()
     }
 }
