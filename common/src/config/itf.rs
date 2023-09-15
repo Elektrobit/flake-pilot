@@ -138,6 +138,51 @@ pub struct FlakeCfgEngine {
     vm_overlay_size_mib: Option<u128>,
 }
 
+impl FlakeCfgEngine {
+    /// Returns the size of overlay filesystem in MiB of [`FlakeCfgEngine`].
+    /// This is used for the virtual machines engine type.
+    pub fn vm_overlay_size_mib(&self) -> Option<u128> {
+        self.vm_overlay_size_mib
+    }
+
+    /// Returns the cache type of of [`FlakeCfgEngine`].
+    /// This is used for the virtual machines engine type.
+    pub fn vm_cache_type(&self) -> Option<&CacheType> {
+        self.vm_cache_type.as_ref()
+    }
+
+    /// Returns could of virtual CPUs of [`FlakeCfgEngine`].
+    /// This is used for the virtual machines engine type.
+    pub fn vm_vcpu_count(&self) -> Option<u8> {
+        self.vm_vcpu_count
+    }
+
+    /// Returns the size of memory in MiB of [`FlakeCfgEngine`].
+    /// This is used for the virtual machines engine type.
+    pub fn vm_mem_size_mib(&self) -> Option<u32> {
+        self.vm_mem_size_mib
+    }
+
+    /// Returns the boot argumenta of [`FlakeCfgEngine`].
+    /// This is used for the virtual machines engine type.
+    pub fn vm_boot_args(&self) -> Option<&Vec<String>> {
+        self.vm_boot_args.as_ref()
+    }
+
+    /// Returns a list of runtime args for [`FlakeCfgEngine`].
+    pub fn args(&self) -> &[String] {
+        self.args.as_ref()
+    }
+
+    /// Returns the name of the pilot for [`FlakeCfgEngine`].
+    /// Pilot name is taken from the list existing available pilots in the system.
+    /// A pilot naming convention is `<NAME>-pilot`, where `name` is returned
+    /// by this method without its suffix.
+    pub fn pilot(&self) -> &str {
+        self.pilot.as_ref()
+    }
+}
+
 impl Default for FlakeCfgEngine {
     fn default() -> Self {
         Self {
