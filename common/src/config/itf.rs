@@ -68,6 +68,45 @@ pub struct FlakeCfgPaths {
     vm_initrd_path: Option<PathBuf>,
 }
 
+impl FlakeCfgPaths {
+    /// Returns the initrd path for [`FlakeCfgPaths`].
+    /// The initrd path meant to be of a mounted image.
+    /// See [`FlakeCfgPaths::vm_rootfs_path`]
+    pub fn vm_initrd_path(&self) -> Option<&PathBuf> {
+        self.vm_initrd_path.as_ref()
+    }
+
+    /// Returns the kernel path for [`FlakeCfgPaths`].
+    /// The kernel path meant to be on a mounted image.
+    /// See [`FlakeCfgPaths::vm_rootfs_path`]
+    pub fn vm_kernel_path(&self) -> Option<&PathBuf> {
+        self.vm_kernel_path.as_ref()
+    }
+
+    /// Returns the rootfs path for [`FlakeCfgPaths`].
+    /// The rootfs is expected to be mounted.
+    pub fn vm_rootfs_path(&self) -> Option<&PathBuf> {
+        self.vm_rootfs_path.as_ref()
+    }
+
+    /// Returns a reference to the exported app path of [`FlakeCfgPaths`].
+    /// **Exported App Path** is a path of an application inside of a flake
+    /// which should be launched. It also can be wrapped in
+    /// any way: scripts or binary launchers.
+    pub fn exported_app_path(&self) -> &PathBuf {
+        &self.exported_app_path
+    }
+
+    /// Returns a reference to the registered app path of [`FlakeCfgPaths`].
+    /// **Registered App Path** is a path of a symlink on the host machine
+    /// where Flake is installed. Calling this path will eventually call
+    /// `exported_app_path` function.
+    /// See [`FlakeCfgPaths::exported_app_path`].
+    pub fn registered_app_path(&self) -> &PathBuf {
+        &self.registered_app_path
+    }
+}
+
 impl Default for FlakeCfgPaths {
     fn default() -> Self {
         Self {
