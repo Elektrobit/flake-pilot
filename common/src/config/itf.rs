@@ -1,23 +1,23 @@
 use std::{default::Default, path::PathBuf};
 
-use crate::user::User;
+use nix::unistd::User;
 
 /// FlakeConfig is an interface for all configuration possible
 /// across all suppirted versions of the config.
 ///
 #[derive(Debug)]
-pub struct FlakeConfig<'a> {
+pub struct FlakeConfig {
     // Major version of the configuration. If not defined, then v1.
     // Versions are using only major numbers: 1, 2, 3...
     version: u8,
-    runtime: FlakeCfgRuntime<'a>,
+    runtime: FlakeCfgRuntime,
     engine: FlakeCfgEngine,
     setup: FlakeCfgSetup,
 }
 
-impl FlakeConfig<'static> {
+impl FlakeConfig {
     /// Create an instance of a FlakeConfig
-    pub fn new() -> Self {
+    pub fn new(path: PathBuf) -> Self {
         FlakeConfig::default()
     }
 
@@ -42,10 +42,21 @@ impl FlakeConfig<'static> {
     }
 }
 
+impl Default for FlakeConfig {
+    fn default() -> Self {
+        FlakeConfig {
+            version: 1,
+            runtime: FlakeCfgRuntime::default(),
+            engine: FlakeCfgEngine::default(),
+            setup: FlakeCfgSetup {},
+        }
+    }
+}
+
 /// FlakeConfigRuntime is a namespace for all runtime-related
 /// configuration options
 #[derive(Debug)]
-pub struct FlakeCfgRuntime<'a> {
+pub struct FlakeCfgRuntime {
     // Image name in the registry, mostly used by OCI containers.
     // Can be used by other image storages, if needed.
     image_name: String,
@@ -55,14 +66,14 @@ pub struct FlakeCfgRuntime<'a> {
     layers: Option<Vec<String>>,
 
     // Run as defined user. If None, then proxy-pass current user.
-    run_as: Option<User<'a>>,
+    run_as: Option<User>,
 
     instance_mode: InstanceMode,
 
     paths: FlakeCfgPaths,
 }
 
-impl<'a> FlakeCfgRuntime<'a> {
+impl FlakeCfgRuntime {
     /// Get the image name.
     ///
     /// The image name is used mostly for the containers to be searched
@@ -83,8 +94,8 @@ impl<'a> FlakeCfgRuntime<'a> {
 
     /// Get a [`crate::user::User`] instance, used to run
     /// as it. This is **discouraged** as it requires use of `sudo`.
-    pub fn run_as(&self) -> Option<User<'_>> {
-        self.run_as
+    pub fn run_as(&self) -> Option<User> {
+        self.run_as.to_owned()
     }
 
     /// Get instance mode which is described in [`InstanceMode`] enum.
@@ -99,7 +110,7 @@ impl<'a> FlakeCfgRuntime<'a> {
     }
 }
 
-impl<'a> Default for FlakeCfgRuntime<'a> {
+impl Default for FlakeCfgRuntime {
     fn default() -> Self {
         Self {
             image_name: "".to_string(),
@@ -305,14 +316,3 @@ impl Default for FlakeCfgEngine {
 /// the media, X11, directories etc
 #[derive(Debug)]
 pub struct FlakeCfgSetup {}
-
-impl Default for FlakeConfig<'static> {
-    fn default() -> Self {
-        FlakeConfig {
-            version: 1,
-            runtime: FlakeCfgRuntime::default(),
-            engine: FlakeCfgEngine::default(),
-            setup: FlakeCfgSetup {},
-        }
-    }
-}
