@@ -1,4 +1,4 @@
-use super::itf::FlakeConfig;
+use super::{cfg_v2::FlakeCfgV2, itf::FlakeConfig};
 use crate::config::cfg_v1::FlakeCfgV1;
 use serde::Deserialize;
 use std::{
@@ -47,6 +47,9 @@ impl FlakeCfgParser {
         match self.get_version().as_str() {
             "1" => {
                 parser = Box::new(FlakeCfgV1::new(self.root_path.to_owned()));
+            }
+            "2" => {
+                parser = Box::new(FlakeCfgV2::new(self.root_path.to_owned()));
             }
             unsupported => {
                 println!("ERROR: Unsupported configuration version: {}", unsupported);
