@@ -18,6 +18,7 @@ impl FlakeCfgV1 {
 
 impl FlakeCfgVersionParser for FlakeCfgV1 {
     fn parse(&self) -> super::itf::FlakeConfig {
+        println!("Version 1");
         println!("Looking for {}", self.path.to_str().unwrap());
         FlakeConfig::default()
     }
