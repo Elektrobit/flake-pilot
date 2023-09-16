@@ -8,11 +8,11 @@ use std::{default::Default, path::PathBuf};
 pub struct FlakeConfig {
     // Major version of the configuration. If not defined, then v1.
     // Versions are using only major numbers: 1, 2, 3...
-    version: u8,
-    runtime: FlakeCfgRuntime,
-    engine: FlakeCfgEngine,
-    static_data: FlakeCfgStatic,
-    setup: FlakeCfgSetup,
+    pub version: u8,
+    pub runtime: FlakeCfgRuntime,
+    pub engine: FlakeCfgEngine,
+    pub static_data: FlakeCfgStatic,
+    pub setup: FlakeCfgSetup,
 }
 
 impl FlakeConfig {
