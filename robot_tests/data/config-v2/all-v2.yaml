@@ -51,8 +51,8 @@ runtime:
   # Layering
   base_layer:
   layers:
-    -
-    -
+    - one
+    - two
 
   # General runtime behaviour (overridable in "host_app_paths")
   # If not specified, then it is a current user
@@ -68,7 +68,6 @@ engine:
   args:
     - -x
     - --foo=bar
-    ...
 
 # Stuff that will be written over the rootfs
 # on specific mountpoint. Can be only archives
