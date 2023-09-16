@@ -77,9 +77,6 @@ engine:
 # extracted to the rootfs from that mountpoint,
 # like it would be installed, except its scriptlets
 # won't be launched.
-#
-# NOTE: File extension determines its content
-# NOTE: Archives are placed
 static:
   - some-configs.tar.gz
   - extra-files.tar.xz
