@@ -1,6 +1,5 @@
-use std::path::PathBuf;
-
 use crate::config::{cfgparse::FlakeCfgVersionParser, itf::FlakeConfig};
+use std::path::PathBuf;
 
 /// Configuration parser, v1.
 ///

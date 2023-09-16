@@ -1,11 +1,8 @@
-use serde::Deserialize;
-
-use crate::config::cfg_v1::{self, FlakeCfgV1};
-
 use super::itf::FlakeConfig;
+use crate::config::cfg_v1::FlakeCfgV1;
+use serde::Deserialize;
 use std::{
     fs::{self},
-    io::Error,
     path::PathBuf,
 };
 

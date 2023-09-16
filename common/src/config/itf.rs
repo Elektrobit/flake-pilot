@@ -1,6 +1,5 @@
-use std::{default::Default, path::PathBuf};
-
 use nix::unistd::User;
+use std::{default::Default, path::PathBuf};
 
 /// FlakeConfig is an interface for all configuration possible
 /// across all suppirted versions of the config.
