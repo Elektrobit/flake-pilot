@@ -11,6 +11,7 @@ pub struct FlakeConfig {
     version: u8,
     runtime: FlakeCfgRuntime,
     engine: FlakeCfgEngine,
+    static_data: FlakeCfgStatic,
     setup: FlakeCfgSetup,
 }
 
@@ -39,6 +40,11 @@ impl FlakeConfig {
     pub fn setup(&self) -> &FlakeCfgSetup {
         &self.setup
     }
+
+    /// Get static data namespace
+    pub fn static_data(&self) -> &FlakeCfgStatic {
+        &self.static_data
+    }
 }
 
 impl Default for FlakeConfig {
@@ -48,6 +54,7 @@ impl Default for FlakeConfig {
             runtime: FlakeCfgRuntime::default(),
             engine: FlakeCfgEngine::default(),
             setup: FlakeCfgSetup {},
+            static_data: FlakeCfgStatic { bundles: vec![] },
         }
     }
 }
@@ -315,3 +322,26 @@ impl Default for FlakeCfgEngine {
 /// the media, X11, directories etc
 #[derive(Debug)]
 pub struct FlakeCfgSetup {}
+
+/// Static data.
+/// It is all kind of stuff that will be written over the rootfs
+/// on specific mountpoint of the *instance* (not on the source image!).
+///
+/// Static data can be added only as archives
+/// and they should resemble the tree starting from
+/// the root ("/"). If it is a package, it will be
+/// extracted to the rootfs from that mountpoint,
+/// like it would be installed, except its scriptlets
+/// won't be launched.
+#[derive(Debug)]
+pub struct FlakeCfgStatic {
+    bundles: Vec<String>,
+}
+
+impl FlakeCfgStatic {
+    /// Get a list of archives (bundles) those are located in
+    /// the configuration area or any other pilot-specific places.
+    pub fn get_bundles(&self) -> &[String] {
+        self.bundles.as_ref()
+    }
+}
