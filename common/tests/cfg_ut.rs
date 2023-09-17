@@ -42,4 +42,14 @@ mod tests {
             assert!(cfg.unwrap().version() == 1, "Version should be 1");
         });
     }
+
+    /* ------- V2 ------- */
+    /// Test v2 overall parse
+    #[test]
+    fn test_cfg_v2_overall_parse() {
+        tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(cfg.is_some(), "FlakeConfig v2 should not be None");
+            assert!(cfg.unwrap().version() == 2, "Version should be 2");
+        });
+    }
 }
