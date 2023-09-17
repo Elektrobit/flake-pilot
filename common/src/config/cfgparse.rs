@@ -30,6 +30,10 @@ impl FlakeCfgParser {
 
     /// Get the configuration version
     fn get_version(&self) -> String {
+        if !self.root_path.exists() {
+            return "-1".to_string();
+        }
+
         if let Ok(data) = &fs::read_to_string(self.root_path.to_str().unwrap()) {
             let cfg_version: ConfigVersion = serde_yaml::from_str::<ConfigVersion>(data).unwrap();
             if let Some(version) = cfg_version.version {
@@ -43,6 +47,7 @@ impl FlakeCfgParser {
     /// Parse given config
     pub fn parse(&self) -> Option<FlakeConfig> {
         let parser: Box<dyn FlakeCfgVersionParser>;
+        println!(">>>>>>>>>>>>>>>>>>? {}", self.get_version());
 
         match self.get_version().as_str() {
             "1" => {
@@ -50,6 +55,10 @@ impl FlakeCfgParser {
             }
             "2" => {
                 parser = Box::new(FlakeCfgV2::new(self.root_path.to_owned()));
+            }
+            "-1" => {
+                println!("ERROR: configuration file was not found");
+                return None;
             }
             unsupported => {
                 println!("ERROR: Unsupported configuration version: {}", unsupported);
