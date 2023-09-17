@@ -31,6 +31,7 @@ impl FlakeCfgParser {
     /// Get the configuration version
     fn get_version(&self) -> String {
         if !self.root_path.exists() {
+            // XXX: Add debug info
             return "-1".to_string();
         }
 
@@ -46,16 +47,9 @@ impl FlakeCfgParser {
 
     /// Parse given config
     pub fn parse(&self) -> Option<FlakeConfig> {
-        let parser: Box<dyn FlakeCfgVersionParser>;
-        println!(">>>>>>>>>>>>>>>>>>? {}", self.get_version());
-
-        match self.get_version().as_str() {
-            "1" => {
-                parser = Box::new(FlakeCfgV1::new(self.root_path.to_owned()));
-            }
-            "2" => {
-                parser = Box::new(FlakeCfgV2::new(self.root_path.to_owned()));
-            }
+        let parser: Box<dyn FlakeCfgVersionParser> = match self.get_version().as_str() {
+            "1" => Box::new(FlakeCfgV1::new(self.root_path.to_owned())),
+            "2" => Box::new(FlakeCfgV2::new(self.root_path.to_owned())),
             "-1" => {
                 println!("ERROR: configuration file was not found");
                 return None;
@@ -64,7 +58,7 @@ impl FlakeCfgParser {
                 println!("ERROR: Unsupported configuration version: {}", unsupported);
                 return None;
             }
-        }
+        };
 
         Some(parser.parse())
     }
