@@ -4,11 +4,11 @@ use std::{default::Default, path::PathBuf};
 /// FlakeConfig is an interface for all configuration possible
 /// across all suppirted versions of the config.
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FlakeConfig {
     // Major version of the configuration. If not defined, then v1.
     // Versions are using only major numbers: 1, 2, 3...
-    pub version: u8,
+    version: u8,
     pub runtime: FlakeCfgRuntime,
     pub engine: FlakeCfgEngine,
     pub static_data: FlakeCfgStatic,
@@ -17,8 +17,13 @@ pub struct FlakeConfig {
 
 impl FlakeConfig {
     /// Create an instance of a FlakeConfig
-    pub fn new(path: PathBuf) -> Self {
-        FlakeConfig::default()
+    pub fn new(version: Option<u8>) -> Self {
+        let mut fc = FlakeConfig::default();
+        if let Some(version) = version {
+            fc.version = version;
+        }
+
+        fc
     }
 
     /// Get config version
@@ -61,7 +66,7 @@ impl Default for FlakeConfig {
 
 /// FlakeConfigRuntime is a namespace for all runtime-related
 /// configuration options
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FlakeCfgRuntime {
     // Image name in the registry, mostly used by OCI containers.
     // Can be used by other image storages, if needed.
@@ -130,7 +135,7 @@ impl Default for FlakeCfgRuntime {
 }
 
 /// Paths for various command proxypass between the guest and host
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FlakeCfgPaths {
     // Path to the target on the container/VM, that needs to be exported
     exported_app_path: PathBuf,
@@ -204,7 +209,7 @@ impl Default for FlakeCfgPaths {
 /// can be resumed, attached or volatile (one-timers those are copied,
 /// launched and then removed). Partially this behaviour can be for
 /// virtual machines as well: attached (i.e. running) or resumed (restarted).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum InstanceMode {
     Resume,
     Attach,
@@ -218,7 +223,7 @@ impl Default for InstanceMode {
 }
 
 /// Cache type for VM
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CacheType {
     Writeback,
 }
@@ -231,7 +236,7 @@ impl Default for CacheType {
 
 /// FlakeConfigEngine is a namespace for all engine-related
 /// configuration options
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FlakeCfgEngine {
     // Name of the pilot. It sticks to the conventional name:
     //
@@ -320,7 +325,7 @@ impl Default for FlakeCfgEngine {
 /// FlakeConfigSetup is a namespace for all configuration options
 /// related to the Flake setup, such as permission access to
 /// the media, X11, directories etc
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FlakeCfgSetup {}
 
 /// Static data.
@@ -333,7 +338,7 @@ pub struct FlakeCfgSetup {}
 /// extracted to the rootfs from that mountpoint,
 /// like it would be installed, except its scriptlets
 /// won't be launched.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FlakeCfgStatic {
     bundles: Vec<String>,
 }
