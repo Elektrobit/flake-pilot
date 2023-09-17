@@ -22,13 +22,15 @@ mod tests {
     fn test_cfg_v1_fc_overall_parse() {
         tb("data/cfg-v1/firecracker.yaml".to_string(), |cfg| {
             assert!(cfg.is_some(), "FlakeConfig v1 for firecracker should not be None");
+            assert!(cfg.unwrap().version() == 1, "Version should be 1");
         });
     }
 
     #[test]
     fn test_cfg_v1_pdm_overall_parse() {
         tb("data/cfg-v1/podman.yaml".to_string(), |cfg| {
-            assert!(cfg.is_none(), "FlakeConfig v1 for podman should not be None");
+            assert!(cfg.is_some(), "FlakeConfig v1 for podman should not be None");
+            assert!(cfg.unwrap().version() == 1, "Version should be 1");
         });
     }
 }
