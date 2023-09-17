@@ -3,6 +3,7 @@ use crate::config::cfg_v1::FlakeCfgV1;
 use serde::Deserialize;
 use std::{
     fs::{self},
+    io::Error,
     path::PathBuf,
 };
 
@@ -24,17 +25,19 @@ pub struct FlakeCfgParser {
 }
 
 impl FlakeCfgParser {
-    pub fn new(path: PathBuf) -> Self {
-        FlakeCfgParser { root_path: path }
+    pub fn new(path: PathBuf) -> Result<Self, Error> {
+        if !path.exists() {
+            return Err(Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Configuration file {} was not found", path.to_str().unwrap()),
+            ));
+        }
+
+        Ok(FlakeCfgParser { root_path: path })
     }
 
     /// Get the configuration version
     fn get_version(&self) -> String {
-        if !self.root_path.exists() {
-            // XXX: Add debug info
-            return "-1".to_string();
-        }
-
         if let Ok(data) = &fs::read_to_string(self.root_path.to_str().unwrap()) {
             let cfg_version: ConfigVersion = serde_yaml::from_str::<ConfigVersion>(data).unwrap();
             if let Some(version) = cfg_version.version {
@@ -50,10 +53,6 @@ impl FlakeCfgParser {
         let parser: Box<dyn FlakeCfgVersionParser> = match self.get_version().as_str() {
             "1" => Box::new(FlakeCfgV1::new(self.root_path.to_owned())),
             "2" => Box::new(FlakeCfgV2::new(self.root_path.to_owned())),
-            "-1" => {
-                println!("ERROR: configuration file was not found");
-                return None;
-            }
             unsupported => {
                 println!("ERROR: Unsupported configuration version: {}", unsupported);
                 return None;
