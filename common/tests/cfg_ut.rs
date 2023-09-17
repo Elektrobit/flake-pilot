@@ -4,12 +4,12 @@ mod tests {
     use flakes::config::{cfgparse::FlakeCfgParser, itf::FlakeConfig};
     use std::path::PathBuf;
 
-    /// Prepare FlakeCfgParser
+    /// Setup the test
     fn setup(cfg_path: String) -> Option<FlakeConfig> {
         FlakeCfgParser::new(PathBuf::from(cfg_path)).parse()
     }
 
-    /// Test Bundle
+    /// Run a test bundle
     fn tb<T>(cfg_path: String, probe: T) -> ()
     where
         T: Fn(Option<FlakeConfig>) -> () + panic::UnwindSafe,
@@ -26,6 +26,7 @@ mod tests {
         });
     }
 
+    /// Test podman configuration v1 overall parse
     #[test]
     fn test_cfg_v1_pdm_overall_parse() {
         tb("data/cfg-v1/podman.yaml".to_string(), |cfg| {
