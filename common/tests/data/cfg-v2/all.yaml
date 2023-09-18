@@ -19,7 +19,6 @@ runtime:
   path_map:
     # Command that will appear on host machine
     /usr/bin/banana:
-
       # Exported path from flake. Default is the same as host path.
       #
       # Optional
@@ -32,7 +31,6 @@ runtime:
 
     # Command that will appear on host machine
     /usr/bin/rotten-banana:
-
       # Exported path from flake (same as above, but does not requires root,
       # however adds resume flag)
       exports: /usr/bin/foo
