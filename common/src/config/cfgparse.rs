@@ -18,7 +18,7 @@ pub trait FlakeCfgVersionParser {
     /// Accepts _root path_ to where the configuration is installed.
     /// It assumes `.d` directory as a subdirectory, i.e. `ROOT_PATH/<flake>.d`
     /// directory to overlay.
-    fn parse(&self) -> FlakeConfig;
+    fn parse(&self) -> Result<FlakeConfig, Error>;
 }
 
 pub struct FlakeCfgParser {
@@ -58,7 +58,7 @@ impl FlakeCfgParser {
 
     /// Get the configuration version from the base config (explicitly ignoring the .d part)
     fn get_version(&self) -> u8 {
-        if let Ok(data) = &fs::read_to_string(self.cfg_path.to_owned()) {
+        if let Ok(data) = &fs::read_to_string(&self.cfg_path) {
             let cfg_version: ConfigVersion = serde_yaml::from_str::<ConfigVersion>(data).unwrap();
             if let Some(version) = cfg_version.version {
                 return version;
@@ -68,17 +68,55 @@ impl FlakeCfgParser {
         1
     }
 
+    fn get_config(&self) -> Result<Value, Error> {
+        let mut cfg: Option<Value> = None;
+
+        for p in vec![&self.cfg_path].into_iter().chain(&self.cfg_d_paths) {
+            let raw_data = &fs::read_to_string(p)?;
+            if let Ok(d_cfg) = serde_yaml::from_str::<Value>(raw_data) {
+                if cfg.is_none() {
+                    cfg = Some(d_cfg);
+                } else {
+                    cfg = Some(Self::merge_values(cfg.unwrap(), d_cfg));
+                }
+            } else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Error while parsing config: {}", p.to_str().unwrap()),
+                ));
+            }
+        }
+
+        if let Some(cfg) = cfg {
+            return Ok(cfg);
+        }
+
+        Err(std::io::Error::new(std::io::ErrorKind::NotFound, "No configuration found"))
+    }
+
     /// Parse given config
     pub fn parse(&self) -> Option<FlakeConfig> {
+        let cfg_val = self.get_config();
+        if cfg_val.is_err() {
+            return None;
+        }
+
         let parser: Box<dyn FlakeCfgVersionParser> = match self.get_version() {
-            1 => Box::new(FlakeCfgV1::new(self.cfg_path.to_owned())), // XXX: prbably should take serde_yaml::Value here already
-            2 => Box::new(FlakeCfgV2::new(self.cfg_path.to_owned())), // XXX: prbably should take serde_yaml::Value here already
+            1 => Box::new(FlakeCfgV1::new(cfg_val.unwrap())),
+            2 => Box::new(FlakeCfgV2::new(cfg_val.unwrap())),
             unsupported => {
                 println!("ERROR: Unsupported configuration version: {}", unsupported);
                 return None;
             }
         };
 
-        Some(parser.parse())
+        match parser.parse() {
+            Ok(cfg) => {
+                return Some(cfg);
+            }
+            Err(err) => panic!("Error: {}", err),
+        }
+
+        None
     }
 }
