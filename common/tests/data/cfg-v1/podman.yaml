@@ -1,4 +1,3 @@
-
 container:
   name: name
   target_app_path: path/to/program/in/container
@@ -34,14 +33,14 @@ container:
     # executed inside of this container instance.
     #
     # Default: false
-    resume: true|false
+    resume: true
 
     # Attach to the container if still running, rather than
     # executing the app again. Only makes sense for interactive
     # sessions like a shell running as app in the container.
     #
     # Default: false
-    attach: true|false
+    attach: true
 
     podman:
       - --storage-opt size=10G
