@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use nix::unistd::User;
 use std::{default::Default, path::PathBuf};
 
@@ -8,11 +9,11 @@ use std::{default::Default, path::PathBuf};
 pub struct FlakeConfig {
     // Major version of the configuration. If not defined, then v1.
     // Versions are using only major numbers: 1, 2, 3...
-    version: u8,
-    pub runtime: FlakeCfgRuntime,
-    pub engine: FlakeCfgEngine,
-    pub static_data: FlakeCfgStatic,
-    pub setup: FlakeCfgSetup,
+    pub(crate) version: u8,
+    pub(crate) runtime: FlakeCfgRuntime,
+    pub(crate) engine: FlakeCfgEngine,
+    pub(crate) static_data: FlakeCfgStatic,
+    pub(crate) setup: FlakeCfgSetup,
 }
 
 impl FlakeConfig {
@@ -59,7 +60,7 @@ impl Default for FlakeConfig {
             runtime: FlakeCfgRuntime::default(),
             engine: FlakeCfgEngine::default(),
             setup: FlakeCfgSetup {},
-            static_data: FlakeCfgStatic { bundles: vec![] },
+            static_data: FlakeCfgStatic { bundles: None },
         }
     }
 }
@@ -70,18 +71,18 @@ impl Default for FlakeConfig {
 pub struct FlakeCfgRuntime {
     // Image name in the registry, mostly used by OCI containers.
     // Can be used by other image storages, if needed.
-    image_name: String,
+    pub(crate) image_name: String,
 
     // Runtime-agnostic layering definition
-    base_layer: Option<String>,
-    layers: Option<Vec<String>>,
+    pub(crate) base_layer: Option<String>,
+    pub(crate) layers: Option<Vec<String>>,
 
     // Run as defined user. If None, then proxy-pass current user.
-    run_as: Option<User>,
+    pub(crate) run_as: Option<User>,
 
-    instance_mode: InstanceMode,
+    pub(crate) instance_mode: InstanceMode,
 
-    paths: FlakeCfgPaths,
+    pub(crate) paths: FlakeCfgPaths,
 }
 
 impl FlakeCfgRuntime {
@@ -138,20 +139,20 @@ impl Default for FlakeCfgRuntime {
 #[derive(Debug, Clone)]
 pub struct FlakeCfgPaths {
     // Path to the target on the container/VM, that needs to be exported
-    exported_app_path: PathBuf,
+    pub(crate) exported_app_path: PathBuf,
 
     // Path on the host where flake is installed as executable symlink
     // to launch exported app
-    registered_app_path: PathBuf,
+    pub(crate) registered_app_path: PathBuf,
 
     // Path to rootfs image done by app registration
-    vm_rootfs_path: Option<PathBuf>,
+    pub(crate) vm_rootfs_path: Option<PathBuf>,
 
     // Path to kernel image done by app registration
-    vm_kernel_path: Option<PathBuf>,
+    pub(crate) vm_kernel_path: Option<PathBuf>,
 
     // Optional path to initrd image done by app registration
-    vm_initrd_path: Option<PathBuf>,
+    pub(crate) vm_initrd_path: Option<PathBuf>,
 }
 
 impl FlakeCfgPaths {
@@ -205,15 +206,17 @@ impl Default for FlakeCfgPaths {
     }
 }
 
-/// InstanceMode defines instance behaviour. For example, containers
-/// can be resumed, attached or volatile (one-timers those are copied,
-/// launched and then removed). Partially this behaviour can be for
-/// virtual machines as well: attached (i.e. running) or resumed (restarted).
-#[derive(Debug, Clone)]
-pub enum InstanceMode {
-    Resume,
-    Attach,
-    Volatile,
+bitflags! {
+    /// InstanceMode defines instance behaviour. For example, containers
+    /// can be resumed, attached or volatile (one-timers those are copied,
+    /// launched and then removed). Partially this behaviour can be for
+    /// virtual machines as well: attached (i.e. running) or resumed (restarted).
+    #[derive(Debug, Clone)]
+    pub struct InstanceMode: u32 {
+        const Volatile = 1 << 0; // One-timer, None
+        const Resume = 1 << 1;
+        const Attach = 1 << 2;
+    }
 }
 
 impl Default for InstanceMode {
@@ -243,24 +246,24 @@ pub struct FlakeCfgEngine {
     //    <NAME>-pilot
     //
     // In this case "name" is what goes to the "pilot" variable.
-    pilot: String,
+    pub(crate) pilot: String,
 
     // Proxy-pass static arguments "as is". Argument can be anything:
     // flags, keywords like "--foo=bar" etc. These arguments do
     // not allow to interpolate anything. For example, "--foo=$BAR"
     // will literally pass "$" as an escaped character.
-    args: Vec<String>,
+    pub(crate) args: Option<Vec<String>>,
 
     // Boot arguments. These are used by VM type
-    vm_boot_args: Option<Vec<String>>,
-    vm_mem_size_mib: Option<u32>,
-    vm_vcpu_count: Option<u8>,
-    vm_cache_type: Option<CacheType>,
+    pub(crate) vm_boot_args: Option<Vec<String>>,
+    pub(crate) vm_mem_size_mib: Option<u32>,
+    pub(crate) vm_vcpu_count: Option<u8>,
+    pub(crate) vm_cache_type: Option<CacheType>,
 
     // Size of the VM overlay
     // If specified a new ext2 overlay filesystem image of the
     // specified size will be created and attached to the VM
-    vm_overlay_size_mib: Option<u128>,
+    pub(crate) vm_overlay_size_mib: Option<u128>,
 }
 
 impl FlakeCfgEngine {
@@ -295,8 +298,8 @@ impl FlakeCfgEngine {
     }
 
     /// Returns a list of runtime args for [`FlakeCfgEngine`].
-    pub fn args(&self) -> &[String] {
-        self.args.as_ref()
+    pub fn args(&self) -> Option<Vec<String>> {
+        self.args.to_owned()
     }
 
     /// Returns the name of the pilot for [`FlakeCfgEngine`].
@@ -312,7 +315,7 @@ impl Default for FlakeCfgEngine {
     fn default() -> Self {
         Self {
             pilot: "".to_string(),
-            args: vec![],
+            args: None,
             vm_boot_args: None,
             vm_mem_size_mib: None,
             vm_vcpu_count: None,
@@ -340,13 +343,13 @@ pub struct FlakeCfgSetup {}
 /// won't be launched.
 #[derive(Debug, Clone)]
 pub struct FlakeCfgStatic {
-    bundles: Vec<String>,
+    pub(crate) bundles: Option<Vec<String>>,
 }
 
 impl FlakeCfgStatic {
     /// Get a list of archives (bundles) those are located in
     /// the configuration area or any other pilot-specific places.
-    pub fn get_bundles(&self) -> &[String] {
-        self.bundles.as_ref()
+    pub fn get_bundles(&self) -> Option<&[String]> {
+        self.bundles.as_deref()
     }
 }
