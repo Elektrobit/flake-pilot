@@ -1,20 +1,20 @@
 use crate::config::{cfgparse::FlakeCfgVersionParser, itf::FlakeConfig};
-use std::path::PathBuf;
+use serde_yaml::Value;
+use std::io::Error;
 
 /// Configuration parser, v2.
 pub struct FlakeCfgV2 {
-    path: PathBuf,
+    content: Value,
 }
 
 impl FlakeCfgV2 {
-    pub fn new(path: PathBuf) -> Self {
-        FlakeCfgV2 { path }
+    pub fn new(content: Value) -> Self {
+        FlakeCfgV2 { content }
     }
 }
 
 impl FlakeCfgVersionParser for FlakeCfgV2 {
-    fn parse(&self) -> FlakeConfig {
-        println!("Looking for {}", self.path.to_str().unwrap());
-        FlakeConfig::new(Some(2))
+    fn parse(&self) -> Result<FlakeConfig, Error> {
+        Ok(FlakeConfig::new(Some(2)))
     }
 }
