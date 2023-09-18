@@ -6,7 +6,7 @@ mod tests {
 
     /// Setup the test
     fn setup(cfg_path: String) -> Option<FlakeConfig> {
-        if let Ok(parser) = FlakeCfgParser::new(env::current_dir().unwrap().join("tests").join("data").join(&cfg_path)) {
+        if let Ok(parser) = FlakeCfgParser::new(env::current_dir().unwrap().join("tests").join("data").join(&cfg_path), vec![]) {
             return parser.parse();
         }
 
