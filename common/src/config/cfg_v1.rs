@@ -2,7 +2,7 @@ use crate::config::{cfgparse::FlakeCfgVersionParser, itf::FlakeConfig};
 use nix::unistd::User;
 use serde::Deserialize;
 use serde_yaml::Value;
-use std::{io::Error, path::PathBuf};
+use std::{collections::HashMap, io::Error, path::PathBuf};
 
 use super::itf::{FlakeCfgEngine, FlakeCfgPaths, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode};
 
@@ -24,11 +24,11 @@ impl CfgV1Spec {
     }
 
     /// Get VM namespace
-    fn get_vm(&mut self) -> Option<&CfgV1Vm> {
+    fn get_vm(&mut self) -> &CfgV1Vm {
         if self.vm.is_none() {
             self.vm = Some(CfgV1Vm::default());
         }
-        self.vm.as_ref()
+        self.vm.as_ref().unwrap()
     }
 
     /// Get includes namespace
@@ -159,11 +159,56 @@ impl CfgV1Include {
 #[derive(Deserialize, Debug)]
 struct CfgV1Vm {
     pub(crate) name: String,
+    pub(crate) target_app_path: String,
+    pub(crate) host_app_path: String,
+    pub(crate) runtime: CfgV1VmRuntime,
 }
 
 impl CfgV1Vm {
     pub(crate) fn default() -> Self {
-        CfgV1Vm { name: "".to_string() }
+        CfgV1Vm {
+            name: "".to_string(),
+            target_app_path: "".to_string(),
+            host_app_path: "".to_string(),
+            runtime: CfgV1VmRuntime { runas: None, resume: None, firecracker: HashMap::default() },
+        }
+    }
+
+    fn get_name(&self) -> &str {
+        self.name.as_ref()
+    }
+
+    fn get_target_app_path(&self) -> &str {
+        self.target_app_path.as_ref()
+    }
+
+    fn get_host_app_path(&self) -> &str {
+        self.host_app_path.as_ref()
+    }
+
+    fn get_runtime(&self) -> &CfgV1VmRuntime {
+        &self.runtime
+    }
+}
+
+#[derive(Deserialize, Debug)]
+struct CfgV1VmRuntime {
+    pub(crate) runas: Option<String>,
+    pub(crate) resume: Option<bool>,
+    pub(crate) firecracker: HashMap<String, Value>,
+}
+
+impl CfgV1VmRuntime {
+    fn get_runas(&self) -> Option<&String> {
+        self.runas.as_ref()
+    }
+
+    fn has_resume(&self) -> bool {
+        self.resume.is_none() && self.resume.unwrap() || false
+    }
+
+    fn get_firecracker(&self) -> &HashMap<String, Value> {
+        &self.firecracker
     }
 }
 
@@ -226,7 +271,12 @@ impl FlakeCfgV1 {
     }
 
     /// Load configuration for the Virtual Machine from the v1 spec.
-    fn as_vm(&self, spec: CfgV1Spec) -> FlakeConfig {
+    fn as_vm(&self, mut spec: CfgV1Spec) -> FlakeConfig {
+        let mut rt_flags = InstanceMode::Volatile;
+        if spec.get_vm().get_runtime().has_resume() {
+            rt_flags = rt_flags | InstanceMode::Resume;
+        }
+
         FlakeConfig {
             version: 1,
             runtime: FlakeCfgRuntime {
@@ -234,13 +284,15 @@ impl FlakeCfgV1 {
                 base_layer: None,
                 layers: None,
                 run_as: None,
-                instance_mode: InstanceMode::Volatile,
+                instance_mode: rt_flags,
                 paths: FlakeCfgPaths {
-                    exported_app_path: todo!(),
-                    registered_app_path: todo!(),
-                    vm_rootfs_path: todo!(),
-                    vm_kernel_path: todo!(),
-                    vm_initrd_path: todo!(),
+                    exported_app_path: PathBuf::from(spec.get_vm().get_target_app_path()),
+                    registered_app_path: PathBuf::from(spec.get_vm().get_host_app_path()),
+
+                    // XXX: vm-only though
+                    vm_rootfs_path: None,
+                    vm_kernel_path: None,
+                    vm_initrd_path: None,
                 },
             },
             engine: FlakeCfgEngine {
