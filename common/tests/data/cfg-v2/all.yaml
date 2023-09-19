@@ -67,6 +67,13 @@ engine:
     - -x
     - --foo=bar
 
+  # Arbitrary internal params, those are only known to a specific pilot
+  # per its separate documentation.
+  #
+  # Optional
+  params:
+    key: value
+
 # Stuff that will be written over the rootfs
 # on specific mountpoint. Can be only archives
 # and they should resemble the tree starting from
