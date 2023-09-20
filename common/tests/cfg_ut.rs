@@ -178,4 +178,14 @@ mod cfg_v1_ut_vm {
             assert!(cfg.runtime().paths().registered_app_path() == &PathBuf::from("/usr/sbin/hell"));
         });
     }
+
+    /// Test VM runtime, run as any user
+    #[test]
+    fn test_cfg_v1_vm_run_as_user() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().run_as().is_some(), "A user needs to be present");
+        });
+    }
+
 }
