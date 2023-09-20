@@ -151,6 +151,18 @@ mod cfg_v1_ut {
         });
     }
 
+    /// Test OCI includes contains a specific archive
+    #[test]
+    fn test_cfg_v1_pdm_static_data() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(
+                cfg.static_data().get_bundles().unwrap() == ["irq-dropout.tar.gz"],
+                "Podman needs to drop some IRQs during the high pressure"
+            );
+        });
+    }
+
     /* ------- V2 ------- */
     /// Test v2 overall parse
     #[test]
