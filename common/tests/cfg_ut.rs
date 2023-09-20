@@ -150,6 +150,8 @@ mod cfg_v1_ut_oci {
 mod cfg_v1_ut_vm {
     use std::path::PathBuf;
 
+    use flakes::config::itf::InstanceMode;
+
     use crate::ut_rt;
 
     /// Test VM name
@@ -194,6 +196,15 @@ mod cfg_v1_ut_vm {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
             assert!(cfg.runtime().run_as().unwrap().uid.is_root(), "A root user is required");
+        });
+    }
+
+    /// Test VM runtime should be resumed
+    #[test]
+    fn test_cfg_v1_pdm_mode_flags() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!((*cfg.runtime().instance_mode() & InstanceMode::Resume) == InstanceMode::Resume, "Should have resume flag");
         });
     }
 }
