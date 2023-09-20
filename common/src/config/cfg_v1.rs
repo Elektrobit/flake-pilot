@@ -193,8 +193,14 @@ struct CfgV1VmRuntime {
 }
 
 impl CfgV1VmRuntime {
-    fn get_runas(&self) -> Option<&String> {
-        self.runas.as_ref()
+    fn get_runas_user(&self) -> Option<User> {
+        if let Some(luser) = &self.runas {
+            if let Ok(luser) = User::from_name(luser) {
+                return luser;
+            }
+        }
+
+        None
     }
 
     fn has_resume(&self) -> bool {
@@ -277,7 +283,7 @@ impl FlakeCfgV1 {
                 image_name: spec.get_vm().get_name().to_string(),
                 base_layer: None,
                 layers: None,
-                run_as: None,
+                run_as: spec.get_vm().get_runtime().get_runas_user(),
                 instance_mode: rt_flags,
                 paths: FlakeCfgPaths {
                     exported_app_path: PathBuf::from(spec.get_vm().get_target_app_path()),
