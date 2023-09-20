@@ -74,6 +74,16 @@ mod cfg_v1_ut {
         });
     }
 
+    /// Test OCI base layer
+    #[test]
+    fn test_cfg_v1_pdm_base_layer() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().base_layer().is_some(), "Base layer should be defined");
+            assert!(cfg.runtime().base_layer().unwrap() == "cobol_rules");
+        });
+    }
+
     /* ------- V2 ------- */
     /// Test v2 overall parse
     #[test]

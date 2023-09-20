@@ -10,7 +10,7 @@ container:
   # one overlay and starts the result as a container instance
   #
   # Default: not_specified
-  base_container: name
+  base_container: cobol_rules
 
   # Optional additional container layers on top of the
   # specified base container
