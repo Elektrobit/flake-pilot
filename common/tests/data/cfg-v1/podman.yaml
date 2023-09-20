@@ -1,5 +1,5 @@
 container:
-  name: name
+  name: banana
   target_app_path: path/to/program/in/container
   host_app_path: path/to/program/on/host
 

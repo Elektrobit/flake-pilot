@@ -47,6 +47,15 @@ mod tests {
         });
     }
 
+    /// Test OCI name
+    #[test]
+    fn test_cfg_v1_pdm_name() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().image_name() == "banana");
+        });
+    }
+
     /* ------- V2 ------- */
     /// Test v2 overall parse
     #[test]
