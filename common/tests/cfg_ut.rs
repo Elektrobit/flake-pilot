@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod cfg_v1_ut {
     use core::panic;
     use flakes::config::{cfgparse::FlakeCfgParser, itf::FlakeConfig};
     use std::{env, path::PathBuf};
