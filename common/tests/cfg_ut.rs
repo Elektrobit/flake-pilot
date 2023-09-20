@@ -188,4 +188,12 @@ mod cfg_v1_ut_vm {
         });
     }
 
+    /// Test VM runtime, run as root user
+    #[test]
+    fn test_cfg_v1_vm_run_as_root() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().run_as().unwrap().uid.is_root(), "A root user is required");
+        });
+    }
 }
