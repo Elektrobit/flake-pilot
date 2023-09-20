@@ -123,6 +123,14 @@ mod cfg_v1_ut {
         });
     }
 
+    /// Test OCI target podman args
+    #[test]
+    fn test_cfg_v1_pdm_args() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.engine().args().is_some(), "Podman should run with some parameters");
+        });
+    }
     /* ------- V2 ------- */
     /// Test v2 overall parse
     #[test]
