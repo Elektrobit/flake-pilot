@@ -80,19 +80,13 @@ impl CfgV1Container {
 
     /// Optional additional container layers on top of the specified base container
     fn get_layers(&self) -> Option<Vec<String>> {
-        if self.layers.is_none() {
-            return None;
-        }
-
+        self.layers.as_ref()?;
         self.layers.clone()
     }
 
     /// Optional base container to use with a delta 'container: name'
     fn get_base_container(&self) -> Option<String> {
-        if self.base_container.is_none() {
-            return None;
-        }
-
+        self.base_container.as_ref()?;
         Some(self.base_container.clone().unwrap())
     }
 
@@ -117,7 +111,7 @@ impl CfgV1OciRuntime {
 
     fn get_runas_user(&self) -> Option<User> {
         if let Some(luser) = &self.runas {
-            if let Ok(luser) = User::from_name(&luser) {
+            if let Ok(luser) = User::from_name(luser) {
                 return luser;
             }
         }
@@ -204,7 +198,7 @@ impl CfgV1VmRuntime {
     }
 
     fn has_resume(&self) -> bool {
-        self.resume.is_none() && self.resume.unwrap() || false
+        self.resume.is_none() && self.resume.unwrap()
     }
 
     fn get_firecracker(&self) -> &HashMap<String, Value> {
@@ -234,10 +228,10 @@ impl FlakeCfgV1 {
     fn as_container(&self, mut spec: CfgV1Spec) -> FlakeConfig {
         let mut rt_flags = InstanceMode::Volatile;
         if spec.get_container().get_runtime().has_attach() {
-            rt_flags = rt_flags | InstanceMode::Attach;
+            rt_flags |= InstanceMode::Attach;
         }
         if spec.get_container().get_runtime().has_resume() {
-            rt_flags = rt_flags | InstanceMode::Resume;
+            rt_flags |= InstanceMode::Resume;
         }
 
         FlakeConfig {
@@ -274,7 +268,7 @@ impl FlakeCfgV1 {
     fn as_vm(&self, mut spec: CfgV1Spec) -> FlakeConfig {
         let mut rt_flags = InstanceMode::Volatile;
         if spec.get_vm().get_runtime().has_resume() {
-            rt_flags = rt_flags | InstanceMode::Resume;
+            rt_flags |= InstanceMode::Resume;
         }
 
         FlakeConfig {

@@ -111,12 +111,8 @@ impl FlakeCfgParser {
         };
 
         match parser.parse() {
-            Ok(cfg) => {
-                return Some(cfg);
-            }
+            Ok(cfg) => Some(cfg),
             Err(err) => panic!("Error: {}", err),
         }
-
-        None
     }
 }
