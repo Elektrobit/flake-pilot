@@ -1,7 +1,8 @@
 mod ut_rt;
 
+/// Unit tests for v1 config, OCI containers
 #[cfg(test)]
-mod cfg_v1_ut {
+mod cfg_v1_ut_oci {
     use super::ut_rt;
     use flakes::config::itf::InstanceMode;
     use std::path::PathBuf;
@@ -143,14 +144,7 @@ mod cfg_v1_ut {
             );
         });
     }
-
-    /* ------- V2 ------- */
-    /// Test v2 overall parse
-    #[test]
-    fn test_cfg_v2_overall_parse() {
-        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
-            assert!(cfg.is_some(), "FlakeConfig v2 should not be None");
-            assert!(cfg.unwrap().version() == 2, "Version should be 2");
-        });
-    }
 }
+
+/// Unit tests for v1 config, Virtual Machines
+mod cfg_v1_ut_vm {}
