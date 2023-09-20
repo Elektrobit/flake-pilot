@@ -204,7 +204,7 @@ impl CfgV1VmRuntime {
     }
 
     fn has_resume(&self) -> bool {
-        self.resume.is_none() && self.resume.unwrap()
+        self.resume.is_some() && self.resume.unwrap()
     }
 
     fn get_firecracker(&self) -> &HashMap<String, Value> {
