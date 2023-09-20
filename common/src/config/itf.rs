@@ -211,7 +211,7 @@ bitflags! {
     /// can be resumed, attached or volatile (one-timers those are copied,
     /// launched and then removed). Partially this behaviour can be for
     /// virtual machines as well: attached (i.e. running) or resumed (restarted).
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct InstanceMode: u32 {
         const Volatile = 1 << 0; // One-timer, None
         const Resume = 1 << 1;
