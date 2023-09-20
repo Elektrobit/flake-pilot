@@ -113,6 +113,16 @@ mod cfg_v1_ut {
         });
     }
 
+    /// Test OCI should be resumed and attached
+    #[test]
+    fn test_cfg_v1_pdm_mode_flags() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!((*cfg.runtime().instance_mode() & InstanceMode::Attach) == InstanceMode::Attach, "Should have attach flag");
+            assert!((*cfg.runtime().instance_mode() & InstanceMode::Resume) == InstanceMode::Resume, "Should have resume flag");
+        });
+    }
+
     /* ------- V2 ------- */
     /// Test v2 overall parse
     #[test]
