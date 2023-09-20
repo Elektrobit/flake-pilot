@@ -1,7 +1,11 @@
 #[cfg(test)]
 mod cfg_v1_ut {
     use core::panic;
-    use flakes::config::{cfgparse::FlakeCfgParser, itf::FlakeConfig};
+    use flakes::config::{
+        self,
+        cfgparse::FlakeCfgParser,
+        itf::{self, FlakeConfig, InstanceMode},
+    };
     use std::{env, path::PathBuf};
 
     /// Setup the test
