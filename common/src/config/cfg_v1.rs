@@ -274,7 +274,7 @@ impl FlakeCfgV1 {
         FlakeConfig {
             version: 1,
             runtime: FlakeCfgRuntime {
-                image_name: "".to_string(),
+                image_name: spec.get_vm().get_name().to_string(),
                 base_layer: None,
                 layers: None,
                 run_as: None,

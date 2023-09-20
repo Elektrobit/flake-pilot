@@ -147,4 +147,35 @@ mod cfg_v1_ut_oci {
 }
 
 /// Unit tests for v1 config, Virtual Machines
-mod cfg_v1_ut_vm {}
+mod cfg_v1_ut_vm {
+    use std::path::PathBuf;
+
+    use crate::ut_rt;
+
+    /// Test VM name
+    #[test]
+    fn test_cfg_v1_vm_name() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().image_name() == "dragonbomb");
+        });
+    }
+
+    /// Test VM target app path
+    #[test]
+    fn test_cfg_v1_vm_target_app_path() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().paths().exported_app_path() == &PathBuf::from("/highway/to/hell"));
+        });
+    }
+
+    /// Test VM host app path
+    #[test]
+    fn test_cfg_v1_vm_host_app_path() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().paths().registered_app_path() == &PathBuf::from("/usr/sbin/hell"));
+        });
+    }
+}

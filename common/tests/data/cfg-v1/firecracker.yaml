@@ -1,9 +1,9 @@
 # Example configuration, version 1
 #
 vm:
-  name: name
-  target_app_path: path/to/program/in/VM
-  host_app_path: path/to/program/on/host
+  name: dragonbomb
+  target_app_path: /highway/to/hell
+  host_app_path: /usr/sbin/hell
 
   runtime:
     runas: root
