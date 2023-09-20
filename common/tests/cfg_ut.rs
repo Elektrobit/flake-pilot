@@ -98,6 +98,17 @@ mod cfg_v1_ut {
         });
     }
 
+    /// Test OCI container needs to be run as user root (UID 0)
+    #[test]
+    fn test_cfg_v1_pdm_run_as() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().run_as().is_some(), "User should be defined");
+            assert!(cfg.runtime().run_as().unwrap().uid.is_root(), "User should be root");
+            assert!(cfg.runtime().run_as().unwrap().name == "root", "User should be root");
+        });
+    }
+
     /* ------- V2 ------- */
     /// Test v2 overall parse
     #[test]
