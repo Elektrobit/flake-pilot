@@ -142,6 +142,15 @@ mod cfg_v1_ut {
         });
     }
 
+    /// Test OCI includes
+    #[test]
+    fn test_cfg_v1_pdm_static() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.static_data().get_bundles().is_some(), "Podman wants to include something");
+        });
+    }
+
     /* ------- V2 ------- */
     /// Test v2 overall parse
     #[test]
