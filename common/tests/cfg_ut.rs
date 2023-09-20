@@ -131,6 +131,17 @@ mod cfg_v1_ut {
             assert!(cfg.engine().args().is_some(), "Podman should run with some parameters");
         });
     }
+
+    /// Test OCI target podman args examination
+    #[test]
+    fn test_cfg_v1_pdm_args_exm() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let args = cfg.unwrap().engine().args().unwrap();
+            assert!(args.len() == 3, "Podman should have three params");
+            assert!(args == ["--storage-opt size=10G", "--rm", "-ti"], "Podman should have parameters in a certain order");
+        });
+    }
+
     /* ------- V2 ------- */
     /// Test v2 overall parse
     #[test]
