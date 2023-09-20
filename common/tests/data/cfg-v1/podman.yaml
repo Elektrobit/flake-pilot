@@ -1,7 +1,7 @@
 container:
   name: banana
-  target_app_path: path/to/program/in/container
-  host_app_path: path/to/program/on/host
+  target_app_path: /banana/in/the/container
+  host_app_path: /usr/bin/banana
 
   # Optional base container to use with a delta 'container: name'
   # If specified the given 'container: name' is expected to be

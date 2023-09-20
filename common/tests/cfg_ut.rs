@@ -2,7 +2,7 @@
 mod tests {
     use core::panic;
     use flakes::config::{cfgparse::FlakeCfgParser, itf::FlakeConfig};
-    use std::env;
+    use std::{env, path::PathBuf};
 
     /// Setup the test
     fn setup(cfg_path: String) -> Option<FlakeConfig> {
@@ -53,6 +53,24 @@ mod tests {
         tb("cfg-v1/podman.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
             assert!(cfg.runtime().image_name() == "banana");
+        });
+    }
+
+    /// Test OCI target path
+    #[test]
+    fn test_cfg_v1_pdm_exported_app_path() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().paths().exported_app_path() == &PathBuf::from("/banana/in/the/container"));
+        });
+    }
+
+    /// Test OCI target path
+    #[test]
+    fn test_cfg_v1_pdm_registered_app_path() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().paths().registered_app_path() == &PathBuf::from("/usr/bin/banana"));
         });
     }
 
