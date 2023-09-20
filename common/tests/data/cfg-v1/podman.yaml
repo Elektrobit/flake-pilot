@@ -15,8 +15,8 @@ container:
   # Optional additional container layers on top of the
   # specified base container
   layers:
-    - name_A
-    - name_B
+    - fortran_for_web
+    - prolog_for_productivity
 
   runtime:
     # Run the container engine as a user other than the

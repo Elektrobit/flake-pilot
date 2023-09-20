@@ -84,6 +84,20 @@ mod cfg_v1_ut {
         });
     }
 
+    /// Test OCI additional layers
+    #[test]
+    fn test_cfg_v1_pdm_layers() {
+        tb("cfg-v1/podman.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            assert!(cfg.runtime().layers().is_some(), "There should be more than one additional layers");
+            assert!(cfg.runtime().layers().unwrap().len() == 2);
+            assert!(cfg.runtime().layers().unwrap().get(0).is_some(), "First layer should be defined");
+            assert!(cfg.runtime().layers().unwrap().get(1).is_some(), "Second layer should be defined");
+            assert!(cfg.runtime().layers().unwrap().get(0).unwrap() == "fortran_for_web");
+            assert!(cfg.runtime().layers().unwrap().get(1).unwrap() == "prolog_for_productivity");
+        });
+    }
+
     /* ------- V2 ------- */
     /// Test v2 overall parse
     #[test]
