@@ -308,4 +308,11 @@ mod cfg_v1_ut_vm {
         });
     }
 
+    #[test]
+    fn test_cfg_v1_vm_params_vcpu_count_value() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
+            assert!(params.vcpu_count().unwrap() == 2, "firecracker/vcpu_count should be a value of 2");
+        });
+    }
 }
