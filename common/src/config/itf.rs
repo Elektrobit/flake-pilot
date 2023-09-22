@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 use nix::unistd::User;
-use std::{default::Default, path::PathBuf};
+use serde_yaml::Value;
+use std::{any::Any, collections::HashMap, default::Default, path::PathBuf};
 
 /// FlakeConfig is an interface for all configuration possible
 /// across all suppirted versions of the config.
@@ -254,49 +255,17 @@ pub struct FlakeCfgEngine {
     // will literally pass "$" as an escaped character.
     pub(crate) args: Option<Vec<String>>,
 
-    // Boot arguments. These are used by VM type
-    pub(crate) vm_boot_args: Option<Vec<String>>,
-    pub(crate) vm_mem_size_mib: Option<u32>,
-    pub(crate) vm_vcpu_count: Option<u8>,
-    pub(crate) vm_cache_type: Option<CacheType>,
-
-    // Size of the VM overlay
-    // If specified a new ext2 overlay filesystem image of the
-    // specified size will be created and attached to the VM
-    pub(crate) vm_overlay_size_mib: Option<u128>,
+    // Arbitrary internal params, those are only known to a specific pilot
+    // per its separate documentation. The type here is serde_yaml::Value
+    // and the real content should be either extracted separately or
+    // extra deserialised into a specific struct, those are extra for
+    // the specific pilots.
+    //
+    // Optional.
+    pub(crate) params: Option<HashMap<String, Value>>,
 }
 
 impl FlakeCfgEngine {
-    /// Returns the size of overlay filesystem in MiB of [`FlakeCfgEngine`].
-    /// This is used for the virtual machines engine type.
-    pub fn vm_overlay_size_mib(&self) -> Option<u128> {
-        self.vm_overlay_size_mib
-    }
-
-    /// Returns the cache type of of [`FlakeCfgEngine`].
-    /// This is used for the virtual machines engine type.
-    pub fn vm_cache_type(&self) -> Option<&CacheType> {
-        self.vm_cache_type.as_ref()
-    }
-
-    /// Returns could of virtual CPUs of [`FlakeCfgEngine`].
-    /// This is used for the virtual machines engine type.
-    pub fn vm_vcpu_count(&self) -> Option<u8> {
-        self.vm_vcpu_count
-    }
-
-    /// Returns the size of memory in MiB of [`FlakeCfgEngine`].
-    /// This is used for the virtual machines engine type.
-    pub fn vm_mem_size_mib(&self) -> Option<u32> {
-        self.vm_mem_size_mib
-    }
-
-    /// Returns the boot argumenta of [`FlakeCfgEngine`].
-    /// This is used for the virtual machines engine type.
-    pub fn vm_boot_args(&self) -> Option<&Vec<String>> {
-        self.vm_boot_args.as_ref()
-    }
-
     /// Returns a list of runtime args for [`FlakeCfgEngine`].
     pub fn args(&self) -> Option<Vec<String>> {
         self.args.to_owned()
@@ -309,19 +278,15 @@ impl FlakeCfgEngine {
     pub fn pilot(&self) -> &str {
         self.pilot.as_ref()
     }
+
+    pub fn params(&self) -> Option<&HashMap<String, Value>> {
+        self.params.as_ref()
+    }
 }
 
 impl Default for FlakeCfgEngine {
     fn default() -> Self {
-        Self {
-            pilot: "".to_string(),
-            args: None,
-            vm_boot_args: None,
-            vm_mem_size_mib: None,
-            vm_vcpu_count: None,
-            vm_cache_type: None,
-            vm_overlay_size_mib: None,
-        }
+        Self { pilot: "".to_string(), args: None, params: None }
     }
 }
 
