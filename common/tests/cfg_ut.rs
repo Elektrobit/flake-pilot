@@ -207,4 +207,13 @@ mod cfg_v1_ut_vm {
             assert!((*cfg.runtime().instance_mode() & InstanceMode::Resume) == InstanceMode::Resume, "Should have resume flag");
         });
     }
+
+    /// Test VM runtime params captured
+    #[test]
+    fn test_cfg_v1_pdm_params_parsed() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            assert!(cfg.unwrap().engine().params().is_some(), "Should have params in a whole");
+        });
+    }
+
 }
