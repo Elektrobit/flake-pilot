@@ -369,4 +369,15 @@ mod cfg_v1_ut_vm {
             );
         });
     }
+
+    #[test]
+    fn test_cfg_v1_vm_params_initrd_path_value() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
+            assert!(
+                params.initrd_path() == "/var/lib/firecracker/images/NAME/initrd",
+                "firecracker/initrd_path should be a valid path"
+            );
+        });
+    }
 }
