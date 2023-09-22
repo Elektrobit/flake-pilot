@@ -62,7 +62,7 @@ runtime:
 
 # Engine settings (per pilot)
 engine:
-  pilot: podman
+  pilot: firecracker
   args:
     - -x
     - --foo=bar
@@ -72,7 +72,21 @@ engine:
   #
   # Optional
   params:
-    key: value
+    boot_args:
+      - "init=/usr/sbin/sci"
+      - "console=ttyS0"
+      - "root=/dev/vda"
+      - "acpi=off"
+      - "rd.neednet=1"
+      - "ip=dhcp"
+      - "quiet"
+    mem_size_mib: 4096
+    vcpu_count: 2
+    cache_type: Writeback
+    overlay_size: 20GiB
+    rootfs_image_path: /var/lib/firecracker/images/NAME/rootfs
+    kernel_image_path: /var/lib/firecracker/images/NAME/kernel
+    initrd_path: /var/lib/firecracker/images/NAME/initrd
 
 # Stuff that will be written over the rootfs
 # on specific mountpoint. Can be only archives
