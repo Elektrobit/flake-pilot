@@ -201,7 +201,7 @@ mod cfg_v1_ut_vm {
 
     /// Test VM runtime should be resumed
     #[test]
-    fn test_cfg_v1_pdm_mode_flags() {
+    fn test_cfg_v1_vm_mode_flags() {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
             assert!((*cfg.runtime().instance_mode() & InstanceMode::Resume) == InstanceMode::Resume, "Should have resume flag");
@@ -210,7 +210,7 @@ mod cfg_v1_ut_vm {
 
     /// Test VM runtime params captured
     #[test]
-    fn test_cfg_v1_pdm_params_parsed() {
+    fn test_cfg_v1_vm_params_parsed() {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             assert!(cfg.unwrap().engine().params().is_some(), "Should have params in a whole");
         });
@@ -218,7 +218,7 @@ mod cfg_v1_ut_vm {
 
     /// Test VM runtime params sequence
     #[test]
-    fn test_cfg_v1_pdm_params_contains_sequence() {
+    fn test_cfg_v1_vm_params_contains_sequence() {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
 
@@ -236,7 +236,7 @@ mod cfg_v1_ut_vm {
 
     /// Test VM runtime params other params
     #[test]
-    fn test_cfg_v1_pdm_params_other_params() {
+    fn test_cfg_v1_vm_params_other_params() {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
             for param in vec![
