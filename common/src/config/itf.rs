@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 use nix::unistd::User;
 use serde_yaml::Value;
-use std::{any::Any, collections::HashMap, default::Default, path::PathBuf};
+use std::{default::Default, path::PathBuf};
 
 /// FlakeConfig is an interface for all configuration possible
 /// across all suppirted versions of the config.
@@ -262,7 +262,7 @@ pub struct FlakeCfgEngine {
     // the specific pilots.
     //
     // Optional.
-    pub(crate) params: Option<HashMap<String, Value>>,
+    pub(crate) params: Option<Value>,
 }
 
 impl FlakeCfgEngine {
@@ -279,8 +279,8 @@ impl FlakeCfgEngine {
         self.pilot.as_ref()
     }
 
-    pub fn params(&self) -> Option<&HashMap<String, Value>> {
-        self.params.as_ref()
+    pub fn params(&self) -> Option<Value> {
+        self.params.clone()
     }
 }
 

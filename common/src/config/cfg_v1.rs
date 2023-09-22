@@ -2,7 +2,7 @@ use crate::config::{cfgparse::FlakeCfgVersionParser, itf::FlakeConfig};
 use nix::unistd::User;
 use serde::Deserialize;
 use serde_yaml::Value;
-use std::{collections::HashMap, io::Error, path::PathBuf};
+use std::{io::Error, path::PathBuf};
 
 use super::itf::{FlakeCfgEngine, FlakeCfgPaths, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode};
 
@@ -164,7 +164,7 @@ impl CfgV1Vm {
             name: "".to_string(),
             target_app_path: "".to_string(),
             host_app_path: "".to_string(),
-            runtime: CfgV1VmRuntime { runas: None, resume: None, firecracker: Some(HashMap::default()) },
+            runtime: CfgV1VmRuntime { runas: None, resume: None, firecracker: None },
         }
     }
 
@@ -189,7 +189,7 @@ impl CfgV1Vm {
 struct CfgV1VmRuntime {
     pub(crate) runas: Option<String>,
     pub(crate) resume: Option<bool>,
-    pub(crate) firecracker: Option<HashMap<String, Value>>,
+    pub(crate) firecracker: Option<Value>,
 }
 
 impl CfgV1VmRuntime {
@@ -207,7 +207,7 @@ impl CfgV1VmRuntime {
         self.resume.is_some() && self.resume.unwrap()
     }
 
-    fn get_firecracker(&self) -> Option<HashMap<String, Value>> {
+    fn get_firecracker(&self) -> Option<Value> {
         self.firecracker.to_owned()
     }
 }
