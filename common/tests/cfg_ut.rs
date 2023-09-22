@@ -150,7 +150,7 @@ mod cfg_v1_ut_oci {
 mod cfg_v1_ut_vm {
     use std::path::PathBuf;
 
-    use flakes::config::itf::InstanceMode;
+    use flakes::config::{itf::InstanceMode, pilots::fc::FirecrackerRuntimeParams};
 
     use crate::ut_rt;
 
