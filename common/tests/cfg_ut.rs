@@ -347,4 +347,15 @@ mod cfg_v1_ut_vm {
             assert!(params.overlay_size().unwrap() == "20GiB", "firecracker/overlay_size should be a value of '20GiB'");
         });
     }
+
+    #[test]
+    fn test_cfg_v1_vm_params_rootfs_image_path_value() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
+            assert!(
+                params.rootfs_image_path() == "/var/lib/firecracker/images/NAME/rootfs",
+                "firecracker/rootfs_image_path should be a valid path"
+            );
+        });
+    }
 }
