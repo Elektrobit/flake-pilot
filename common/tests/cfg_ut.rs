@@ -284,4 +284,12 @@ mod cfg_v1_ut_vm {
         });
     }
 
+    #[test]
+    fn test_cfg_v1_vm_params_mem_size_mib_init() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
+            assert!(params.mem_size_mib().is_some(), "firecracker/mem_size_mib should be initialised");
+        });
+    }
+
 }
