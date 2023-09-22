@@ -216,4 +216,22 @@ mod cfg_v1_ut_vm {
         });
     }
 
+    /// Test VM runtime params sequence
+    #[test]
+    fn test_cfg_v1_pdm_params_contains_sequence() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+
+            assert!(cfg.engine().params().unwrap().get("boot_args").is_some(), "Firecracker/boot_args present");
+            assert!(
+                cfg.engine().params().unwrap().get("boot_args").unwrap().is_sequence(),
+                "Firecracker/boot_args is a sequence"
+            );
+            assert!(
+                cfg.engine().params().unwrap().get("boot_args").unwrap().as_sequence().unwrap().len() == 7,
+                "Firecracker/boot_args is a length of 7"
+            );
+        });
+    }
+
 }
