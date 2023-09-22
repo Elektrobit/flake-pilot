@@ -273,4 +273,15 @@ mod cfg_v1_ut_vm {
         });
     }
 
+    #[test]
+    fn test_cfg_v1_vm_params_boot_args_idx_value() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
+            assert!(
+                params.boot_args().unwrap().get(3).unwrap().to_string() == "acpi=off",
+                "firecracker/boot_args 4th element should turn off ACPI"
+            );
+        });
+    }
+
 }
