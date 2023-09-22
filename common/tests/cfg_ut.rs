@@ -339,4 +339,12 @@ mod cfg_v1_ut_vm {
             assert!(params.overlay_size().is_some(), "firecracker/overlay_size should be initialised");
         });
     }
+
+    #[test]
+    fn test_cfg_v1_vm_params_overlay_size_value() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
+            assert!(params.overlay_size().unwrap() == "20GiB", "firecracker/overlay_size should be a value of '20GiB'");
+        });
+    }
 }
