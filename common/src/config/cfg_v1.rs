@@ -164,7 +164,7 @@ impl CfgV1Vm {
             name: "".to_string(),
             target_app_path: "".to_string(),
             host_app_path: "".to_string(),
-            runtime: CfgV1VmRuntime { runas: None, resume: None, firecracker: HashMap::default() },
+            runtime: CfgV1VmRuntime { runas: None, resume: None, firecracker: Some(HashMap::default()) },
         }
     }
 
@@ -189,7 +189,7 @@ impl CfgV1Vm {
 struct CfgV1VmRuntime {
     pub(crate) runas: Option<String>,
     pub(crate) resume: Option<bool>,
-    pub(crate) firecracker: HashMap<String, Value>,
+    pub(crate) firecracker: Option<HashMap<String, Value>>,
 }
 
 impl CfgV1VmRuntime {
@@ -207,8 +207,8 @@ impl CfgV1VmRuntime {
         self.resume.is_some() && self.resume.unwrap()
     }
 
-    fn get_firecracker(&self) -> &HashMap<String, Value> {
-        &self.firecracker
+    fn get_firecracker(&self) -> Option<HashMap<String, Value>> {
+        self.firecracker.to_owned()
     }
 }
 
@@ -259,11 +259,9 @@ impl FlakeCfgV1 {
             engine: FlakeCfgEngine {
                 pilot: "podman".to_string(),
                 args: spec.get_container().get_runtime().get_podman_args(),
-                vm_boot_args: None,
-                vm_mem_size_mib: None,
-                vm_vcpu_count: None,
-                vm_cache_type: None,
-                vm_overlay_size_mib: None,
+
+                // No known params of OCI containers at this point
+                params: None,
             },
             static_data: FlakeCfgStatic { bundles: spec.get_includes().get_tar() },
             setup: FlakeCfgSetup {},
@@ -298,11 +296,7 @@ impl FlakeCfgV1 {
             engine: FlakeCfgEngine {
                 pilot: "firecracker".to_string(),
                 args: None,
-                vm_boot_args: None,
-                vm_mem_size_mib: None,
-                vm_vcpu_count: None,
-                vm_cache_type: None,
-                vm_overlay_size_mib: None,
+                params: spec.get_vm().get_runtime().get_firecracker(),
             },
             static_data: FlakeCfgStatic { bundles: None },
             setup: FlakeCfgSetup {},
