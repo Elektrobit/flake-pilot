@@ -80,8 +80,7 @@ clean:
 	$(shell find . -type d -name vendor | xargs rm -rf)
 
 test:
-	cd podman-pilot && cargo -v build
-	cd podman-pilot && cargo -v test
+	cargo nextest run
 
 install:
 	install -d -m 755 $(DESTDIR)$(BINDIR)

@@ -6,11 +6,12 @@ codegen-units = 1
 panic = "abort"
 
 [workspace]
+resolver = "2"
 members = [
-    "flake-ctl/*", 
-    "podman-pilot", 
-    "firecracker-pilot", 
-    "firecracker-pilot/guestvm-tools/sci", 
-    "firecracker-pilot/firecracker-service/*", 
-    "common"
+    "flake-ctl/*",
+    "podman-pilot",
+    "firecracker-pilot",
+    "firecracker-pilot/guestvm-tools/sci",
+    "firecracker-pilot/firecracker-service/*",
+    "common",
 ]
