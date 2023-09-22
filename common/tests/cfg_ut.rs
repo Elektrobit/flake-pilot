@@ -323,4 +323,12 @@ mod cfg_v1_ut_vm {
             assert!(params.cache_type().is_some(), "firecracker/cache_type should be initialised");
         });
     }
+
+    #[test]
+    fn test_cfg_v1_vm_params_cache_type_value() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
+            assert!(params.cache_type().unwrap() == "Writeback", "firecracker/cache_type should be a value of 'Writeback'");
+        });
+    }
 }
