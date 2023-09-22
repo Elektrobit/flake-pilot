@@ -358,4 +358,15 @@ mod cfg_v1_ut_vm {
             );
         });
     }
+
+    #[test]
+    fn test_cfg_v1_vm_params_kernel_image_path_init() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
+            assert!(
+                params.kernel_image_path() == "/var/lib/firecracker/images/NAME/kernel",
+                "firecracker/kernel_image_path should be valid path"
+            );
+        });
+    }
 }
