@@ -234,4 +234,26 @@ mod cfg_v1_ut_vm {
         });
     }
 
+    /// Test VM runtime params other params
+    #[test]
+    fn test_cfg_v1_pdm_params_other_params() {
+        ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
+            let cfg = cfg.unwrap();
+            for param in vec![
+                "mem_size_mib",
+                "vcpu_count",
+                "cache_type",
+                "overlay_size",
+                "rootfs_image_path",
+                "kernel_image_path",
+                "initrd_path",
+            ] {
+                assert!(
+                    cfg.engine().params().unwrap().get(param).is_some(),
+                    "Firecracker/{} should be present and contain a value",
+                    param
+                );
+            }
+        });
+    }
 }
