@@ -251,9 +251,6 @@ impl FlakeCfgV1 {
                 paths: FlakeCfgPaths {
                     exported_app_path: PathBuf::from(spec.get_container().get_target_app_path()),
                     registered_app_path: PathBuf::from(spec.get_container().get_host_app_path()),
-                    vm_rootfs_path: None,
-                    vm_kernel_path: None,
-                    vm_initrd_path: None,
                 },
             },
             engine: FlakeCfgEngine {
@@ -286,11 +283,6 @@ impl FlakeCfgV1 {
                 paths: FlakeCfgPaths {
                     exported_app_path: PathBuf::from(spec.get_vm().get_target_app_path()),
                     registered_app_path: PathBuf::from(spec.get_vm().get_host_app_path()),
-
-                    // XXX: vm-only though
-                    vm_rootfs_path: None,
-                    vm_kernel_path: None,
-                    vm_initrd_path: None,
                 },
             },
             engine: FlakeCfgEngine {
