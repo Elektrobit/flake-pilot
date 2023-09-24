@@ -22,10 +22,10 @@ lazy_static! {
 /// Find path on itself
 fn path_for_app() -> Result<PathBuf, Error> {
     let loc = env::args().next().unwrap();
-    if loc.starts_with("/") {
+    if loc.starts_with('/') {
         // Absolute
         return Ok(PathBuf::from(loc));
-    } else if loc.contains("/") {
+    } else if loc.contains('/') {
         // Relative
         let rel = PathBuf::from(loc);
         if let Ok(loc) = env::current_dir() {
@@ -33,7 +33,7 @@ fn path_for_app() -> Result<PathBuf, Error> {
         }
     } else {
         // Needs resolve
-        if let Ok(loc) = which::which(PathBuf::from(loc).file_name().unwrap().to_str().unwrap().to_string()) {
+        if let Ok(loc) = which::which(PathBuf::from(loc).file_name().unwrap().to_str().unwrap()) {
             return Ok(loc);
         }
     }
