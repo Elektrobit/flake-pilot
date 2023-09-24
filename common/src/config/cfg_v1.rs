@@ -2,9 +2,9 @@ use crate::config::{cfgparse::FlakeCfgVersionParser, itf::FlakeConfig};
 use nix::unistd::User;
 use serde::Deserialize;
 use serde_yaml::Value;
-use std::{io::Error, path::PathBuf};
+use std::{collections::HashMap, io::Error, path::PathBuf};
 
-use super::itf::{FlakeCfgEngine, FlakeCfgPaths, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode};
+use super::itf::{FlakeCfgEngine, FlakeCfgPathProperties, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode};
 
 #[derive(Deserialize, Debug)]
 struct CfgV1Spec {
@@ -240,6 +240,12 @@ impl FlakeCfgV1 {
             rt_flags |= InstanceMode::Resume;
         }
 
+        let mut paths: HashMap<PathBuf, Option<FlakeCfgPathProperties>> = HashMap::new();
+        paths.insert(
+            PathBuf::from(spec.get_container().get_target_app_path()),
+            Some(FlakeCfgPathProperties::new(PathBuf::from(spec.get_container().get_host_app_path()))),
+        );
+
         FlakeConfig {
             version: 1,
             runtime: FlakeCfgRuntime {
@@ -248,10 +254,7 @@ impl FlakeCfgV1 {
                 layers: spec.get_container().get_layers(),
                 run_as: spec.get_container().get_runtime().get_runas_user(),
                 instance_mode: rt_flags,
-                paths: FlakeCfgPaths {
-                    exported_app_path: PathBuf::from(spec.get_container().get_target_app_path()),
-                    registered_app_path: PathBuf::from(spec.get_container().get_host_app_path()),
-                },
+                paths,
             },
             engine: FlakeCfgEngine {
                 pilot: "podman".to_string(),
@@ -272,6 +275,12 @@ impl FlakeCfgV1 {
             rt_flags |= InstanceMode::Resume;
         }
 
+        let mut paths: HashMap<PathBuf, Option<FlakeCfgPathProperties>> = HashMap::new();
+        paths.insert(
+            PathBuf::from(spec.get_vm().get_target_app_path()),
+            Some(FlakeCfgPathProperties::new(PathBuf::from(spec.get_vm().get_host_app_path()))),
+        );
+
         FlakeConfig {
             version: 1,
             runtime: FlakeCfgRuntime {
@@ -280,10 +289,7 @@ impl FlakeCfgV1 {
                 layers: None,
                 run_as: spec.get_vm().get_runtime().get_runas_user(),
                 instance_mode: rt_flags,
-                paths: FlakeCfgPaths {
-                    exported_app_path: PathBuf::from(spec.get_vm().get_target_app_path()),
-                    registered_app_path: PathBuf::from(spec.get_vm().get_host_app_path()),
-                },
+                paths,
             },
             engine: FlakeCfgEngine {
                 pilot: "firecracker".to_string(),
