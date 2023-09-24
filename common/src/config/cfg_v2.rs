@@ -4,6 +4,7 @@ use std::io::Error;
 
 /// Configuration parser, v2.
 pub struct FlakeCfgV2 {
+    #[allow(dead_code)]
     content: Value,
 }
 
