@@ -136,6 +136,13 @@ impl Default for FlakeCfgRuntime {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct FlakeCfgPathProperties {
+    pub(crate) exports: PathBuf,
+    pub(crate) run_as: Option<User>,
+    pub(crate) instance_mode: InstanceMode,
+}
+
 /// Paths for various command proxypass between the guest and host
 #[derive(Debug, Clone)]
 pub struct FlakeCfgPaths {
