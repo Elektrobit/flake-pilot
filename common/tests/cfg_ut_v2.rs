@@ -43,4 +43,16 @@ mod cfg_v2_ut {
             );
         });
     }
+
+    /// Test v2 path map has specific properties
+    #[test]
+    fn test_cfg_v2_path_map_has_spec_props() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(
+                cfg.unwrap().runtime().paths().get(&PathBuf::from("/usr/bin/banana")).unwrap().exports()
+                    == &PathBuf::from("/usr/bin/brown-banana"),
+                "Banana should be a bit older than that"
+            );
+        });
+    }
 }
