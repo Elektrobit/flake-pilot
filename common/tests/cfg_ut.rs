@@ -56,10 +56,7 @@ mod cfg_v1_ut_oci {
     fn test_cfg_v1_pdm_registered_app_path() {
         ut_rt::tb("cfg-v1/podman.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
-            assert!(
-                cfg.runtime().paths().into_iter().next().unwrap().1.clone().unwrap().exports()
-                    == &PathBuf::from("/usr/bin/banana")
-            );
+            assert!(cfg.runtime().paths().into_iter().next().unwrap().1.clone().exports() == &PathBuf::from("/usr/bin/banana"));
         });
     }
 
@@ -180,9 +177,7 @@ mod cfg_v1_ut_vm {
     fn test_cfg_v1_vm_host_app_path() {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
-            assert!(
-                cfg.runtime().paths().iter().next().unwrap().1.clone().unwrap().exports() == &PathBuf::from("/usr/sbin/hell")
-            );
+            assert!(cfg.runtime().paths().iter().next().unwrap().1.clone().exports() == &PathBuf::from("/usr/sbin/hell"));
         });
     }
 

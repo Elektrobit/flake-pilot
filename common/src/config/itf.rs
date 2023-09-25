@@ -83,7 +83,7 @@ pub struct FlakeCfgRuntime {
 
     pub(crate) instance_mode: InstanceMode,
 
-    pub(crate) paths: HashMap<PathBuf, Option<FlakeCfgPathProperties>>,
+    pub(crate) paths: HashMap<PathBuf, FlakeCfgPathProperties>,
 }
 
 impl FlakeCfgRuntime {
@@ -118,7 +118,7 @@ impl FlakeCfgRuntime {
     }
 
     /// Get the path-map
-    pub fn paths(&self) -> &HashMap<PathBuf, Option<FlakeCfgPathProperties>> {
+    pub fn paths(&self) -> &HashMap<PathBuf, FlakeCfgPathProperties> {
         &self.paths
     }
 }

@@ -240,10 +240,10 @@ impl FlakeCfgV1 {
             rt_flags |= InstanceMode::Resume;
         }
 
-        let mut paths: HashMap<PathBuf, Option<FlakeCfgPathProperties>> = HashMap::new();
+        let mut paths: HashMap<PathBuf, FlakeCfgPathProperties> = HashMap::new();
         paths.insert(
             PathBuf::from(spec.get_container().get_target_app_path()),
-            Some(FlakeCfgPathProperties::new(PathBuf::from(spec.get_container().get_host_app_path()))),
+            FlakeCfgPathProperties::new(PathBuf::from(spec.get_container().get_host_app_path())),
         );
 
         FlakeConfig {
@@ -275,10 +275,10 @@ impl FlakeCfgV1 {
             rt_flags |= InstanceMode::Resume;
         }
 
-        let mut paths: HashMap<PathBuf, Option<FlakeCfgPathProperties>> = HashMap::new();
+        let mut paths: HashMap<PathBuf, FlakeCfgPathProperties> = HashMap::new();
         paths.insert(
             PathBuf::from(spec.get_vm().get_target_app_path()),
-            Some(FlakeCfgPathProperties::new(PathBuf::from(spec.get_vm().get_host_app_path()))),
+            FlakeCfgPathProperties::new(PathBuf::from(spec.get_vm().get_host_app_path())),
         );
 
         FlakeConfig {
