@@ -4,7 +4,7 @@ version: 2
 
 # All settings for all engines during their runtime
 runtime:
-  name: "name in local registry"
+  name: "darth vader"
 
   # Map of the exported path.
   # Config v1 allows only one app per a flake. It does not
