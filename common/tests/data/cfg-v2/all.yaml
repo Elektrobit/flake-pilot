@@ -22,7 +22,7 @@ runtime:
       # Exported path from flake. Default is the same as host path.
       #
       # Optional
-      exports: /usr/bin/foo
+      exports: /usr/bin/brown-banana
 
       # Override general "user" option, specified below
       #

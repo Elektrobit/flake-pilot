@@ -55,4 +55,19 @@ mod cfg_v2_ut {
             );
         });
     }
+
+    /// Test v2 path map has specific properties: user
+    #[test]
+    fn test_cfg_v2_path_map_has_spec_props_user() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(
+                cfg.clone().unwrap().runtime().paths().get(&PathBuf::from("/usr/bin/banana")).unwrap().run_as().is_some(),
+                "Banana should have some consumer"
+            );
+            assert!(
+                cfg.unwrap().runtime().paths().get(&PathBuf::from("/usr/bin/banana")).unwrap().run_as().unwrap().uid.is_root(),
+                "Only r00t can eat bananas"
+            );
+        });
+    }
 }
