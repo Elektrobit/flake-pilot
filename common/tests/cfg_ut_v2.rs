@@ -21,4 +21,13 @@ mod cfg_v2_ut {
             assert!(cfg.unwrap().runtime().image_name() == "darth vader", "The name should be defined");
         });
     }
+
+    /// Test v2 path map
+    #[test]
+    fn test_cfg_v2_path_map_present() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(!cfg.clone().unwrap().runtime().paths().is_empty(), "Path map should not be empty");
+            assert!(cfg.unwrap().runtime().paths().len() == 4, "Path map should have four elements");
+        });
+    }
 }
