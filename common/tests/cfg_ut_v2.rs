@@ -266,4 +266,11 @@ mod cfg_v2_ut {
             assert!(cfg.unwrap().static_data().get_bundles().is_some(), "There should be some static data");
         });
     }
+
+    #[test]
+    fn test_cfg_v2_engine_static_data_len() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(cfg.unwrap().static_data().get_bundles().unwrap().len() == 4, "There should be some static data of 4");
+        });
+    }
 }
