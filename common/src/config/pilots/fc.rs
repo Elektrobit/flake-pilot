@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::Deserialize;
 use serde_yaml::Value;
 
@@ -35,16 +37,16 @@ impl FirecrackerRuntimeParams {
         self.overlay_size.as_ref()
     }
 
-    pub fn rootfs_image_path(&self) -> &str {
-        self.rootfs_image_path.as_ref()
+    pub fn rootfs_image_path(&self) -> PathBuf {
+        PathBuf::from(self.rootfs_image_path.to_owned())
     }
 
-    pub fn kernel_image_path(&self) -> &str {
-        self.kernel_image_path.as_ref()
+    pub fn kernel_image_path(&self) -> PathBuf {
+        PathBuf::from(self.kernel_image_path.to_owned())
     }
 
-    pub fn initrd_path(&self) -> &str {
-        self.initrd_path.as_ref()
+    pub fn initrd_path(&self) -> PathBuf {
+        PathBuf::from(self.initrd_path.to_owned())
     }
 }
 
