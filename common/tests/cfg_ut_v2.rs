@@ -86,4 +86,12 @@ mod cfg_v2_ut {
     }
 
     #[test]
+    fn test_cfg_v2_path_map_has_default_path() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            let p = PathBuf::from("/usr/bin/bash");
+            let banana = cfg.unwrap().clone();
+            let banana = banana.runtime().paths().get(&p).unwrap();
+            assert!(banana.exports() == &p, "Rotten banana should resume");
+        });
+    }
 }
