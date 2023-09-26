@@ -206,4 +206,14 @@ mod cfg_v2_ut {
             );
         });
     }
+
+    #[test]
+    fn test_cfg_v2_engine_params_rtp_cache_type() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(
+                FirecrackerRuntimeParams::from(cfg.unwrap().engine().params().unwrap()).cache_type().unwrap() == "Writeback",
+                "Runtime params should have cache type as writeback"
+            );
+        });
+    }
 }
