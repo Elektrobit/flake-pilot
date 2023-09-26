@@ -62,7 +62,7 @@ runtime:
 
 # Engine settings (per pilot)
 engine:
-  pilot: firecracker
+  pilot: RD2D
   args:
     - -x
     - --foo=bar
