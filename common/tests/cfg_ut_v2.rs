@@ -273,4 +273,14 @@ mod cfg_v2_ut {
             assert!(cfg.unwrap().static_data().get_bundles().unwrap().len() == 4, "There should be some static data of 4");
         });
     }
+
+    #[test]
+    fn test_cfg_v2_engine_static_data_second_value() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(
+                cfg.unwrap().static_data().get_bundles().unwrap().get(1).unwrap() == "extra-files.tar.xz",
+                "Second value should be an .xz archive"
+            );
+        });
+    }
 }
