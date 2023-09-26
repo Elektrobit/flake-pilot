@@ -74,6 +74,8 @@ impl CfgV2Runtime {
                             _ => {}
                         }
                     }
+                } else {
+                    i_mode = self.get_instance();
                 }
                 pmap.insert(
                     PathBuf::from(target.clone()),
