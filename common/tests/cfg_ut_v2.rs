@@ -5,7 +5,7 @@ mod ut_rt;
 mod cfg_v2_ut {
     use std::path::PathBuf;
 
-    use flakes::config::itf::InstanceMode;
+    use flakes::config::{itf::InstanceMode, pilots::fc::FirecrackerRuntimeParams};
 
     use super::ut_rt;
 
@@ -154,6 +154,14 @@ mod cfg_v2_ut {
     fn test_cfg_v2_engine_params_vm_boot_args() {
         ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
             assert!(cfg.unwrap().engine().params().unwrap().get("boot_args").is_some(), "VM should have boot args!");
+        });
+    }
+
+    #[test]
+    fn test_cfg_v2_engine_params_rtp_boot_args() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            let rtp = FirecrackerRuntimeParams::from(cfg.unwrap().engine().params().unwrap());
+            assert!(rtp.boot_args().is_some(), "Runtime params should have boot args!");
         });
     }
 }
