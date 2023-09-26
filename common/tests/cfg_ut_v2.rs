@@ -259,4 +259,11 @@ mod cfg_v2_ut {
             );
         });
     }
+
+    #[test]
+    fn test_cfg_v2_engine_static_data() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(cfg.unwrap().static_data().get_bundles().is_some(), "There should be some static data");
+        });
+    }
 }
