@@ -94,4 +94,21 @@ mod cfg_v2_ut {
             assert!(banana.exports() == &p, "Rotten banana should resume");
         });
     }
+
+    #[test]
+    fn test_cfg_v2_path_map_default_path_has_common_behaviour() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            let p = PathBuf::from("/usr/bin/bash");
+            let banana = cfg.unwrap().clone();
+            let banana = banana.runtime().paths().get(&p).unwrap();
+            assert!(
+                banana.instance_mode().unwrap() & InstanceMode::Resume == InstanceMode::Resume,
+                "Rotten banana should be resumed"
+            );
+            assert!(
+                banana.instance_mode().unwrap() & InstanceMode::Attach == InstanceMode::Attach,
+                "Rotten banana should be still attached to a tree"
+            );
+        });
+    }
 }
