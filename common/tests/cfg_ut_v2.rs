@@ -166,4 +166,14 @@ mod cfg_v2_ut {
             );
         });
     }
+
+    #[test]
+    fn test_cfg_v2_engine_params_rtp_boot_args_len() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(
+                FirecrackerRuntimeParams::from(cfg.unwrap().engine().params().unwrap()).boot_args().unwrap().len() == 7,
+                "Runtime params should have seven params!"
+            );
+        });
+    }
 }
