@@ -125,4 +125,11 @@ mod cfg_v2_ut {
             assert!(cfg.unwrap().engine().args().is_some(), "Pilot should have instructions!");
         });
     }
+
+    #[test]
+    fn test_cfg_v2_engine_args_len() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(cfg.unwrap().engine().args().unwrap().len() == 2, "Pilot should have whole two instructions!");
+        });
+    }
 }
