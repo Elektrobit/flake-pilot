@@ -216,4 +216,14 @@ mod cfg_v2_ut {
             );
         });
     }
+
+    #[test]
+    fn test_cfg_v2_engine_params_rtp_overlay_size() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(
+                FirecrackerRuntimeParams::from(cfg.unwrap().engine().params().unwrap()).overlay_size().unwrap() == "20GiB",
+                "Runtime params should have overlay size of 20 gigabytes"
+            );
+        });
+    }
 }
