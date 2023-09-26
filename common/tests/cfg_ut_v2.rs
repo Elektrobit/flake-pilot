@@ -5,6 +5,8 @@ mod ut_rt;
 mod cfg_v2_ut {
     use std::path::PathBuf;
 
+    use flakes::config::itf::InstanceMode;
+
     use super::ut_rt;
 
     /// Test v2 overall parse
@@ -70,4 +72,18 @@ mod cfg_v2_ut {
             );
         });
     }
+
+    #[test]
+    fn test_cfg_v2_path_map_has_spec_props_instance_mode() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            let banana = cfg.unwrap().clone();
+            let banana = banana.runtime().paths().get(&PathBuf::from("/usr/bin/rotten-banana")).unwrap();
+            assert!(
+                banana.instance_mode().unwrap() & InstanceMode::Resume == InstanceMode::Resume,
+                "Rotten banana should resume"
+            );
+        });
+    }
+
+    #[test]
 }
