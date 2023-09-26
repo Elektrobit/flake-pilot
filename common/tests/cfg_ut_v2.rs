@@ -160,8 +160,10 @@ mod cfg_v2_ut {
     #[test]
     fn test_cfg_v2_engine_params_rtp_boot_args() {
         ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
-            let rtp = FirecrackerRuntimeParams::from(cfg.unwrap().engine().params().unwrap());
-            assert!(rtp.boot_args().is_some(), "Runtime params should have boot args!");
+            assert!(
+                FirecrackerRuntimeParams::from(cfg.unwrap().engine().params().unwrap()).boot_args().is_some(),
+                "Runtime params should have boot args!"
+            );
         });
     }
 }
