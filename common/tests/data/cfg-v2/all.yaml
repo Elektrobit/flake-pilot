@@ -4,7 +4,7 @@ version: 2
 
 # All settings for all engines during their runtime
 runtime:
-  name: "name in local registry"
+  name: "darth vader"
 
   # Map of the exported path.
   # Config v1 allows only one app per a flake. It does not
@@ -22,7 +22,7 @@ runtime:
       # Exported path from flake. Default is the same as host path.
       #
       # Optional
-      exports: /usr/bin/foo
+      exports: /usr/bin/brown-banana
 
       # Override general "user" option, specified below
       #
@@ -62,7 +62,7 @@ runtime:
 
 # Engine settings (per pilot)
 engine:
-  pilot: firecracker
+  pilot: RD2D
   args:
     - -x
     - --foo=bar

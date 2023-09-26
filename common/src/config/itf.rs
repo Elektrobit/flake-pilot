@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 use nix::unistd::User;
 use serde_yaml::Value;
-use std::{default::Default, path::PathBuf};
+use std::{collections::HashMap, default::Default, path::PathBuf};
 
 /// FlakeConfig is an interface for all configuration possible
 /// across all suppirted versions of the config.
@@ -83,7 +83,7 @@ pub struct FlakeCfgRuntime {
 
     pub(crate) instance_mode: InstanceMode,
 
-    pub(crate) paths: FlakeCfgPaths,
+    pub(crate) paths: HashMap<PathBuf, FlakeCfgPathProperties>,
 }
 
 impl FlakeCfgRuntime {
@@ -117,8 +117,8 @@ impl FlakeCfgRuntime {
         &self.instance_mode
     }
 
-    /// Get `paths` namespace, represented by [`FlakeCfgPaths`] struct.
-    pub fn paths(&self) -> &FlakeCfgPaths {
+    /// Get the path-map
+    pub fn paths(&self) -> &HashMap<PathBuf, FlakeCfgPathProperties> {
         &self.paths
     }
 }
@@ -131,44 +131,36 @@ impl Default for FlakeCfgRuntime {
             layers: None,
             run_as: None,
             instance_mode: InstanceMode::default(),
-            paths: FlakeCfgPaths::default(),
+            paths: HashMap::default(),
         }
     }
 }
 
-/// Paths for various command proxypass between the guest and host
 #[derive(Debug, Clone)]
-pub struct FlakeCfgPaths {
-    // Path to the target on the container/VM, that needs to be exported
-    pub(crate) exported_app_path: PathBuf,
-
-    // Path on the host where flake is installed as executable symlink
-    // to launch exported app
-    pub(crate) registered_app_path: PathBuf,
+pub struct FlakeCfgPathProperties {
+    pub(crate) exports: PathBuf,
+    pub(crate) run_as: Option<User>,
+    pub(crate) instance_mode: Option<InstanceMode>,
 }
 
-impl FlakeCfgPaths {
-    /// Returns a reference to the exported app path of [`FlakeCfgPaths`].
-    /// **Exported App Path** is a path of an application inside of a flake
-    /// which should be launched. It also can be wrapped in
-    /// any way: scripts or binary launchers.
-    pub fn exported_app_path(&self) -> &PathBuf {
-        &self.exported_app_path
+impl FlakeCfgPathProperties {
+    pub fn new(exports: PathBuf) -> Self {
+        FlakeCfgPathProperties { run_as: None, instance_mode: None, exports }
     }
 
-    /// Returns a reference to the registered app path of [`FlakeCfgPaths`].
-    /// **Registered App Path** is a path of a symlink on the host machine
-    /// where Flake is installed. Calling this path will eventually call
-    /// `exported_app_path` function.
-    /// See [`FlakeCfgPaths::exported_app_path`].
-    pub fn registered_app_path(&self) -> &PathBuf {
-        &self.registered_app_path
+    /// Returns a reference to the exports of this [`FlakeCfgPathProperties`].
+    pub fn exports(&self) -> &PathBuf {
+        &self.exports
     }
-}
 
-impl Default for FlakeCfgPaths {
-    fn default() -> Self {
-        Self { exported_app_path: PathBuf::new(), registered_app_path: PathBuf::new() }
+    /// Returns the user to run-as of this [`FlakeCfgPathProperties`].
+    pub fn run_as(&self) -> Option<&User> {
+        self.run_as.as_ref()
+    }
+
+    /// Returns the instance mode of this [`FlakeCfgPathProperties`].
+    pub fn instance_mode(&self) -> Option<InstanceMode> {
+        self.instance_mode
     }
 }
 

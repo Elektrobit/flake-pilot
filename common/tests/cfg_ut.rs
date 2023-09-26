@@ -47,7 +47,7 @@ mod cfg_v1_ut_oci {
     fn test_cfg_v1_pdm_exported_app_path() {
         ut_rt::tb("cfg-v1/podman.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
-            assert!(cfg.runtime().paths().exported_app_path() == &PathBuf::from("/banana/in/the/container"));
+            assert!(cfg.runtime().paths().into_iter().next().unwrap().0 == &PathBuf::from("/banana/in/the/container"));
         });
     }
 
@@ -56,7 +56,7 @@ mod cfg_v1_ut_oci {
     fn test_cfg_v1_pdm_registered_app_path() {
         ut_rt::tb("cfg-v1/podman.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
-            assert!(cfg.runtime().paths().registered_app_path() == &PathBuf::from("/usr/bin/banana"));
+            assert!(cfg.runtime().paths().into_iter().next().unwrap().1.clone().exports() == &PathBuf::from("/usr/bin/banana"));
         });
     }
 
@@ -168,7 +168,7 @@ mod cfg_v1_ut_vm {
     fn test_cfg_v1_vm_target_app_path() {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
-            assert!(cfg.runtime().paths().exported_app_path() == &PathBuf::from("/highway/to/hell"));
+            assert!(cfg.runtime().paths().into_iter().next().unwrap().0 == &PathBuf::from("/highway/to/hell"));
         });
     }
 
@@ -177,7 +177,7 @@ mod cfg_v1_ut_vm {
     fn test_cfg_v1_vm_host_app_path() {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let cfg = cfg.unwrap();
-            assert!(cfg.runtime().paths().registered_app_path() == &PathBuf::from("/usr/sbin/hell"));
+            assert!(cfg.runtime().paths().iter().next().unwrap().1.clone().exports() == &PathBuf::from("/usr/sbin/hell"));
         });
     }
 
@@ -353,7 +353,7 @@ mod cfg_v1_ut_vm {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
             assert!(
-                params.rootfs_image_path() == "/var/lib/firecracker/images/NAME/rootfs",
+                params.rootfs_image_path() == PathBuf::from("/var/lib/firecracker/images/NAME/rootfs"),
                 "firecracker/rootfs_image_path should be a valid path"
             );
         });
@@ -364,7 +364,7 @@ mod cfg_v1_ut_vm {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
             assert!(
-                params.kernel_image_path() == "/var/lib/firecracker/images/NAME/kernel",
+                params.kernel_image_path() == PathBuf::from("/var/lib/firecracker/images/NAME/kernel"),
                 "firecracker/kernel_image_path should be valid path"
             );
         });
@@ -375,7 +375,7 @@ mod cfg_v1_ut_vm {
         ut_rt::tb("cfg-v1/firecracker.yaml".to_string(), |cfg| {
             let params: FirecrackerRuntimeParams = cfg.unwrap().engine().params().unwrap().into();
             assert!(
-                params.initrd_path() == "/var/lib/firecracker/images/NAME/initrd",
+                params.initrd_path() == PathBuf::from("/var/lib/firecracker/images/NAME/initrd"),
                 "firecracker/initrd_path should be a valid path"
             );
         });
