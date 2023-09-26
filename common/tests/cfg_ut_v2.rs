@@ -176,4 +176,14 @@ mod cfg_v2_ut {
             );
         });
     }
+
+    #[test]
+    fn test_cfg_v2_engine_params_rtp_memsize() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(
+                FirecrackerRuntimeParams::from(cfg.unwrap().engine().params().unwrap()).mem_size_mib().is_some(),
+                "Runtime params should have memsize"
+            );
+        });
+    }
 }
