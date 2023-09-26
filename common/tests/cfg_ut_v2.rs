@@ -113,9 +113,16 @@ mod cfg_v2_ut {
     }
 
     #[test]
-    fn test_cfg_v2_engine_parsed() {
+    fn test_cfg_v2_engine_pilot() {
         ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
             assert!(cfg.unwrap().engine().pilot() == "RD2D".to_string(), "Pilot should always have RD2D!");
+        });
+    }
+
+    #[test]
+    fn test_cfg_v2_engine_args() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(cfg.unwrap().engine().args().is_some(), "Pilot should have instructions!");
         });
     }
 }
