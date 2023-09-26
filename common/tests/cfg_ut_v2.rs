@@ -186,4 +186,14 @@ mod cfg_v2_ut {
             );
         });
     }
+
+    #[test]
+    fn test_cfg_v2_engine_params_rtp_memsize_check() {
+        ut_rt::tb("cfg-v2/all.yaml".to_string(), |cfg| {
+            assert!(
+                FirecrackerRuntimeParams::from(cfg.unwrap().engine().params().unwrap()).mem_size_mib().unwrap() == 0x1000,
+                "Runtime params should have memsize of 4096"
+            );
+        });
+    }
 }
