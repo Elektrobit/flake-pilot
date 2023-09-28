@@ -60,11 +60,11 @@ None since it is a separate executable
 
 ### Dependencies
 
-Pilots need to bundle their packaging information somehow
+Pilots need to bundle their packaging information now which adds another layer of maintenance to each pilot but no extra dependency
 
 ### Engineering Impact
 
-This tool will be maintained independently.
+These tools will be maintained independently.
 
 ### Compatibility
 
