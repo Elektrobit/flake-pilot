@@ -1,6 +1,6 @@
-use std::{io::Error, path::PathBuf};
+use std::{io::Error, path::PathBuf, process::Command};
 
-use flakes::config::itf::FlakeConfig;
+use flakes::config::{itf::FlakeConfig, CID_DIR};
 
 /// Data Sync
 ///
@@ -62,21 +62,77 @@ impl DataTracker {
     }
 }
 
+pub(crate) struct PodmanRunner {
+    app: String,
+    cfg: FlakeConfig,
+}
+
+impl PodmanRunner {
+    pub(crate) fn new(app: String, cfg: FlakeConfig) -> Self {
+        PodmanRunner { app, cfg }
+    }
+
+    /// Create a CID file
+    pub(crate) fn create_cid(&self) -> PathBuf {
+        let mut suff = String::from("");
+        for arg in std::env::args().collect::<Vec<String>>() {
+            if arg.starts_with('@') {
+                suff = format!("-{}", arg.to_owned());
+                break;
+            }
+        }
+
+        CID_DIR.join(format!("{}{}.cid", self.app.to_owned(), suff))
+    }
+
+    /// Get config
+    fn get_cfg(&self) -> &FlakeConfig {
+        &self.cfg
+    }
+
+    fn call(&self, args: &[&str]) -> Result<String, Error> {
+        let mut cmd = Command::new("sudo");
+        if let Some(user) = self.get_cfg().runtime().run_as() {
+            cmd.arg("--user").arg(user.name).arg("podman");
+        } else {
+            cmd = Command::new("podman");
+        }
+
+        for arg in args {
+            cmd.arg(arg);
+        }
+
+        match cmd.output() {
+            Ok(out) => return Ok(String::from_utf8(out.stdout).unwrap_or_default()),
+            Err(out) => return Err(Error::from(out)),
+        }
+    }
+
+    /// Create a container
+    fn create_container(&self) -> Result<(String, String), Error> {
+        Ok(("".to_string(), "".to_string()))
+    }
+}
+
 /// Podman runtime
 ///
 pub(crate) struct PodmanPilot {
-    cfg: FlakeConfig,
+    appdir: PathBuf,
+    runner: PodmanRunner,
 }
 
 impl PodmanPilot {
     /// Constructor of a new Podman Pilot instance
     pub(crate) fn new() -> Result<Self, Error> {
-        Ok(PodmanPilot { cfg: flakes::config::load()? })
+        let appdir = flakes::config::app_path()?;
+        Ok(PodmanPilot {
+            appdir: appdir.to_owned(),
+            runner: PodmanRunner::new(appdir.file_name().unwrap().to_str().unwrap().to_string(), flakes::config::load()?),
+        })
     }
 
     /// Start Podman Pilot instance
     pub(crate) fn start() -> Result<(), Error> {
-        let appdir = flakes::config::app_path()?;
         Ok(())
     }
 
