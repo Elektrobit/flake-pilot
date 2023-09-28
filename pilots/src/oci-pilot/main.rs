@@ -1,3 +1,4 @@
+mod pdm_tests;
 mod podman;
 
 fn main() {
