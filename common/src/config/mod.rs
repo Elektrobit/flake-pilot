@@ -20,7 +20,7 @@ lazy_static! {
 }
 
 /// Find path on itself
-fn path_for_app() -> Result<PathBuf, Error> {
+pub fn app_path() -> Result<PathBuf, Error> {
     let loc = env::args().next().unwrap();
     if loc.starts_with('/') {
         // Absolute
@@ -44,7 +44,7 @@ fn path_for_app() -> Result<PathBuf, Error> {
 /// Load config for the host app path
 pub fn load() -> Result<FlakeConfig, Error> {
     //pub fn load_for_app() {
-    let app_p = path_for_app().unwrap();
+    let app_p = app_path().unwrap();
     let app_ps = app_p.file_name().unwrap().to_str().unwrap().to_string();
 
     // Get app configuration
