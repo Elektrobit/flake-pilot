@@ -1,11 +1,9 @@
 mod pdm_tests;
 mod podman;
 
-fn main() {
+fn main() -> Result<(), std::io::Error> {
     match podman::PodmanPilot::new() {
-        Ok(pilot) => {}
-        Err(err) => {
-            panic!("{}", err)
-        }
+        Ok(pilot) => pilot.start(),
+        Err(err) => Err(err),
     }
 }
