@@ -103,8 +103,8 @@ impl PodmanRunner {
         }
 
         match cmd.output() {
-            Ok(out) => return Ok(String::from_utf8(out.stdout).unwrap_or_default()),
-            Err(out) => return Err(Error::from(out)),
+            Ok(out) => Ok(String::from_utf8(out.stdout).unwrap_or_default()),
+            Err(out) => Err(out),
         }
     }
 
