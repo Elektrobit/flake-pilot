@@ -132,7 +132,7 @@ impl PodmanPilot {
     }
 
     /// Start Podman Pilot instance
-    pub(crate) fn start() -> Result<(), Error> {
+    pub(crate) fn start(&self) -> Result<(), Error> {
         Ok(())
     }
 
