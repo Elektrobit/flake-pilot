@@ -1,3 +1,10 @@
+mod podman;
+
 fn main() {
-    println!("TODO");
+    match podman::PodmanPilot::new() {
+        Ok(pilot) => {}
+        Err(err) => {
+            panic!("{}", err)
+        }
+    }
 }
