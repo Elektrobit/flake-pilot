@@ -1,3 +1,4 @@
+mod datasync;
 mod pdm_tests;
 mod podman;
 
