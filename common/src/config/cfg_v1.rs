@@ -242,8 +242,8 @@ impl FlakeCfgV1 {
 
         let mut paths = PathMap::default();
         paths.inner.insert(
-            PathBuf::from(spec.get_container().get_target_app_path()),
-            FlakeCfgPathProperties::new(PathBuf::from(spec.get_container().get_host_app_path())),
+            PathBuf::from(spec.get_container().get_host_app_path()),
+            FlakeCfgPathProperties::new(PathBuf::from(spec.get_container().get_target_app_path())),
         );
 
         FlakeConfig {
@@ -277,8 +277,8 @@ impl FlakeCfgV1 {
 
         let mut paths: PathMap = PathMap::new();
         paths.inner.insert(
-            PathBuf::from(spec.get_vm().get_target_app_path()),
-            FlakeCfgPathProperties::new(PathBuf::from(spec.get_vm().get_host_app_path())),
+            PathBuf::from(spec.get_vm().get_host_app_path()),
+            FlakeCfgPathProperties::new(PathBuf::from(spec.get_vm().get_target_app_path())),
         );
 
         FlakeConfig {
