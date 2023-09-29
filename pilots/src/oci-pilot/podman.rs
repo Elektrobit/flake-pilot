@@ -77,7 +77,7 @@ impl PodmanRunner {
         let mut suff = String::from("");
         for arg in std::env::args().collect::<Vec<String>>() {
             if arg.starts_with('@') {
-                suff = format!("-{}", arg.to_owned());
+                suff = format!("-{}", &arg.to_owned()[1..]);
                 break;
             }
         }
@@ -133,6 +133,7 @@ impl PodmanPilot {
 
     /// Start Podman Pilot instance
     pub(crate) fn start(&self) -> Result<(), Error> {
+        self.runner.create_container();
         Ok(())
     }
 
