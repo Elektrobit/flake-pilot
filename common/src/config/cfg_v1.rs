@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_yaml::Value;
 use std::{collections::HashMap, io::Error, path::PathBuf};
 
-use super::itf::{FlakeCfgEngine, FlakeCfgPathProperties, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode};
+use super::itf::{FlakeCfgEngine, FlakeCfgPathProperties, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode, PathMap};
 
 #[derive(Deserialize, Debug)]
 struct CfgV1Spec {
@@ -240,8 +240,8 @@ impl FlakeCfgV1 {
             rt_flags |= InstanceMode::Resume;
         }
 
-        let mut paths: HashMap<PathBuf, FlakeCfgPathProperties> = HashMap::new();
-        paths.insert(
+        let mut paths = PathMap::default();
+        paths.inner.insert(
             PathBuf::from(spec.get_container().get_target_app_path()),
             FlakeCfgPathProperties::new(PathBuf::from(spec.get_container().get_host_app_path())),
         );
@@ -275,8 +275,8 @@ impl FlakeCfgV1 {
             rt_flags |= InstanceMode::Resume;
         }
 
-        let mut paths: HashMap<PathBuf, FlakeCfgPathProperties> = HashMap::new();
-        paths.insert(
+        let mut paths: PathMap = PathMap::new();
+        paths.inner.insert(
             PathBuf::from(spec.get_vm().get_target_app_path()),
             FlakeCfgPathProperties::new(PathBuf::from(spec.get_vm().get_host_app_path())),
         );
