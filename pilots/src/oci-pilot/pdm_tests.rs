@@ -1,15 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use flakes::config::itf::FlakeConfig;
-
-    use crate::podman;
+    use std::path::PathBuf;
 
     #[test]
     fn podman_runner_create_cid() {
         assert!(
-            podman::PodmanRunner::new("junkyard".to_string(), FlakeConfig::default()).get_cid()
+            crate::prunner::PodmanRunner::new("junkyard".to_string(), FlakeConfig::default()).get_cid()
                 == PathBuf::from("/usr/share/flakes/cid/junkyard.cid"),
             "Wrong CID path"
         )

@@ -2,6 +2,7 @@ mod datasync;
 mod datatracker;
 mod pdm_tests;
 mod podman;
+mod prunner;
 
 fn main() -> Result<(), std::io::Error> {
     match podman::PodmanPilot::new() {
