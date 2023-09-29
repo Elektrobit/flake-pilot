@@ -3,24 +3,6 @@ use flakes::config::itf::InstanceMode;
 use flakes::config::{itf::FlakeConfig, CID_DIR};
 use std::{fs, io::Error, path::PathBuf, process::Command, vec};
 
-#[derive(Default)]
-struct DataTracker {
-    data: Vec<String>,
-}
-
-impl DataTracker {
-    /// Add data
-    fn add(&mut self, item: String) -> &mut Self {
-        self.data.push(item);
-        self
-    }
-
-    /// Dump data to a file
-    fn dump(&self, dst: PathBuf) -> Result<(), Error> {
-        Ok(())
-    }
-}
-
 pub(crate) struct PodmanRunner {
     datasync: DataSync,
     app: String,
