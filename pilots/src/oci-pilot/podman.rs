@@ -1,10 +1,10 @@
-use std::{io::Error, path::PathBuf, process::Command};
-
 use flakes::config::{itf::FlakeConfig, CID_DIR};
+use std::{fs, io::Error, path::PathBuf, process::Command};
 
 /// Data Sync
 ///
 struct DataSync {}
+
 impl DataSync {
     /// Sync static data
     fn sync_static(&self) -> Result<(), Error> {
