@@ -17,6 +17,8 @@ lazy_static! {
 
     /// CID directory where all OCI containers should store their runtime ID
     pub static ref CID_DIR: PathBuf = PathBuf::from("/usr/share/flakes/cid");
+
+    pub static ref CFG: FlakeConfig = load().unwrap();
 }
 
 /// Find path on itself
@@ -41,8 +43,12 @@ pub fn app_path() -> Result<PathBuf, Error> {
     env::current_exe()
 }
 
+pub fn get() -> FlakeConfig {
+    CFG.to_owned()
+}
+
 /// Load config for the host app path
-pub fn load() -> Result<FlakeConfig, Error> {
+fn load() -> Result<FlakeConfig, Error> {
     //pub fn load_for_app() {
     let app_p = app_path().unwrap();
     let app_ps = app_p.file_name().unwrap().to_str().unwrap().to_string();
