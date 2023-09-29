@@ -307,9 +307,9 @@ impl FlakeCfgVersionParser for FlakeCfgV1 {
         match serde_yaml::from_value::<CfgV1Spec>(self.content.to_owned()) {
             Ok(spec) => {
                 if let Value::Mapping(content) = &self.content {
-                    if content.contains_key("container") {
+                    if content.contains_key("container") && content.get("container").is_some() {
                         return Ok(self.as_container(spec));
-                    } else if content.contains_key("vm") {
+                    } else if content.contains_key("vm") && content.get("vm").is_some() {
                         return Ok(self.as_vm(spec));
                     }
                 }
