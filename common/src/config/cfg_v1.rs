@@ -120,11 +120,11 @@ impl CfgV1OciRuntime {
     }
 
     fn has_resume(&self) -> bool {
-        self.resume.is_some()
+        self.resume.unwrap_or(false)
     }
 
     fn has_attach(&self) -> bool {
-        self.attach.is_some()
+        self.attach.unwrap_or(false)
     }
 
     /// Get podman runtime. At the time of config v1 was no other runtime support.
