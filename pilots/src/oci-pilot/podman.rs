@@ -181,7 +181,7 @@ impl PodmanPilot {
         let appdir = flakes::config::app_path()?;
         Ok(PodmanPilot {
             appdir: appdir.to_owned(),
-            runner: PodmanRunner::new(appdir.file_name().unwrap().to_str().unwrap().to_string(), flakes::config::load()?),
+            runner: PodmanRunner::new(appdir.file_name().unwrap().to_str().unwrap().to_string(), flakes::config::get()),
         })
     }
 
