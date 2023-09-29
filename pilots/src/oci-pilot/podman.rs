@@ -28,8 +28,22 @@ impl DataSync {
     }
 
     /// Initialise environment
-    fn get_cid_dir(&self) -> Result<PathBuf, Error> {
-        Ok(PathBuf::from(""))
+    fn check_cid_dir(&self) -> Result<PathBuf, Error> {
+        if !CID_DIR.exists() {
+            return Err(Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("CID directory \"{}\" was not found", CID_DIR.as_os_str().to_str().unwrap()),
+            ));
+        }
+
+        if std::fs::metadata(CID_DIR.to_path_buf()).unwrap().permissions().readonly() {
+            return Err(Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                format!("Unable to write to \"{}\" directory", CID_DIR.as_os_str().to_str().unwrap()),
+            ));
+        }
+
+        Ok(CID_DIR.to_owned())
     }
 
     /// Flush a cid file
@@ -63,17 +77,18 @@ impl DataTracker {
 }
 
 pub(crate) struct PodmanRunner {
+    datasync: DataSync,
     app: String,
     cfg: FlakeConfig,
 }
 
 impl PodmanRunner {
     pub(crate) fn new(app: String, cfg: FlakeConfig) -> Self {
-        PodmanRunner { app, cfg }
+        PodmanRunner { datasync: DataSync {}, app, cfg }
     }
 
-    /// Create a CID file
-    pub(crate) fn create_cid(&self) -> PathBuf {
+    /// Make a CID file
+    pub(crate) fn get_cid(&self) -> PathBuf {
         let mut suff = String::from("");
         for arg in std::env::args().collect::<Vec<String>>() {
             if arg.starts_with('@') {
@@ -85,12 +100,27 @@ impl PodmanRunner {
         CID_DIR.join(format!("{}{}.cid", self.app.to_owned(), suff))
     }
 
+    /// Check CID status and garbage-collect it. Returns True, if CID should
+    /// be used to create a new container. Otherwise False.
+    pub(crate) fn check_cid(&self, cid: PathBuf) -> Result<bool, Error> {
+        if !cid.exists() {
+            return Ok(true);
+        }
+
+        match self.call(false, &["container", "exists", &fs::read_to_string(&cid)?]) {
+            Ok(_) => {}
+            Err(_) => fs::remove_file(cid)?,
+        }
+
+        Ok(true)
+    }
+
     /// Get config
     fn get_cfg(&self) -> &FlakeConfig {
         &self.cfg
     }
 
-    fn call(&self, args: &[&str]) -> Result<String, Error> {
+    fn call(&self, output: bool, args: &[&str]) -> Result<String, Error> {
         let mut cmd = Command::new("sudo");
         if let Some(user) = self.get_cfg().runtime().run_as() {
             cmd.arg("--user").arg(user.name).arg("podman");
