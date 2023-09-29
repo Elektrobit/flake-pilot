@@ -138,10 +138,28 @@ impl PodmanRunner {
             cmd.arg(arg);
         }
 
-        match cmd.output() {
-            Ok(out) => Ok(String::from_utf8(out.stdout).unwrap_or_default()),
-            Err(out) => Err(out),
+        if output {
+            match cmd.output() {
+                Ok(out) => {
+                    return Ok(String::from_utf8(out.stdout).unwrap_or_default());
+                }
+                Err(out) => {
+                    return Err(out);
+                }
+            }
+        } else {
+            match cmd.status() {
+                Ok(st) => {
+                    if !st.success() {
+                        return Err(Error::new(std::io::ErrorKind::InvalidData, "Call error"));
+                    }
+                }
+                Err(err) => {
+                    return Err(err);
+                }
+            }
         }
+        Ok("".to_string())
     }
 
     /// Create a container
