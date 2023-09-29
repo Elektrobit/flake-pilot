@@ -3,7 +3,13 @@ mod podman;
 
 fn main() -> Result<(), std::io::Error> {
     match podman::PodmanPilot::new() {
-        Ok(pilot) => pilot.start(),
+        Ok(pilot) => match pilot.start() {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                println!("General error: {}", err);
+                Err(err)
+            }
+        },
         Err(err) => Err(err),
     }
 }
