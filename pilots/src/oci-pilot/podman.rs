@@ -1,5 +1,6 @@
+use flakes::config::itf::InstanceMode;
 use flakes::config::{itf::FlakeConfig, CID_DIR};
-use std::{fs, io::Error, path::PathBuf, process::Command};
+use std::{fs, io::Error, path::PathBuf, process::Command, vec};
 
 /// Data Sync
 ///
@@ -100,19 +101,24 @@ impl PodmanRunner {
         CID_DIR.join(format!("{}{}.cid", self.app.to_owned(), suff))
     }
 
-    /// Check CID status and garbage-collect it. Returns True, if CID should
-    /// be used to create a new container. Otherwise False.
-    pub(crate) fn check_cid(&self, cid: PathBuf) -> Result<bool, Error> {
+    /// Garbage collect CID.
+    ///
+    /// Check if container exists according to the specified
+    /// container_cid_file. Garbage cleanup the container_cid_file
+    /// if no longer present. Return a true value if the container
+    /// exists, in any other case return false.
+    pub(crate) fn gc_cid(&self, cid: PathBuf) -> Result<bool, Error> {
         if !cid.exists() {
             return Ok(true);
         }
 
         match self.call(false, &["container", "exists", &fs::read_to_string(&cid)?]) {
-            Ok(_) => {}
-            Err(_) => fs::remove_file(cid)?,
+            Ok(_) => Ok(true),
+            Err(_) => {
+                fs::remove_file(cid)?;
+                Ok(false)
+            }
         }
-
-        Ok(true)
     }
 
     /// Get config
