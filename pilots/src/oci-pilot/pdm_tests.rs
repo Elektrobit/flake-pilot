@@ -6,7 +6,7 @@ mod tests {
     #[test]
     fn podman_runner_create_cid() {
         assert!(
-            crate::prunner::PodmanRunner::new("junkyard".to_string(), FlakeConfig::default()).get_cid()
+            crate::prunner::PodmanRunner::new("junkyard".to_string(), FlakeConfig::default()).get_cidfile()
                 == PathBuf::from("/usr/share/flakes/cid/junkyard.cid"),
             "Wrong CID path"
         )

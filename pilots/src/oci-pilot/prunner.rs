@@ -1,4 +1,4 @@
-use std::{fs, io::Error, path::PathBuf, process::Command};
+use std::{fs, io::Error, ops::Deref, path::PathBuf, process::Command, vec};
 
 use flakes::config::{
     itf::{FlakeConfig, InstanceMode},
@@ -11,15 +11,21 @@ pub(crate) struct PodmanRunner {
     datasync: DataSync,
     app: String,
     cfg: FlakeConfig,
+    cid: Option<String>,
+    cidfile: Option<PathBuf>,
 }
 
 impl PodmanRunner {
     pub(crate) fn new(app: String, cfg: FlakeConfig) -> Self {
-        PodmanRunner { datasync: DataSync {}, app, cfg }
+        PodmanRunner { datasync: DataSync {}, app, cfg, cid: None, cidfile: None }
     }
 
     /// Make a CID file
-    pub(crate) fn get_cid(&self) -> PathBuf {
+    pub(crate) fn get_cidfile(&mut self) -> PathBuf {
+        if self.cidfile.is_some() {
+            return self.cidfile.to_owned().unwrap();
+        }
+
         let mut suff = String::from("");
         for arg in std::env::args().collect::<Vec<String>>() {
             if arg.starts_with('@') {
@@ -28,7 +34,12 @@ impl PodmanRunner {
             }
         }
 
-        CID_DIR.join(format!("{}{}.cid", self.app.to_owned(), suff))
+        self.cidfile = Some(CID_DIR.join(format!("{}{}.cid", self.app.to_owned(), suff)));
+        self.cidfile.to_owned().unwrap()
+    }
+
+    fn get_cid(&self) -> String {
+        self.cid.to_owned().unwrap()
     }
 
     /// Garbage collect CID.
@@ -37,20 +48,22 @@ impl PodmanRunner {
     /// container_cid_file. Garbage cleanup the container_cid_file
     /// if no longer present. Return a true value if the container
     /// exists, in any other case return false.
-    pub(crate) fn gc_cid(&self, cid: PathBuf) -> Result<bool, Error> {
-        if !cid.exists() {
-            return Ok(false);
+    pub(crate) fn gc_cidfile(&self, cidfile: PathBuf) -> Result<(bool, String), Error> {
+        if !cidfile.exists() {
+            return Ok((false, "".to_string()));
         }
 
-        match self.call(false, &["container", "exists", &fs::read_to_string(&cid)?.trim()]) {
+        let cid = &fs::read_to_string(&cidfile)?;
+
+        match self.call(false, &["container", "exists", cid.trim()]) {
             Ok(_) => {
-                log::debug!("Container with CID {:?} exists", cid);
-                Ok(true)
+                log::debug!("Container with CID {:?} exists", cidfile);
+                Ok((true, cid.to_string()))
             }
             Err(_) => {
-                fs::remove_file(&cid)?;
-                log::debug!("Container with CID {:?} does not exist, removing CID", cid);
-                Ok(false)
+                fs::remove_file(&cidfile)?;
+                log::debug!("Container with CID {:?} does not exist, removing CID", cidfile);
+                Ok((false, "".to_string()))
             }
         }
     }
@@ -100,12 +113,13 @@ impl PodmanRunner {
 
     /// Create a CLI arguments for preparing the container
     /// This is a part of "get_container", so likely must be just merged with it
-    pub(crate) fn get_container(&self) -> Result<(PathBuf, String), Error> {
+    fn setup_container(&mut self) -> Result<(), Error> {
         let mut args: Vec<String> = vec![];
 
-        let cidfile = self.get_cid();
-        if self.gc_cid(cidfile.to_owned())? {
-            return Ok((cidfile, "".to_string()));
+        self.get_cidfile();
+        if let (true, cid) = self.gc_cidfile(self.cidfile.clone().unwrap())? {
+            self.cid = Some(cid);
+            return Ok(());
         }
 
         let app_path = flakes::config::app_path()?;
@@ -118,7 +132,11 @@ impl PodmanRunner {
         }
 
         self.datasync.check_cid_dir()?;
-        args.extend(vec!["create".to_string(), "--cidfile".to_string(), cidfile.as_os_str().to_str().unwrap().to_string()]);
+        args.extend(vec![
+            "create".to_string(),
+            "--cidfile".to_string(),
+            self.cidfile.to_owned().unwrap().as_os_str().to_str().unwrap().to_string(),
+        ]);
 
         let resume = *self.cfg.runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume;
         if resume {
@@ -156,9 +174,33 @@ impl PodmanRunner {
             }
         }
 
-        let out = self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
-        log::debug!("CID: {}", out);
+        self.cid = Some(self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?);
+        log::debug!("CID: {}", self.get_cid());
 
-        Ok((PathBuf::from(""), "".to_string()))
+        Ok(())
+    }
+
+    /// Launch a container
+    pub(crate) fn start(&mut self) -> Result<(PathBuf, String), Error> {
+        self.setup_container()?;
+
+        // Construct args for launching an instance
+        let mut args: Vec<String> = vec!["start".to_string()];
+        let resume = *self.cfg.runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume;
+
+        if resume {
+            // mute STDOUT
+        } else {
+            args.push("--attach".to_string());
+        }
+        args.push(self.cid.to_owned().unwrap());
+        let out = self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
+        log::info!("{}", out);
+
+        Ok((self.get_cidfile(), self.get_cid()))
+    }
+
+    pub(crate) fn attach(&mut self) -> Result<(PathBuf, String), Error> {
+        Ok((self.get_cidfile(), self.get_cid()))
     }
 }

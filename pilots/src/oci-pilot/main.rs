@@ -25,7 +25,7 @@ fn main() -> Result<(), std::io::Error> {
     log::debug!("Launching pilot");
 
     match podman::PodmanPilot::new() {
-        Ok(pilot) => match pilot.start() {
+        Ok(mut pilot) => match pilot.start() {
             Ok(_) => Ok(()),
             Err(err) => {
                 println!("General error: {}", err);
