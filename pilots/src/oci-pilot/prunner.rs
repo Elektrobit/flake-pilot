@@ -39,13 +39,17 @@ impl PodmanRunner {
     /// exists, in any other case return false.
     pub(crate) fn gc_cid(&self, cid: PathBuf) -> Result<bool, Error> {
         if !cid.exists() {
-            return Ok(true);
+            return Ok(false);
         }
 
-        match self.call(false, &["container", "exists", &fs::read_to_string(&cid)?]) {
-            Ok(_) => Ok(true),
+        match self.call(false, &["container", "exists", &fs::read_to_string(&cid)?.trim()]) {
+            Ok(_) => {
+                log::debug!("Container with CID {:?} exists", cid);
+                Ok(true)
+            }
             Err(_) => {
-                fs::remove_file(cid)?;
+                fs::remove_file(&cid)?;
+                log::debug!("Container with CID {:?} does not exist, removing CID", cid);
                 Ok(false)
             }
         }
@@ -100,7 +104,7 @@ impl PodmanRunner {
         let mut args: Vec<String> = vec![];
 
         let cidfile = self.get_cid();
-        if !self.gc_cid(cidfile.to_owned())? {
+        if self.gc_cid(cidfile.to_owned())? {
             return Ok((cidfile, "".to_string()));
         }
 
@@ -136,7 +140,7 @@ impl PodmanRunner {
 
         if resume {
             args.push("sleep".to_string());
-            args.push("4294967295d".to_string());
+            args.push("4294967295d".to_string()); // @schaefi promised to be dead by that time :)
         } else {
             args.push(target.unwrap().exports().as_os_str().to_str().to_owned().unwrap().to_string());
         }
