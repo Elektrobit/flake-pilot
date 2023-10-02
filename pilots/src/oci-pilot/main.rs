@@ -8,7 +8,6 @@ mod pdm_tests;
 mod podman;
 mod prunner;
 
-static VERSION: &str = "0.1";
 static LOGGER: logger::STDOUTLogger = logger::STDOUTLogger;
 
 fn main() -> Result<(), std::io::Error> {
@@ -24,6 +23,7 @@ fn main() -> Result<(), std::io::Error> {
     }
 
     log::debug!("Launching pilot");
+
     match podman::PodmanPilot::new() {
         Ok(pilot) => match pilot.start() {
             Ok(_) => Ok(()),
