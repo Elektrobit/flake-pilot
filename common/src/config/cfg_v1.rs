@@ -2,7 +2,7 @@ use crate::config::{cfgparse::FlakeCfgVersionParser, itf::FlakeConfig};
 use nix::unistd::User;
 use serde::Deserialize;
 use serde_yaml::Value;
-use std::{collections::HashMap, io::Error, path::PathBuf};
+use std::{io::Error, path::PathBuf};
 
 use super::itf::{FlakeCfgEngine, FlakeCfgPathProperties, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode, PathMap};
 
