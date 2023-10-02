@@ -20,7 +20,8 @@ impl PodmanPilot {
 
     /// Start Podman Pilot instance
     pub(crate) fn start(&self) -> Result<(), Error> {
-        self.runner.create_container();
+        self.runner.get_container()?;
+        log::debug!("Container has been created");
         Ok(())
     }
 

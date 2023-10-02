@@ -68,6 +68,8 @@ impl PodmanRunner {
             cmd.arg(arg);
         }
 
+        log::debug!("Syscall: {:?}", cmd);
+
         if output {
             match cmd.output() {
                 Ok(out) => {
@@ -92,24 +94,27 @@ impl PodmanRunner {
         Ok("".to_string())
     }
 
-    /// Create a container
-    pub(crate) fn create_container(&self) -> Result<(PathBuf, String), Error> {
-        let cid = self.get_cid();
-        if !self.gc_cid(cid.to_owned())? {
-            return Ok((cid, "".to_string()));
+    /// Create a CLI arguments for preparing the container
+    /// This is a part of "get_container", so likely must be just merged with it
+    pub(crate) fn get_container(&self) -> Result<(PathBuf, String), Error> {
+        let mut args: Vec<String> = vec![];
+
+        let cidfile = self.get_cid();
+        if !self.gc_cid(cidfile.to_owned())? {
+            return Ok((cidfile, "".to_string()));
         }
 
-        println!("Getting host path: {:?}", flakes::config::app_path()?);
+        let app_path = flakes::config::app_path()?;
+        log::debug!("Host path: {:?}", app_path);
 
-        let target = self.cfg.runtime().paths().get(&flakes::config::app_path()?);
+        let target = self.cfg.runtime().paths().get(&app_path);
         if target.is_none() {
+            log::debug!("Unable to find specified target path by the host path. Configuration wrong?");
             return Err(Error::new(std::io::ErrorKind::NotFound, "Target path not found"));
         }
 
         self.datasync.check_cid_dir()?;
-
-        let mut args: Vec<String> =
-            vec!["create".to_string(), "--cidfile".to_string(), cid.as_os_str().to_str().unwrap().to_string()];
+        args.extend(vec!["create".to_string(), "--cidfile".to_string(), cidfile.as_os_str().to_str().unwrap().to_string()]);
 
         let resume = *self.cfg.runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume;
         if resume {
@@ -123,7 +128,7 @@ impl PodmanRunner {
             if arg == "-ti" || arg == "--rm" {
                 continue;
             }
-            args.push(arg);
+            args.extend(arg.split(' ').filter(|x| !x.is_empty()).map(|s| s.to_string()).collect::<Vec<String>>());
         }
 
         // Container name or base name
@@ -147,11 +152,9 @@ impl PodmanRunner {
             }
         }
 
-        println!("CALL:\n{:?}", args);
-        println!("CFG:\n{:?}", self.cfg.runtime().paths());
+        let out = self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
+        log::debug!("CID: {}", out);
 
-        //self.call(&["create", "--cidfile", cid.as_os_str().to_str().unwrap()])?;
-
-        Ok((cid, "".to_string()))
+        Ok((PathBuf::from(""), "".to_string()))
     }
 }
