@@ -13,11 +13,12 @@ pub(crate) struct PodmanRunner {
     cfg: FlakeConfig,
     cid: Option<String>,
     cidfile: Option<PathBuf>,
+    debug: bool,
 }
 
 impl PodmanRunner {
-    pub(crate) fn new(app: String, cfg: FlakeConfig) -> Self {
-        PodmanRunner { datasync: DataSync {}, app, cfg, cid: None, cidfile: None }
+    pub(crate) fn new(app: String, cfg: FlakeConfig, debug: bool) -> Self {
+        PodmanRunner { datasync: DataSync {}, app, cfg, cid: None, cidfile: None, debug }
     }
 
     /// Make a CID file
@@ -42,6 +43,10 @@ impl PodmanRunner {
         self.cid.to_owned().unwrap()
     }
 
+    fn set_cid(&mut self, cid: String) {
+        self.cid = Some(cid.trim().to_string());
+    }
+
     /// Garbage collect CID.
     ///
     /// Check if container exists according to the specified
@@ -57,12 +62,18 @@ impl PodmanRunner {
 
         match self.call(false, &["container", "exists", cid.trim()]) {
             Ok(_) => {
-                log::debug!("Container with CID {:?} exists", cidfile);
+                if self.debug {
+                    log::debug!("Container with CID {:?} exists", cidfile);
+                }
                 Ok((true, cid.to_string()))
             }
             Err(_) => {
                 fs::remove_file(&cidfile)?;
-                log::debug!("Container with CID {:?} does not exist, removing CID", cidfile);
+
+                if self.debug {
+                    log::debug!("Container with CID {:?} does not exist, removing CID", cidfile);
+                }
+
                 Ok((false, "".to_string()))
             }
         }
@@ -85,7 +96,9 @@ impl PodmanRunner {
             cmd.arg(arg);
         }
 
-        log::debug!("Syscall: {:?}", cmd);
+        if self.debug {
+            log::debug!("Syscall: {:?}", cmd);
+        }
 
         if output {
             match cmd.output() {
@@ -118,16 +131,26 @@ impl PodmanRunner {
 
         self.get_cidfile();
         if let (true, cid) = self.gc_cidfile(self.cidfile.clone().unwrap())? {
-            self.cid = Some(cid);
+            self.set_cid(cid);
+
+            if self.debug {
+                log::debug!("Bailing out with CID: {}", self.get_cid());
+            }
+
             return Ok(());
         }
 
         let app_path = flakes::config::app_path()?;
-        log::debug!("Host path: {:?}", app_path);
+
+        if self.debug {
+            log::debug!("Host path: {:?}", app_path);
+        }
 
         let target = self.cfg.runtime().paths().get(&app_path);
         if target.is_none() {
-            log::debug!("Unable to find specified target path by the host path. Configuration wrong?");
+            if self.debug {
+                log::debug!("Unable to find specified target path by the host path. Configuration wrong?");
+            }
             return Err(Error::new(std::io::ErrorKind::NotFound, "Target path not found"));
         }
 
@@ -174,14 +197,17 @@ impl PodmanRunner {
             }
         }
 
-        self.cid = Some(self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?);
-        log::debug!("CID: {}", self.get_cid());
+        self.set_cid(self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?);
+
+        if self.debug {
+            log::debug!("CID: {}", self.get_cid());
+        }
 
         Ok(())
     }
 
     /// Launch a container
-    pub(crate) fn start(&mut self) -> Result<(PathBuf, String), Error> {
+    pub(crate) fn start(&mut self) -> Result<(String, String), Error> {
         self.setup_container()?;
 
         // Construct args for launching an instance
@@ -193,14 +219,17 @@ impl PodmanRunner {
         } else {
             args.push("--attach".to_string());
         }
-        args.push(self.cid.to_owned().unwrap());
-        let out = self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
-        log::info!("{}", out);
+        args.push(self.get_cid());
 
-        Ok((self.get_cidfile(), self.get_cid()))
+        if self.debug {
+            log::debug!("Using container {}", self.get_cid()[..0xc].to_string());
+        }
+
+        let stdout = self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
+        Ok((stdout, "".to_string()))
     }
 
-    pub(crate) fn attach(&mut self) -> Result<(PathBuf, String), Error> {
-        Ok((self.get_cidfile(), self.get_cid()))
+    pub(crate) fn attach(&mut self) -> Result<(String, String), Error> {
+        Ok(("stdout".to_string(), "stderr".to_string()))
     }
 }
