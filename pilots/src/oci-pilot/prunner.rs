@@ -5,12 +5,13 @@ use flakes::config::{
     CID_DIR,
 };
 
-use crate::{datasync::DataSync, pdsys::PdSysCall};
+use crate::{datasync::DataSync, fgc::CidGarbageCollector, pdsys::PdSysCall};
 
 pub(crate) struct PodmanRunner {
     datasync: DataSync,
     app: String,
     cfg: FlakeConfig,
+    gc: CidGarbageCollector,
     cid: Option<String>,
     cidfile: Option<PathBuf>,
     pds: PdSysCall,
@@ -19,7 +20,16 @@ pub(crate) struct PodmanRunner {
 
 impl PodmanRunner {
     pub(crate) fn new(app: String, cfg: FlakeConfig, debug: bool) -> Self {
-        PodmanRunner { datasync: DataSync {}, app, cfg, cid: None, cidfile: None, pds: PdSysCall::new(debug), debug }
+        PodmanRunner {
+            datasync: DataSync {},
+            gc: CidGarbageCollector::new(debug),
+            pds: PdSysCall::new(debug),
+            cid: None,
+            cidfile: None,
+            app,
+            cfg,
+            debug,
+        }
     }
 
     /// Make a CID file
@@ -66,38 +76,6 @@ impl PodmanRunner {
         Ok(())
     }
 
-    /// Garbage collect CID.
-    ///
-    /// Check if container exists according to the specified
-    /// container_cid_file. Garbage cleanup the container_cid_file
-    /// if no longer present. Return a true value if the container
-    /// exists, in any other case return false.
-    pub(crate) fn gc_cidfile(&self, cidfile: PathBuf) -> Result<(bool, String), Error> {
-        if !cidfile.exists() {
-            return Ok((false, "".to_string()));
-        }
-
-        let cid = &fs::read_to_string(&cidfile)?;
-
-        match self.pds.call(false, &["container", "exists", cid.trim()]) {
-            Ok(_) => {
-                if self.debug {
-                    log::debug!("Container with CID {:?} exists", cidfile);
-                }
-                Ok((true, cid.to_string()))
-            }
-            Err(_) => {
-                fs::remove_file(&cidfile)?;
-
-                if self.debug {
-                    log::debug!("Container with CID {:?} does not exist, removing CID", cidfile);
-                }
-
-                Ok((false, "".to_string()))
-            }
-        }
-    }
-
     /// Get config
     fn get_cfg(&self) -> &FlakeConfig {
         &self.cfg
@@ -109,7 +87,7 @@ impl PodmanRunner {
         let mut args: Vec<String> = vec![];
 
         self.get_cidfile();
-        if let (true, cid) = self.gc_cidfile(self.cidfile.clone().unwrap())? {
+        if let (true, cid) = self.gc.on_cidfile(self.cidfile.clone().unwrap())? {
             self.set_cid(cid);
 
             if self.debug {

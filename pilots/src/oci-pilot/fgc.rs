@@ -21,7 +21,7 @@ impl CidGarbageCollector {
     }
 
     /// Check if a given CID is valid
-    pub fn cid_valid(&self, cidfile: PathBuf) -> Result<(bool, String), Error> {
+    pub fn on_cidfile(&self, cidfile: PathBuf) -> Result<(bool, String), Error> {
         if !cidfile.exists() {
             return Ok((false, "".to_string()));
         }
