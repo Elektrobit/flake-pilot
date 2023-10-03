@@ -107,7 +107,7 @@ impl PodmanRunner {
             log::debug!("Host path: {:?}", app_path);
         }
 
-        let target = self.cfg.runtime().paths().get(&app_path);
+        let target = self.get_cfg().runtime().paths().get(&app_path);
         if target.is_none() {
             if self.debug {
                 log::debug!("Unable to find specified target path by the host path. Configuration wrong?");
@@ -122,7 +122,7 @@ impl PodmanRunner {
             self.cidfile.to_owned().unwrap().as_os_str().to_str().unwrap().to_string(),
         ]);
 
-        let resume = *self.cfg.runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume;
+        let resume = *self.get_cfg().runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume;
         if resume {
             args.push("-ti".to_string());
         } else {
@@ -130,7 +130,7 @@ impl PodmanRunner {
             args.push("-ti".to_string());
         }
 
-        for arg in self.cfg.engine().args().unwrap_or(vec![]) {
+        for arg in self.get_cfg().engine().args().unwrap_or(vec![]) {
             if arg == "-ti" || arg == "--rm" {
                 continue;
             }
@@ -138,7 +138,7 @@ impl PodmanRunner {
         }
 
         // Container name or base name
-        args.push(self.cfg.runtime().image_name().to_string());
+        args.push(self.get_cfg().runtime().image_name().to_string());
 
         if resume {
             args.push("sleep".to_string());
@@ -173,7 +173,7 @@ impl PodmanRunner {
 
         // Construct args for launching an instance
         let mut args: Vec<String> = vec!["start".to_string()];
-        let resume = *self.cfg.runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume;
+        let resume = *self.get_cfg().runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume;
 
         if resume {
             // mute STDOUT
