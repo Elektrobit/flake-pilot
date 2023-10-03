@@ -34,23 +34,8 @@ impl PodmanPilot {
         Ok(())
     }
 
-    /// Returns true if a container is running
-    fn is_running(&self) -> Result<bool, Error> {
-        Ok(false)
-    }
-
     fn is_image_exists(&self, name: &str) -> Result<bool, Error> {
         Ok(false)
-    }
-
-    /// Find container by the ID and call an action there
-    fn call_instance(&self) -> Result<(), Error> {
-        Ok(())
-    }
-
-    /// Get relevant exported path
-    fn get_exported_path(&self) -> PathBuf {
-        PathBuf::from("")
     }
 
     /// Mount container. Returns the mount point, if succeeded
