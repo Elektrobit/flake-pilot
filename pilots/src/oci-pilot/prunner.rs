@@ -48,6 +48,24 @@ impl PodmanRunner {
         self.cid = Some(cid.trim().to_string());
     }
 
+    /// Generic cleanup.
+    /// Its behaviour depends on the flake conditions.
+    pub(crate) fn cleanup(&mut self) -> Result<(), Error> {
+        if self.debug {
+            log::debug!("Cleanup");
+        }
+
+        if *self.get_cfg().runtime().instance_mode() & InstanceMode::Resume != InstanceMode::Resume {
+            if self.debug {
+                log::debug!("Removing non-resumable CID: {:?}", self.get_cidfile());
+            }
+
+            fs::remove_file(self.get_cidfile())?;
+        }
+
+        Ok(())
+    }
+
     /// Garbage collect CID.
     ///
     /// Check if container exists according to the specified
@@ -187,6 +205,8 @@ impl PodmanRunner {
         }
 
         let stdout = self.pds.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
+        self.cleanup()?;
+
         Ok((stdout, "".to_string()))
     }
 
