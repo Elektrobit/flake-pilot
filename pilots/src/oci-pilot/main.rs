@@ -1,6 +1,5 @@
-use std::env;
-
 use flakes::logger;
+use std::env;
 
 mod datasync;
 mod datatracker;
