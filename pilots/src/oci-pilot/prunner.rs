@@ -5,7 +5,7 @@ use flakes::config::{
     CID_DIR,
 };
 
-use crate::datasync::DataSync;
+use crate::{datasync::DataSync, pdsys::PdSysCall};
 
 pub(crate) struct PodmanRunner {
     datasync: DataSync,
@@ -13,12 +13,13 @@ pub(crate) struct PodmanRunner {
     cfg: FlakeConfig,
     cid: Option<String>,
     cidfile: Option<PathBuf>,
+    pds: PdSysCall,
     debug: bool,
 }
 
 impl PodmanRunner {
     pub(crate) fn new(app: String, cfg: FlakeConfig, debug: bool) -> Self {
-        PodmanRunner { datasync: DataSync {}, app, cfg, cid: None, cidfile: None, debug }
+        PodmanRunner { datasync: DataSync {}, app, cfg, cid: None, cidfile: None, pds: PdSysCall::new(debug), debug }
     }
 
     /// Make a CID file
@@ -60,7 +61,7 @@ impl PodmanRunner {
 
         let cid = &fs::read_to_string(&cidfile)?;
 
-        match self.call(false, &["container", "exists", cid.trim()]) {
+        match self.pds.call(false, &["container", "exists", cid.trim()]) {
             Ok(_) => {
                 if self.debug {
                     log::debug!("Container with CID {:?} exists", cidfile);
@@ -82,46 +83,6 @@ impl PodmanRunner {
     /// Get config
     fn get_cfg(&self) -> &FlakeConfig {
         &self.cfg
-    }
-
-    fn call(&self, output: bool, args: &[&str]) -> Result<String, Error> {
-        let mut cmd = Command::new("sudo");
-        if let Some(user) = self.get_cfg().runtime().run_as() {
-            cmd.arg("--user").arg(user.name).arg("podman");
-        } else {
-            cmd = Command::new("podman");
-        }
-
-        for arg in args {
-            cmd.arg(arg);
-        }
-
-        if self.debug {
-            log::debug!("Syscall: {:?}", cmd);
-        }
-
-        if output {
-            match cmd.output() {
-                Ok(out) => {
-                    return Ok(String::from_utf8(out.stdout).unwrap_or_default());
-                }
-                Err(out) => {
-                    return Err(out);
-                }
-            }
-        } else {
-            match cmd.status() {
-                Ok(st) => {
-                    if !st.success() {
-                        return Err(Error::new(std::io::ErrorKind::InvalidData, "Call error"));
-                    }
-                }
-                Err(err) => {
-                    return Err(err);
-                }
-            }
-        }
-        Ok("".to_string())
     }
 
     /// Create a CLI arguments for preparing the container
@@ -197,7 +158,7 @@ impl PodmanRunner {
             }
         }
 
-        self.set_cid(self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?);
+        self.set_cid(self.pds.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?);
 
         if self.debug {
             log::debug!("CID: {}", self.get_cid());
@@ -225,7 +186,7 @@ impl PodmanRunner {
             log::debug!("Using container {}", self.get_cid()[..0xc].to_string());
         }
 
-        let stdout = self.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
+        let stdout = self.pds.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
         Ok((stdout, "".to_string()))
     }
 

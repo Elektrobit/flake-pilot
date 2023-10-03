@@ -5,6 +5,7 @@ use flakes::logger;
 mod datasync;
 mod datatracker;
 mod pdm_tests;
+mod pdsys;
 mod podman;
 mod prunner;
 
