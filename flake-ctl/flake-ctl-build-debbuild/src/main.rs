@@ -1,14 +1,13 @@
 use anyhow::Result;
 use clap::Parser;
-use flake_ctl_build::{self, FlakeBuilder};
+use flake_ctl_build::{self, FlakeBuilder, Path, PathBuf};
 
 mod debbuild;
 
 fn main() -> Result<()> {
     let args = Args::parse();
-
-    let options = args.builder_args.determine_options()?;
-    debbuild::Builder.execute(&options, args.builder_args.target, args.builder_args.location, true, false)?;
+    let template = args.template.unwrap_or_else(|| Path::new("/usr/share/flakes/package/debbuild/template.spec").to_owned());
+    debbuild::Builder { template: &template, edit: !args.no_edit }.run(&args.builder_args)?;
     Ok(())
 }
 
@@ -16,4 +15,10 @@ fn main() -> Result<()> {
 struct Args {
     #[command(flatten)]
     builder_args: flake_ctl_build::BuilderArgs,
+
+    #[arg(long)]
+    template: Option<PathBuf>,
+
+    #[arg(long)]
+    no_edit: bool,
 }
