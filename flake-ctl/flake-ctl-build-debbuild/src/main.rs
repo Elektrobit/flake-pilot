@@ -6,8 +6,8 @@ mod debbuild;
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let template = args.template.unwrap_or_else(|| Path::new("/usr/share/flakes/package/debbuild/template.spec").to_owned());
-    debbuild::Builder { template: &template, edit: !args.no_edit }.run(&args.builder_args)?;
+    let template = args.template.unwrap_or_else(|| Path::new("/usr/share/flakes/package/debbuild").to_owned());
+    debbuild::Builder { template_dir: &template, edit: !args.no_edit }.run(&args.builder_args)?;
     Ok(())
 }
 

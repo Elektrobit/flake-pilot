@@ -13,7 +13,7 @@ use tempfile::tempdir_in;
 use flake_ctl_build::{FlakeBuilder, PackageOptions};
 
 pub struct Builder<'a> {
-    pub template: &'a Path,
+    pub template_dir: &'a Path,
     pub edit: bool,
 }
 
@@ -33,6 +33,7 @@ impl<'a> FlakeBuilder for Builder<'a> {
         let bundling_dir = temp_dir.path().join(format!("{name}-{version}"));
 
         println!("{:?}", bundling_dir);
+
 
         create_dir_all(&bundling_dir)?;
 
@@ -117,7 +118,7 @@ impl<'a> Builder<'a> {
     }
 
     fn construct_spec(&self, config: &FlakeConfig, options: &PackageOptions) -> Result<String> {
-        let template = fs::read_to_string(self.template)?;
+        let template = fs::read_to_string(self.template_dir.join("template").with_extension("spec")).context("Failed to read spec template")?;
 
         // TODO: maybe use faster templating here
         let template = template.replace("%{_flake_name}", &options.name);
@@ -128,7 +129,7 @@ impl<'a> Builder<'a> {
         let template = template.replace("%{_flake_maintainer}", &options.maintainer);
         let template = template.replace("%{_flake_pilot}", config.engine().pilot());
 
-        let data = Path::new("/usr/share/flakes/package/debbuild/").join(config.engine().pilot());
+        let data = self.template_dir.join(config.engine().pilot());
 
         let requires = fs::read_to_string(&data).context(format!("Failed to load pilot specific data, {:?}", data))?;
         let template = template.replace("%{_flake_requires}", &requires);
