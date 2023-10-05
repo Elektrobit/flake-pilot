@@ -78,6 +78,11 @@ pub trait FlakeBuilder {
         Ok(())
     }
 
+    fn run(&self, args: &BuilderArgs) -> Result<()> {
+        let options = args.determine_options()?;
+        self.execute(&options, args.target.as_ref(), args.location.as_ref(), !args.dry_run, args.keep)
+    }
+
     /// Run the packaging except for the actual build step.
     /// Can be used for testing or to create a bundle for a packaging service like obs
     ///
@@ -116,12 +121,12 @@ pub struct PackageOptionsBuilder{
 impl PackageOptionsBuilder {
     pub fn build(self) -> Result<PackageOptions> {
         Ok(PackageOptions {
-            name: self.name.ok_or(anyhow!("Missing package name"))?,
-            description: self.description.ok_or(anyhow!("Missing package description"))?,
-            version: self.version.ok_or(anyhow!("Missing package version"))?,
-            url: self.url.ok_or(anyhow!("Missing package url"))?,
-            maintainer: self.maintainer.ok_or(anyhow!("Missing package maintainer"))?,
-            license: self.license.ok_or(anyhow!("Missing package license"))?,
+            name: self.name.ok_or_else(||anyhow!("Missing package name"))?,
+            description: self.description.ok_or_else(||anyhow!("Missing package description"))?,
+            version: self.version.ok_or_else(||anyhow!("Missing package version"))?,
+            url: self.url.ok_or_else(||anyhow!("Missing package url"))?,
+            maintainer: self.maintainer.ok_or_else(||anyhow!("Missing package maintainer"))?,
+            license: self.license.ok_or_else(||anyhow!("Missing package license"))?,
         })
     }
 }
@@ -207,7 +212,7 @@ impl BuilderArgs {
             options.license = options.license.or_else(|| user_input("License").ok());
         }
     
-        Ok(options.build().context("Missing packaging option")?)
+        options.build().context("Missing packaging option")
     }
     
     }
