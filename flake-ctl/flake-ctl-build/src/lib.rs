@@ -84,13 +84,6 @@ pub trait FlakeBuilder {
         self.execute(&options, args.target.as_ref(), args.location.as_ref(), !args.dry_run, args.keep)
     }
 
-    /// Run the packaging except for the actual build step.
-    /// Can be used for testing or to create a bundle for a packaging service like obs
-    ///
-    /// [cleanup] is not run if `keep` is `true`
-    fn dry_run(&self, options: &PackageOptions, location: Option<impl AsRef<Path>>, keep: bool) -> Result<()>{
-        self.execute(options, Option::<PathBuf>::None, location, false, keep)
-    }
 }
 
 #[derive(Debug)]
