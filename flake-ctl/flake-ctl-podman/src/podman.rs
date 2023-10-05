@@ -21,11 +21,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
+use flakes::config::load_from_name;
 use log::{error, info, warn};
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use tempfile::tempdir;
 
 use crate::defaults;
 use crate::{app, app_config};
@@ -184,5 +186,31 @@ pub fn print_container_info(container: &str) -> Result<()> {
     let data = fs::read_to_string(&info_file).context(format!("Failed to read {info_file}"))?;
     println!("{data}");
     umount_container(container);
+    Ok(())
+}
+
+pub fn export(flake: &str, target: &Path) -> Result<()> {
+    let config = load_from_name(&Path::new("/usr/share/flakes").join(flake)).context("failed to read flake config")?;
+    if config.engine().pilot() != "podman" {
+        bail!("Can only export podman flakes. This is a {} flake", config.engine().pilot())
+    }
+    let image = config.runtime().image_name();
+
+    let tmp = tempdir().context("Failed to create tmp dir")?;
+    let status = Command::new("podman")
+        .arg("save")
+        .args(["--format", "oci-archive"])
+        .arg("-o")
+        .arg(tmp.path().join(image))
+        .arg(image)
+        .status()
+        .context("Failed to export oci-archive")?;
+    if !status.success() {
+        bail!("Failed to export oci-archive");
+    }
+    let status = Command::new("mv").arg(tmp.path().join(image)).arg(target).status()?;
+    if !status.success() {
+        bail!("Failed to move oci-archive to target location");
+    }
     Ok(())
 }
