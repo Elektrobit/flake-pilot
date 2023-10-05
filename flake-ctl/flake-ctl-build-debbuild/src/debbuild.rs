@@ -32,9 +32,6 @@ impl<'a> FlakeBuilder for Builder<'a> {
         let temp_dir = tempdir_in(location).context("Failed to create bundling dir")?;
         let bundling_dir = temp_dir.path().join(format!("{name}-{version}"));
 
-        println!("{:?}", bundling_dir);
-
-
         create_dir_all(&bundling_dir)?;
 
         self.copy_includes(config, &bundling_dir).context("Failed to copy includes to bundling dir")?;
