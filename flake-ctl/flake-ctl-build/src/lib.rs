@@ -55,13 +55,14 @@ pub trait FlakeBuilder {
         &self, options: &PackageOptions, target: Option<impl AsRef<Path>>, location: Option<impl AsRef<Path>>, build: bool, keep: bool,
     ) -> Result<()> {
         let cleanup_default = location.is_none();
-
+        
         let location = match location.as_ref() {
             Some(location) => location.as_ref().to_owned(),
             None => self.get_default_build_directory()?,
         };
-
-        self.cleanup(&location)?;
+        
+        // Clean the location if it is reused, ignore errors here
+        self.cleanup(&location).ok();
         self.setup(&location)?;
         let config = config::load_from_name(Path::new(&options.name))?;
         self.create_bundle(options, &config, &location)?;
@@ -171,10 +172,6 @@ pub struct BuilderArgs {
     /// Run in CI (non interactive) mode
     #[arg(long)]
     pub ci: bool,
-
-    /// Template of the package specification
-    #[arg(long)]
-    pub template: Option<PathBuf>,
 
     #[command(flatten)]
     pub options: PackageOptionsBuilder,
