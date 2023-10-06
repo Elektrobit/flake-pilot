@@ -1,16 +1,16 @@
 use std::{
-    fs::{self, copy, create_dir_all, OpenOptions, remove_dir_all},
+    fs::{self, copy, create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
     path::Path,
     process::Command,
 };
 
 use anyhow::{Context, Result};
-use flakes::config::itf::FlakeConfig;
+use flakes::config::{itf::FlakeConfig, self};
 use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir_in;
 
-use flake_ctl_build::{FlakeBuilder, PackageOptions};
+use flake_ctl_build::{FlakeBuilder, PackageOptions, PathBuf, export_flake};
 
 pub struct Builder<'a> {
     pub template_dir: &'a Path,
@@ -19,12 +19,7 @@ pub struct Builder<'a> {
 
 impl<'a> FlakeBuilder for Builder<'a> {
     fn setup(&self, location: &Path) -> Result<()> {
-        create_dir_all(location.join("BUILD"))?;
-        create_dir_all(location.join("SOURCES"))?;
-        create_dir_all(location.join("DEBS"))?;
-        create_dir_all(location.join("SDEBS"))?;
-        create_dir_all(location.join("SPECS"))?;
-        Ok(())
+        infrastructure(location, create_dir_all)
     }
 
     fn create_bundle(&self, options: &PackageOptions, config: &FlakeConfig, location: &Path) -> Result<()> {
@@ -36,7 +31,7 @@ impl<'a> FlakeBuilder for Builder<'a> {
 
         self.copy_includes(config, &bundling_dir).context("Failed to copy includes to bundling dir")?;
         self.copy_configs(name, &bundling_dir).context("Failed to copy configs to bundling dir")?;
-        self.export_flake(name, config.engine().pilot(), &bundling_dir).context("Failed to export flake image(s)")?;
+        export_flake(name, config.engine().pilot(), &bundling_dir).context("Failed to export flake image(s)")?;
         self.compress_bundle(temp_dir.path(), name, version).context("Failed to compress bundle")?;
         copy(bundling_dir.with_extension("tar.gz"), location.join("SOURCES").join(name).with_extension("tar.gz"))
             .context("Failed to move bundle to build dir")?;
@@ -53,22 +48,23 @@ impl<'a> FlakeBuilder for Builder<'a> {
             .arg(format!("_topdir {}", location.to_string_lossy()))
             .arg(location.join("SPECS").join(&options.name).with_extension("spec"))
             .status()?;
-        if let Some(target) = target {
-            copy_items(&[location.join("DEBS/all")], target, &CopyOptions::default())?;
-        } else {
-            copy_items(&[location.join("DEBS/all")], ".", &CopyOptions::default())?;
-        }
+
+        copy_items(&[location.join("DEBS/all")], target.unwrap_or(Path::new(".")), &CopyOptions::default())?;
         Ok(())
     }
 
     fn cleanup(&self, location: &Path) -> Result<()> {
-        remove_dir_all(location.join("BUILD"))?;
-        remove_dir_all(location.join("SOURCES"))?;
-        remove_dir_all(location.join("DEBS"))?;
-        remove_dir_all(location.join("SDEBS"))?;
-        remove_dir_all(location.join("SPECS"))?;
-        Ok(())
+        infrastructure(location, remove_dir_all)
     }
+}
+
+fn infrastructure<F, P>(location: P, f: F) -> Result<()>
+where
+    F: FnMut(PathBuf) -> Result<(), std::io::Error>,
+    P: AsRef<Path>,
+{
+    ["BUILD", "SOURCES", "DEBS", "SDEBS", "SPECS"].iter().map(|x| location.as_ref().join(x)).try_for_each(f)?;
+    Ok(())
 }
 
 impl<'a> Builder<'a> {
@@ -115,29 +111,35 @@ impl<'a> Builder<'a> {
     }
 
     fn construct_spec(&self, config: &FlakeConfig, options: &PackageOptions) -> Result<String> {
-        let template = fs::read_to_string(self.template_dir.join("template").with_extension("spec")).context("Failed to read spec template")?;
+        let mut template = fs::read_to_string(self.template_dir.join("template").with_extension("spec"))
+            .context("Failed to read spec template")?;
 
         // TODO: maybe use faster templating here
-        let template = template.replace("%{_flake_name}", &options.name);
-        let template = template.replace("%{_flake_version}", &options.version);
-        let template = template.replace("%{_flake_desc}", &options.description);
-        let template = template.replace("%{_flake_url}", &options.url);
-        let template = template.replace("%{_flake_license}", &options.license);
-        let template = template.replace("%{_flake_maintainer}", &options.maintainer);
-        let template = template.replace("%{_flake_pilot}", config.engine().pilot());
-
+        // TODO: Drop line with empty information completely
         let data = self.template_dir.join(config.engine().pilot());
+        let requires = fs::read_to_string(&data).context(format!("Failed to load pilot specific data, {data:?}"))?;
+        
+        let vals = [
+            ("%{_flake_name}", options.name.as_str()),
+            ("%{_flake_version}", options.version.as_str()),
+            ("%{_flake_desc}", options.description.as_str()),
+            ("%{_flake_url}", options.url.as_str()),
+            ("%{_flake_license}", options.license.as_str()),
+            ("%{_flake_maintainer}", options.maintainer.as_str()),
+            ("%{_flake_pilot}", config.engine().pilot()),
+            ("%{_flake_requires}", &requires),
+            ("%{_flake_dir}", &config::FLAKE_DIR.to_string_lossy()),
+        ];
 
-        let requires = fs::read_to_string(&data).context(format!("Failed to load pilot specific data, {:?}", data))?;
-        let template = template.replace("%{_flake_requires}", &requires);
+        for (placeholder, value) in vals {
+            template = template.replace(&placeholder, &value);
+        }
+
+
+
 
         // TODO: multiple links
 
         Ok(template)
-    }
-
-    fn export_flake(&self, name: &str, pilot: &str, bundling_dir: &Path) -> Result<()> {
-        Command::new("flake-ctl").arg(pilot).arg("export").arg(name).arg(bundling_dir.join(name)).status()?;
-        Ok(())
     }
 }

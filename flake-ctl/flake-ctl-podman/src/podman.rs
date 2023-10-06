@@ -22,7 +22,7 @@
 // SOFTWARE.
 //
 use anyhow::{bail, Context, Result};
-use flakes::config::load_from_name;
+use flakes::config::{load_from_target, self};
 use log::{error, info, warn};
 use std::fs;
 use std::path::Path;
@@ -190,7 +190,7 @@ pub fn print_container_info(container: &str) -> Result<()> {
 }
 
 pub fn export(flake: &str, target: &Path) -> Result<()> {
-    let config = load_from_name(&Path::new("/usr/share/flakes").join(flake)).context("failed to read flake config")?;
+    let config = load_from_target(&config::FLAKE_DIR.join(flake)).context("failed to read flake config")?;
     if config.engine().pilot() != "podman" {
         bail!("Can only export podman flakes. This is a {} flake", config.engine().pilot())
     }

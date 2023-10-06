@@ -21,8 +21,8 @@ A demo RPM build
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/usr/share/flakes
 mkdir -p $RPM_BUILD_ROOT/tmp
-cp usr/share/flakes/%{name}.yaml $RPM_BUILD_ROOT/usr/share/flakes/
-cp usr/share/flakes/%{name}.d $RPM_BUILD_ROOT/usr/share/flakes/ -r
+cp ./%{_flake_dir}%{name}.yaml $RPM_BUILD_ROOT/%{_flake_dir}
+cp ./%{_flake_dir}%{name}.d $RPM_BUILD_ROOT/%{_flake_dir} -r
 cp %{name} $RPM_BUILD_ROOT/tmp
 
 %post
@@ -37,5 +37,5 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 /tmp/%{name}
-/usr/share/flakes/%{name}.yaml
-/usr/share/flakes/%{name}.d
+/%{_flake_dir}%{name}.yaml
+/%{_flake_dir}%{name}.d

@@ -1,4 +1,4 @@
-use std::{fs::remove_dir_all, io::stdin, env::var};
+use std::{fs::remove_dir_all, io::stdin, env::var, process::Command};
 pub use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow, Context};
@@ -64,7 +64,7 @@ pub trait FlakeBuilder {
         // Clean the location if it is reused, ignore errors here
         self.cleanup(&location).ok();
         self.setup(&location)?;
-        let config = config::load_from_name(Path::new(&options.name))?;
+        let config = config::load_from_target(Path::new(&options.name))?;
         self.create_bundle(options, &config, &location)?;
 
         if build {
@@ -212,4 +212,10 @@ impl BuilderArgs {
         println!("{name}: ");
         stdin().read_line(&mut buf)?;
         Ok(buf.trim_end().to_owned())
+    }
+
+
+    pub fn export_flake(name: &str, pilot: &str, bundling_dir: &Path) -> Result<()> {
+        Command::new("flake-ctl").arg(pilot).arg("export").arg(name).arg(bundling_dir.join(name)).status()?;
+        Ok(())
     }
