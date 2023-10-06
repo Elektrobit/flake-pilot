@@ -26,7 +26,7 @@ fn main() -> Result<(), std::io::Error> {
         Ok(mut pilot) => match pilot.start() {
             Ok(_) => Ok(()),
             Err(err) => {
-                println!("General error: {}", err);
+                log::error!("General error: {}", err);
                 Err(err)
             }
         },
