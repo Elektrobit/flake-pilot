@@ -163,13 +163,8 @@ impl PodmanRunner {
 
         // Construct args for launching an instance
         let mut args: Vec<String> = vec!["start".to_string()];
-        let resume = *self.get_cfg().runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume;
 
-        if resume {
-            // mute STDOUT
-        } else {
-            args.push("--attach".to_string());
-        }
+        args.push("--attach".to_string());
         args.push(self.get_cid());
 
         if self.debug {
