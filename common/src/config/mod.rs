@@ -41,7 +41,7 @@ fn path_for_app() -> Result<PathBuf, Error> {
     env::current_exe()
 }
 
-pub fn load_from_name(app_p: &Path) -> Result<FlakeConfig, Error> {
+pub fn load_from_target(app_p: &Path) -> Result<FlakeConfig, Error> {
 
     let app_ps = app_p.file_name().unwrap().to_str().unwrap().to_string();
 
@@ -70,5 +70,5 @@ pub fn load_from_name(app_p: &Path) -> Result<FlakeConfig, Error> {
 pub fn load() -> Result<FlakeConfig, Error> {
     //pub fn load_for_app() {
     let app_p = path_for_app().unwrap();
-    load_from_name(&app_p)
+    load_from_target(&app_p)
 }
