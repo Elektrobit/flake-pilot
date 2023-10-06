@@ -1,11 +1,6 @@
-use std::{fs, io::Error, ops::Deref, path::PathBuf, process::Command, vec};
-
-use flakes::config::{
-    itf::{FlakeConfig, InstanceMode},
-    CID_DIR,
-};
-
 use crate::{datasync::DataSync, fgc::CidGarbageCollector, pdsys::PdSysCall};
+use flakes::config::itf::{FlakeConfig, InstanceMode};
+use std::{fs, io::Error, path::PathBuf, vec};
 
 pub(crate) struct PodmanRunner {
     datasync: DataSync,
