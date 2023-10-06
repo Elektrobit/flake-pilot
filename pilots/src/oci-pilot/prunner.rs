@@ -81,8 +81,8 @@ impl PodmanRunner {
     fn setup_container(&mut self) -> Result<(), Error> {
         let mut args: Vec<String> = vec![];
 
-        self.get_cidfile();
-        if let (true, cid) = self.gc.on_cidfile(self.cidfile.clone().unwrap())? {
+        self.get_cidfile()?;
+        if let (true, cid) = self.gc.on_cidfile(self.cidfile.to_owned().unwrap())? {
             self.set_cid(cid);
 
             if self.debug {
