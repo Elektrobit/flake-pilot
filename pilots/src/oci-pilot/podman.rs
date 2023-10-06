@@ -1,4 +1,5 @@
 use crate::prunner::PodmanRunner;
+use flakes::config::itf::InstanceMode;
 use std::{io::Error, path::PathBuf};
 
 /// Podman runtime
@@ -7,6 +8,8 @@ pub(crate) struct PodmanPilot {
     appdir: PathBuf,
     runner: PodmanRunner,
     debug: bool,
+    stdout: String,
+    stderr: String,
 }
 
 impl PodmanPilot {
@@ -16,19 +19,33 @@ impl PodmanPilot {
         Ok(PodmanPilot {
             appdir: appdir.to_owned(),
             runner: PodmanRunner::new(appdir.file_name().unwrap().to_str().unwrap().to_string(), flakes::config::get(), debug),
+            stdout: "".to_string(),
+            stderr: "".to_string(),
             debug,
         })
     }
 
     /// Start Podman Pilot instance
     pub(crate) fn start(&mut self) -> Result<(), Error> {
-        let (stdout, stderr) = self.runner.start()?;
-        if !stdout.is_empty() {
-            println!("{}", stdout);
+        if *self.runner.get_cfg().runtime().instance_mode() & InstanceMode::Resume != InstanceMode::Resume {
+            if self.debug {
+                log::debug!("Starting a flake on {:?}", self.appdir);
+            }
+            (self.stdout, self.stderr) = self.runner.start()?;
+        } else {
+            if self.debug {
+                log::debug!("Resuming a running flake on {:?}", self.appdir);
+            }
+
+            (self.stdout, self.stderr) = self.runner.attach()?;
         }
 
-        if !stderr.is_empty() {
-            log::error!("{}", stderr);
+        if !self.stdout.is_empty() {
+            println!("{}", self.stdout);
+        }
+
+        if !self.stderr.is_empty() {
+            log::error!("{}", self.stderr);
         }
 
         Ok(())
