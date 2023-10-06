@@ -24,12 +24,15 @@ fn main() -> Result<(), std::io::Error> {
 
     match podman::PodmanPilot::new(debug) {
         Ok(mut pilot) => match pilot.start() {
-            Ok(_) => Ok(()),
+            Ok(_) => {}
             Err(err) => {
                 log::error!("General error: {}", err);
-                Err(err)
             }
         },
-        Err(err) => Err(err),
+        Err(err) => {
+            log::error!("Unable to start flake: {}", err);
+        }
     }
+
+    Ok(())
 }
