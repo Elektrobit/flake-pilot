@@ -6,11 +6,11 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use flakes::config::{itf::FlakeConfig, self};
+use flakes::config::{self, itf::FlakeConfig};
 use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir_in;
 
-use flake_ctl_build::{FlakeBuilder, PackageOptions, PathBuf, export_flake};
+use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, PathBuf};
 
 pub struct Builder<'a> {
     pub template_dir: &'a Path,
@@ -118,7 +118,7 @@ impl<'a> Builder<'a> {
         // TODO: Drop line with empty information completely
         let data = self.template_dir.join(config.engine().pilot());
         let requires = fs::read_to_string(&data).context(format!("Failed to load pilot specific data, {data:?}"))?;
-        
+
         let vals = [
             ("%{_flake_name}", options.name.as_str()),
             ("%{_flake_version}", options.version.as_str()),
@@ -134,9 +134,6 @@ impl<'a> Builder<'a> {
         for (placeholder, value) in vals {
             template = template.replace(placeholder, value);
         }
-
-
-
 
         // TODO: multiple links
 
