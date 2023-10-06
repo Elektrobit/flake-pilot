@@ -49,7 +49,7 @@ impl<'a> FlakeBuilder for Builder<'a> {
             .arg(location.join("SPECS").join(&options.name).with_extension("spec"))
             .status()?;
 
-        copy_items(&[location.join("DEBS/all")], target.unwrap_or(Path::new(".")), &CopyOptions::default())?;
+        copy_items(&[location.join("DEBS/all")], target.unwrap_or_else(|| Path::new(".")), &CopyOptions::default())?;
         Ok(())
     }
 
@@ -132,7 +132,7 @@ impl<'a> Builder<'a> {
         ];
 
         for (placeholder, value) in vals {
-            template = template.replace(&placeholder, &value);
+            template = template.replace(placeholder, value);
         }
 
 
