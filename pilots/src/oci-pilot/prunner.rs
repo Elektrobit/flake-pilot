@@ -33,9 +33,9 @@ impl PodmanRunner {
     }
 
     /// Make a CID file
-    pub(crate) fn get_cidfile(&mut self) -> PathBuf {
+    pub(crate) fn get_cidfile(&mut self) -> Result<PathBuf, Error> {
         if self.cidfile.is_some() {
-            return self.cidfile.to_owned().unwrap();
+            return Ok(self.cidfile.to_owned().unwrap());
         }
 
         let mut suff = String::from("");
@@ -46,8 +46,8 @@ impl PodmanRunner {
             }
         }
 
-        self.cidfile = Some(CID_DIR.join(format!("{}{}.cid", self.app.to_owned(), suff)));
-        self.cidfile.to_owned().unwrap()
+        self.cidfile = Some(flakes::config::get_cid_store()?.join(format!("{}{}.cid", self.app.to_owned(), suff)));
+        Ok(self.cidfile.to_owned().unwrap())
     }
 
     fn get_cid(&self) -> String {
@@ -70,7 +70,7 @@ impl PodmanRunner {
                 log::debug!("Removing non-resumable CID: {:?}", self.get_cidfile());
             }
 
-            fs::remove_file(self.get_cidfile())?;
+            fs::remove_file(self.get_cidfile()?)?;
         }
 
         Ok(())
@@ -111,7 +111,6 @@ impl PodmanRunner {
             return Err(Error::new(std::io::ErrorKind::NotFound, "Target path not found"));
         }
 
-        self.datasync.check_cid_dir()?;
         args.extend(vec![
             "create".to_string(),
             "--cidfile".to_string(),

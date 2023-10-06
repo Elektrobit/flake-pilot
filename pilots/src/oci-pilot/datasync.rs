@@ -1,4 +1,3 @@
-use flakes::config::CID_DIR;
 use std::{io::Error, path::PathBuf};
 
 /// Data Sync
@@ -25,25 +24,6 @@ impl DataSync {
     // Prune an image by URI
     pub(crate) fn prune(&self, uri: &str) -> Result<(), Error> {
         Ok(())
-    }
-
-    /// Initialise environment
-    pub(crate) fn check_cid_dir(&self) -> Result<PathBuf, Error> {
-        if !CID_DIR.exists() {
-            return Err(Error::new(
-                std::io::ErrorKind::NotFound,
-                format!("CID directory \"{}\" was not found", CID_DIR.as_os_str().to_str().unwrap()),
-            ));
-        }
-
-        if std::fs::metadata(CID_DIR.to_path_buf()).unwrap().permissions().readonly() {
-            return Err(Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                format!("Unable to write to \"{}\" directory", CID_DIR.as_os_str().to_str().unwrap()),
-            ));
-        }
-
-        Ok(CID_DIR.to_owned())
     }
 
     /// Flush a cid file

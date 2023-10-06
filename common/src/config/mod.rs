@@ -1,6 +1,6 @@
 use self::{cfgparse::FlakeCfgParser, itf::FlakeConfig};
 use lazy_static::lazy_static;
-use std::{env, io::Error, path::PathBuf};
+use std::{env, io::Error, path::PathBuf, sync::Mutex};
 
 pub mod cfg_v1;
 pub mod cfg_v2;
@@ -16,9 +16,53 @@ lazy_static! {
     pub static ref DEFAULT_CONTAINER_DIR: PathBuf = PathBuf::from("/var/lib/containers");
 
     /// CID directory where all OCI containers should store their runtime ID
-    pub static ref CID_DIR: PathBuf = PathBuf::from("/usr/share/flakes/cid");
+    pub static ref _CID_DIR: String = "/usr/share/flakes/cid".to_string();
+
+    /// CID directory where all OCI containers should store their runtime ID, but in the user's home
+    pub static ref _CID_HDIR: String = ".flakes".to_string();
 
     pub static ref CFG: FlakeConfig = load().unwrap();
+
+    // Global internal variable to keep singleton content for the CID directory, taken by `get_cid_store` function.
+    static ref CID_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
+}
+
+/// Get CID store, depending on the call
+pub fn get_cid_store() -> Result<PathBuf, Error> {
+    let mut cid_dir_val = CID_DIR.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(cid_dir) = cid_dir_val.clone() {
+        log::debug!("Return existing CID store at {:?}", cid_dir);
+        return Ok(cid_dir);
+    }
+
+    let mut cid_dir: PathBuf = PathBuf::from("");
+    if let Some(hd) = env::var_os("HOME") {
+        let homedir = hd.as_os_str().to_str().unwrap_or("").to_string();
+        if !homedir.is_empty() {
+            cid_dir = PathBuf::from(homedir).join(_CID_HDIR.to_string());
+        }
+    } else {
+        cid_dir = PathBuf::from(_CID_DIR.to_string());
+    }
+
+    if !cid_dir.exists() {
+        return Err(Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("CID directory \"{}\" was not found", cid_dir.as_os_str().to_str().unwrap()),
+        ));
+    }
+
+    if std::fs::metadata(cid_dir.to_path_buf()).unwrap().permissions().readonly() {
+        return Err(Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!("Unable to write to \"{}\" directory", cid_dir.as_os_str().to_str().unwrap()),
+        ));
+    }
+
+    *cid_dir_val = Some(cid_dir.clone());
+
+    log::debug!("Return new CID store instance at {:?}", cid_dir);
+    Ok(cid_dir)
 }
 
 /// Find path on itself
