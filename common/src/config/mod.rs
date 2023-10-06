@@ -1,6 +1,6 @@
 use self::{cfgparse::FlakeCfgParser, itf::FlakeConfig};
 use lazy_static::lazy_static;
-use std::{env, io::Error, path::PathBuf, sync::Mutex};
+use std::{env, fs, io::Error, path::PathBuf, sync::Mutex};
 
 pub mod cfg_v1;
 pub mod cfg_v2;
@@ -46,10 +46,12 @@ pub fn get_cid_store() -> Result<PathBuf, Error> {
     }
 
     if !cid_dir.exists() {
-        return Err(Error::new(
-            std::io::ErrorKind::NotFound,
-            format!("CID directory \"{}\" was not found", cid_dir.as_os_str().to_str().unwrap()),
-        ));
+        match fs::create_dir(cid_dir.to_owned()) {
+            Ok(_) => {}
+            Err(err) => {
+                return Err(Error::new(std::io::ErrorKind::NotFound, format!("Unable create CID directory: {}", err)));
+            }
+        }
     }
 
     if std::fs::metadata(cid_dir.to_path_buf()).unwrap().permissions().readonly() {
