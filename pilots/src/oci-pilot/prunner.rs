@@ -72,7 +72,7 @@ impl PodmanRunner {
     }
 
     /// Get config
-    fn get_cfg(&self) -> &FlakeConfig {
+    pub(crate) fn get_cfg(&self) -> &FlakeConfig {
         &self.cfg
     }
 
