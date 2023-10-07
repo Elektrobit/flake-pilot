@@ -37,7 +37,7 @@ impl PodmanRunner {
             log::debug!("Checking running container for the CID: {}", cid);
         }
 
-        for rcid in self.pds.call(true, &vec!["ps", "--format", "{{.ID}}"])?.lines() {
+        for rcid in self.pds.call(true, &["ps", "--format", "{{.ID}}"])?.lines() {
             if cid.starts_with(rcid.trim()) {
                 if self.debug {
                     log::debug!("Container with CID {} is already running", cid);
