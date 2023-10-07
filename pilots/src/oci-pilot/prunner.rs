@@ -71,10 +71,12 @@ impl PodmanRunner {
         Ok(self.cidfile.to_owned().unwrap())
     }
 
+    /// Get CID (should be initialised)
     fn get_cid(&self) -> String {
         self.cid.to_owned().unwrap()
     }
 
+    /// Sets CID during the init
     fn set_cid(&mut self, cid: String) {
         self.cid = Some(cid.trim().to_string());
     }
@@ -125,8 +127,6 @@ impl PodmanRunner {
     ///
     /// Returns True if CID is reused (wasn't garbage collected)
     pub(crate) fn setup_container(&mut self) -> Result<bool, Error> {
-        let mut args: Vec<String> = vec![];
-
         let x_cf = self.get_cidfile()?;
         if let (true, cid) = self.gc.on_cidfile(x_cf)? {
             self.set_cid(cid);
@@ -138,21 +138,19 @@ impl PodmanRunner {
             return Ok(true);
         }
 
-        args.extend(vec![
+        let mut args: Vec<String> = vec![
             "create".to_string(),
             "--cidfile".to_string(),
             self.cidfile.to_owned().unwrap().as_os_str().to_str().unwrap().to_string(),
-        ]);
+            "-ti".to_string(),
+        ];
 
-        let resume = *self.get_cfg().runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume;
-        if resume {
-            args.push("-ti".to_string());
-        } else {
+        if *self.get_cfg().runtime().instance_mode() & InstanceMode::Resume != InstanceMode::Resume {
             args.push("--rm".to_string());
-            args.push("-ti".to_string());
         }
 
         for arg in self.get_cfg().engine().args().unwrap_or(vec![]) {
+            // Remove params that are already there
             if arg == "-ti" || arg == "--rm" {
                 continue;
             }
@@ -162,9 +160,9 @@ impl PodmanRunner {
         // Container name or base name
         args.push(self.get_cfg().runtime().image_name().to_string());
 
-        if resume {
-            args.push("sleep".to_string());
-            args.push("4294967295d".to_string()); // @schaefi promised to be dead by that time :)
+        if *self.get_cfg().runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume {
+            // @schaefi promised to be dead by that time :)
+            args.extend(vec!["sleep".to_string(), "4294967295d".to_string()]);
         } else {
             args.push(self.get_target_app()?);
         }
