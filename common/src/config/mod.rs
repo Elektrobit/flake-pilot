@@ -16,15 +16,16 @@ lazy_static! {
     pub static ref DEFAULT_CONTAINER_DIR: PathBuf = PathBuf::from("/var/lib/containers");
 
     /// CID directory where all OCI containers should store their runtime ID
-    pub static ref _CID_DIR: String = "/usr/share/flakes/cid".to_string();
+    static ref _CID_DIR: String = "/usr/share/flakes/cid".to_string();
 
     /// CID directory where all OCI containers should store their runtime ID, but in the user's home
-    pub static ref _CID_HDIR: String = ".flakes".to_string();
-
-    pub static ref CFG: FlakeConfig = load().unwrap();
+    static ref _CID_HDIR: String = ".flakes".to_string();
 
     // Global internal variable to keep singleton content for the CID directory, taken by `get_cid_store` function.
     static ref CID_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+    // Config instance
+    static ref CFG: FlakeConfig = load().unwrap();
 }
 
 /// Get CID store, depending on the call
