@@ -1,6 +1,6 @@
 use crate::{datasync::DataSync, fgc::CidGarbageCollector, pdsys::PdSysCall};
 use flakes::config::itf::{FlakeConfig, InstanceMode};
-use std::{fs, io::Error, path::PathBuf, vec};
+use std::{borrow::BorrowMut, fs, io::Error, path::PathBuf, vec};
 
 pub(crate) struct PodmanRunner {
     datasync: DataSync,
@@ -25,6 +25,30 @@ impl PodmanRunner {
             cfg,
             debug,
         }
+    }
+
+    /// Check if container is already running
+    pub(crate) fn is_running(&self) -> Result<bool, Error> {
+        let cid = self.get_cid();
+
+        if self.debug {
+            log::debug!("Checking running container for the CID: {}", cid);
+        }
+
+        for rcid in self.pds.call(true, &vec!["ps", "--format", "{{.ID}}"])?.lines() {
+            if cid.starts_with(rcid.trim()) {
+                if self.debug {
+                    log::debug!("Container with CID {} is already running", cid);
+                }
+                return Ok(true);
+            }
+        }
+
+        if self.debug {
+            log::debug!("Container with CID {} is not running", cid);
+        }
+
+        Ok(false)
     }
 
     /// Make a CID file
@@ -77,19 +101,21 @@ impl PodmanRunner {
     }
 
     /// Create a CLI arguments for preparing the container
-    /// This is a part of "get_container", so likely must be just merged with it
-    fn setup_container(&mut self) -> Result<(), Error> {
+    /// This is a part of "get_container", so likely must be just merged with it.
+    ///
+    /// Returns True if CID is reused (wasn't garbage collected)
+    pub(crate) fn setup_container(&mut self) -> Result<bool, Error> {
         let mut args: Vec<String> = vec![];
 
-        self.get_cidfile()?;
-        if let (true, cid) = self.gc.on_cidfile(self.cidfile.to_owned().unwrap())? {
+        let x_cf = self.get_cidfile()?;
+        if let (true, cid) = self.gc.on_cidfile(x_cf)? {
             self.set_cid(cid);
 
             if self.debug {
                 log::debug!("Bailing out with CID: {}", self.get_cid());
             }
 
-            return Ok(());
+            return Ok(true);
         }
 
         let app_path = flakes::config::app_path()?;
@@ -151,16 +177,14 @@ impl PodmanRunner {
         self.set_cid(self.pds.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?);
 
         if self.debug {
-            log::debug!("CID: {}", self.get_cid());
+            log::debug!("Processing with CID: {}", self.get_cid());
         }
 
-        Ok(())
+        Ok(false)
     }
 
     /// Launch a container
     pub(crate) fn start(&mut self) -> Result<(String, String), Error> {
-        self.setup_container()?;
-
         // Construct args for launching an instance
         let mut args: Vec<String> = vec!["start".to_string()];
 
@@ -178,6 +202,10 @@ impl PodmanRunner {
     }
 
     pub(crate) fn attach(&mut self) -> Result<(String, String), Error> {
-        Ok(("stdout".to_string(), "stderr".to_string()))
+        Ok(("".to_string(), "attaching to a container is not yet implemented".to_string()))
+    }
+
+    pub(crate) fn exec(&mut self) -> Result<(String, String), Error> {
+        Ok(("".to_string(), "resumable containers are not yet supported".to_string()))
     }
 }

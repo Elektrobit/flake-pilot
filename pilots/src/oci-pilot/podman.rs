@@ -27,19 +27,23 @@ impl PodmanPilot {
 
     /// Start Podman Pilot instance
     pub(crate) fn start(&mut self) -> Result<(), Error> {
-        if *self.runner.get_cfg().runtime().instance_mode() & InstanceMode::Resume != InstanceMode::Resume {
+        if self.runner.setup_container()? && self.runner.is_running()? {
+            if *self.runner.get_cfg().runtime().instance_mode() & InstanceMode::Attach == InstanceMode::Attach {
+                (self.stdout, self.stderr) = self.runner.attach()?;
+            } else {
+                (self.stdout, self.stderr) = self.runner.exec()?;
+            }
+        } else {
             if self.debug {
                 log::debug!("Starting a flake on {:?}", self.appdir);
             }
             (self.stdout, self.stderr) = self.runner.start()?;
-        } else {
-            if self.debug {
-                log::debug!("Resuming a running flake on {:?}", self.appdir);
+            if *self.runner.get_cfg().runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume {
+                (self.stdout, self.stderr) = self.runner.exec()?;
             }
-
-            (self.stdout, self.stderr) = self.runner.attach()?;
         }
 
+        // Print out the results
         if !self.stdout.is_empty() {
             println!("{}", self.stdout);
         }
