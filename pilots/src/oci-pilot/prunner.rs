@@ -100,6 +100,24 @@ impl PodmanRunner {
         &self.cfg
     }
 
+    /// Return target app from the config
+    fn get_target_app(&self) -> Result<String, Error> {
+        let app_path = flakes::config::app_path()?;
+        if self.debug {
+            log::debug!("Host path: {:?}", app_path);
+        }
+
+        let target = self.get_cfg().runtime().paths().get(&app_path);
+        if target.is_none() {
+            if self.debug {
+                log::debug!("Unable to find specified target path by the host path. Configuration wrong?");
+            }
+            return Err(Error::new(std::io::ErrorKind::NotFound, "Target path not found"));
+        }
+
+        Ok(target.unwrap().exports().as_os_str().to_str().to_owned().unwrap().to_string())
+    }
+
     /// Create a CLI arguments for preparing the container
     /// This is a part of "get_container", so likely must be just merged with it.
     ///
@@ -116,20 +134,6 @@ impl PodmanRunner {
             }
 
             return Ok(true);
-        }
-
-        let app_path = flakes::config::app_path()?;
-
-        if self.debug {
-            log::debug!("Host path: {:?}", app_path);
-        }
-
-        let target = self.get_cfg().runtime().paths().get(&app_path);
-        if target.is_none() {
-            if self.debug {
-                log::debug!("Unable to find specified target path by the host path. Configuration wrong?");
-            }
-            return Err(Error::new(std::io::ErrorKind::NotFound, "Target path not found"));
         }
 
         args.extend(vec![
@@ -160,7 +164,7 @@ impl PodmanRunner {
             args.push("sleep".to_string());
             args.push("4294967295d".to_string()); // @schaefi promised to be dead by that time :)
         } else {
-            args.push(target.unwrap().exports().as_os_str().to_str().to_owned().unwrap().to_string());
+            args.push(self.get_target_app()?);
         }
 
         // Pass the rest of the stuff to the app
@@ -183,29 +187,41 @@ impl PodmanRunner {
         Ok(false)
     }
 
-    /// Launch a container
-    pub(crate) fn start(&mut self) -> Result<(String, String), Error> {
-        // Construct args for launching an instance
-        let mut args: Vec<String> = vec!["start".to_string()];
-
-        args.push("--attach".to_string());
-        args.push(self.get_cid());
-
-        if self.debug {
-            log::debug!("Using container {}", self.get_cid()[..0xc].to_string());
-        }
-
-        let stdout = self.pds.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
+    /// Run the container with the constructed calls.
+    /// Internal method
+    fn _run(&mut self, output: bool, args: Vec<String>) -> Result<(String, String), Error> {
+        let stdout = self.pds.call(output, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
         self.cleanup()?;
-
         Ok((stdout, "".to_string()))
     }
 
-    pub(crate) fn attach(&mut self) -> Result<(String, String), Error> {
-        Ok(("".to_string(), "attaching to a container is not yet implemented".to_string()))
+    /// Launch a container
+    pub(crate) fn start(&mut self) -> Result<(String, String), Error> {
+        if self.debug {
+            log::debug!("Starting container {}", self.get_cid()[..0xc].to_string());
+        }
+
+        self._run(true, vec!["start".to_string(), "--attach".to_string(), self.get_cid()])
     }
 
+    /// Attach to a container
+    pub(crate) fn attach(&mut self) -> Result<(String, String), Error> {
+        if self.debug {
+            log::debug!("Attaching to the container {}", self.get_cid()[..0xc].to_string());
+        }
+
+        self._run(true, vec!["attach".to_string(), self.get_cid(), self.get_target_app()?])
+    }
+
+    /// Exec a container
     pub(crate) fn exec(&mut self) -> Result<(String, String), Error> {
-        Ok(("".to_string(), "resumable containers are not yet supported".to_string()))
+        if self.debug {
+            log::debug!("Resuming container interactively {}", self.get_cid()[..0xc].to_string());
+        }
+
+        self._run(
+            false,
+            vec!["exec".to_string(), "--interactive".to_string(), "--tty".to_string(), self.get_cid(), self.get_target_app()?],
+        )
     }
 }
