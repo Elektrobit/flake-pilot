@@ -46,7 +46,7 @@ pub fn get_cid_store() -> Result<PathBuf, Error> {
     }
 
     if !cid_dir.exists() {
-        match fs::create_dir(cid_dir.to_owned()) {
+        match fs::create_dir(&cid_dir) {
             Ok(_) => {}
             Err(err) => {
                 return Err(Error::new(std::io::ErrorKind::NotFound, format!("Unable create CID directory: {}", err)));
@@ -54,7 +54,7 @@ pub fn get_cid_store() -> Result<PathBuf, Error> {
         }
     }
 
-    if std::fs::metadata(cid_dir.to_path_buf()).unwrap().permissions().readonly() {
+    if std::fs::metadata(&cid_dir).unwrap().permissions().readonly() {
         return Err(Error::new(
             std::io::ErrorKind::PermissionDenied,
             format!("Unable to write to \"{}\" directory", cid_dir.as_os_str().to_str().unwrap()),
