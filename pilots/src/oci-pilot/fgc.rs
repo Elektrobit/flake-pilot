@@ -49,4 +49,15 @@ impl CidGarbageCollector {
             }
         }
     }
+
+    /// Check all existing CID files for their validity
+    pub fn on_all(&self) -> Result<(), Error> {
+        Ok(())
+    }
+
+    /// Remove CID file no matter what. Used usually as a deferred method
+    /// on non-resumable Flake
+    pub fn force_cidfile(&self, cidfile: PathBuf) -> Result<(), Error> {
+        Ok(())
+    }
 }
