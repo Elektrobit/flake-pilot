@@ -5,7 +5,8 @@ use std::{
     process::Command,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, Error, bail};
+use clap::{builder::OsStr, ValueEnum};
 use flakes::config::{self, itf::FlakeConfig};
 use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir_in;
@@ -15,11 +16,28 @@ use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, PathBuf};
 pub struct Builder<'a> {
     pub template_dir: &'a Path,
     pub edit: bool,
+    pub tooling: Tooling,
+}
+
+#[derive(Debug, Clone, ValueEnum, Copy)]
+#[value(rename_all="lower")]
+pub enum Tooling {
+    RPMBuild,
+    DebBuild,
+}
+
+impl From<Tooling> for OsStr {
+    fn from(value: Tooling) -> Self {
+        match value {
+            Tooling::RPMBuild => "rpmbuild".into(),
+            Tooling::DebBuild => "debbuild".into(),
+        }
+    }
 }
 
 impl<'a> FlakeBuilder for Builder<'a> {
     fn setup(&self, location: &Path) -> Result<()> {
-        infrastructure(location, create_dir_all)
+        self.infrastructure(location, create_dir_all)
     }
 
     fn create_bundle(&self, options: &PackageOptions, config: &FlakeConfig, location: &Path) -> Result<()> {
@@ -42,32 +60,45 @@ impl<'a> FlakeBuilder for Builder<'a> {
     }
 
     fn build(&self, options: &PackageOptions, target: Option<&Path>, location: &Path) -> Result<()> {
-        Command::new("debbuild")
+        Command::new(OsStr::from(self.tooling))
             .arg("-ba")
             .arg("--define")
             .arg(format!("_topdir {}", location.to_string_lossy()))
             .arg(location.join("SPECS").join(&options.name).with_extension("spec"))
             .status()?;
 
-        copy_items(&[location.join("DEBS/all")], target.unwrap_or_else(|| Path::new(".")), &CopyOptions::default())?;
+        let package_dir = match self.tooling {
+            Tooling::RPMBuild => "RPMS",
+            Tooling::DebBuild => "DEBS",
+        };
+        copy_items(&[location.join(package_dir)], target.unwrap_or_else(|| Path::new(".")), &CopyOptions::default())?;
         Ok(())
     }
 
     fn cleanup(&self, location: &Path) -> Result<()> {
-        infrastructure(location, remove_dir_all)
+        self.infrastructure(location, remove_dir_all)
     }
 }
 
-fn infrastructure<F, P>(location: P, f: F) -> Result<()>
-where
-    F: FnMut(PathBuf) -> Result<(), std::io::Error>,
-    P: AsRef<Path>,
-{
-    ["BUILD", "SOURCES", "DEBS", "SDEBS", "SPECS"].iter().map(|x| location.as_ref().join(x)).try_for_each(f)?;
-    Ok(())
-}
-
 impl<'a> Builder<'a> {
+    fn infrastructure<F, P>(&self, location: P, f: F) -> Result<()>
+    where
+        F: FnMut(PathBuf) -> Result<(), std::io::Error>,
+        P: AsRef<Path>,
+    {
+        ["BUILD", "SOURCES", "SPECS"]
+            .into_iter()
+            .chain(
+                match self.tooling {
+                    Tooling::RPMBuild => ["RPMS", "SRPMS"],
+                    Tooling::DebBuild => ["DEBS", "SDEBS"],
+                }
+            )
+            .map(|x| location.as_ref().join(x))
+            .try_for_each(f)?;
+        Ok(())
+    }
+
     fn copy_includes(&self, config: &FlakeConfig, bundling_dir: &Path) -> Result<()> {
         let bundles = config.static_data().get_bundles().into_iter().flatten();
         for tar in bundles {
