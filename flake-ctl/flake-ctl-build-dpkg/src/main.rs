@@ -19,7 +19,7 @@ struct DPKGBuilder {
     #[arg(long, default_value = "/usr/share/flakes/package/dpkg")]
     template: PathBuf,
 
-    /// skip spec editing
+    /// skip control editing
     #[arg(long)]
     no_edit: bool,
 }
@@ -81,7 +81,7 @@ impl DPKGBuilder {
         [
             ("Section", "other"),
             ("Priority", "optional"),
-            ("Maintainer", &format!("\"{}\", <{}>", options.maintainer_name, options.maintainer_email)),
+            ("Maintainer", &format!("\"{}\" <{}>", options.maintainer_name, options.maintainer_email)),
             ("Homepage", &options.url),
             ("Package", &options.name),
             ("Architecture", "all"),
@@ -94,6 +94,11 @@ impl DPKGBuilder {
         ]
         .into_iter()
         .try_for_each(|(name, value)| cfile.write_all(format!("{name}: {value}\n").as_bytes()))?;
+
+        // TODO: Select default text editor
+        if !self.no_edit {
+            Command::new("vi").arg(location.join("DEBIAN").join("control")).status().context("Failed to open text editor")?;
+        }
         Ok(())
     }
 
