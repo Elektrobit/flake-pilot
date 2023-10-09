@@ -1,7 +1,7 @@
 use std::{
     fs::{self, create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
-    process::{exit, Command},
+    process::Command,
 };
 
 use anyhow::{Context, Ok, Result};
@@ -16,7 +16,7 @@ fn main() -> Result<()> {
 #[derive(Debug, Args)]
 struct DPKGBuilder {
     /// Location of .spec template and pilot specific data
-    #[arg(long, default_value = "/usr/share/flakes/package/rpmbuild")]
+    #[arg(long, default_value = "/usr/share/flakes/package/dpkg")]
     template: PathBuf,
 
     /// skip spec editing
@@ -35,11 +35,11 @@ impl FlakeBuilder for DPKGBuilder {
     ) -> anyhow::Result<()> {
         self.control_file(options, location, config.engine().pilot()).context("Failed to create control file")?;
         self.rules_file(location).context("Failed to create rules file")?;
-        self.install_script(&options.name, location, config).context("Failed to create install script")?;
+        self.install_script(location, config).context("Failed to create install script")?;
         self.uninstall_script(location, config).context("Failed to create uninstall script")?;
         let export_path = &location.join("usr/share/flakes");
         create_dir_all(export_path)?;
-        export_flake(&options.name, config.engine().pilot(), &export_path).context("Failed to export flake")?;
+        export_flake(&options.name, config.engine().pilot(), export_path).context("Failed to export flake")?;
         copy_configs(&options.name, location)?;
         Ok(())
     }
@@ -74,8 +74,7 @@ impl DPKGBuilder {
     }
 
     fn control_file(&self, options: &PackageOptions, location: &Path, pilot: &str) -> Result<()> {
-        // let depends = fs::read_to_string(self.template.join(pilot))?;
-        let depends = "flake-pilot-podman";
+        let depends = fs::read_to_string(self.template.join(pilot))?;
 
         let mut cfile = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("control"))?;
 
@@ -103,7 +102,7 @@ impl DPKGBuilder {
         Ok(())
     }
 
-    fn install_script(&self, name: &str, location: &Path, conf: &FlakeConfig) -> Result<()> {
+    fn install_script(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let pilot = conf.engine().pilot();
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("postinst"))?;
         conf.runtime()
