@@ -4,7 +4,7 @@ use flakes::config::{self, itf::FlakeConfig};
 use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir_in;
 
-use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, PathBuf};
+use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, PathBuf, copy_configs};
 
 fn main() -> Result<()> {
     flake_ctl_build::run::<RPMBuilder>()
@@ -61,7 +61,7 @@ impl FlakeBuilder for RPMBuilder {
         create_dir_all(&bundling_dir)?;
 
         self.copy_includes(config, &bundling_dir).context("Failed to copy includes to bundling dir")?;
-        self.copy_configs(name, &bundling_dir).context("Failed to copy configs to bundling dir")?;
+        copy_configs(name, &bundling_dir).context("Failed to copy configs to bundling dir")?;
         export_flake(name, config.engine().pilot(), &bundling_dir).context("Failed to export flake image(s)")?;
         self.compress_bundle(temp_dir.path(), name, version).context("Failed to compress bundle")?;
         copy(bundling_dir.with_extension("tar.gz"), location.join("SOURCES").join(name).with_extension("tar.gz"))
@@ -117,15 +117,6 @@ impl RPMBuilder {
         }
         Ok(())
     }
-    fn copy_configs(&self, name: &str, bundling_dir: &Path) -> Result<()> {
-        let config_path = Path::new("/usr/share/flakes").join(name);
-        let configs = [config_path.with_extension("yaml"), config_path.with_extension("d")];
-
-        let fake_flake_dir = bundling_dir.join("usr/share/flakes");
-        create_dir_all(&fake_flake_dir)?;
-        copy_items(&configs, &fake_flake_dir, &CopyOptions::new())?;
-        Ok(())
-    }
 
     fn compress_bundle(&self, bundling_dir: &Path, name: &str, version: &str) -> Result<()> {
         Command::new("tar")
@@ -167,7 +158,8 @@ impl RPMBuilder {
             ("%{_flake_desc}", options.description.as_str()),
             ("%{_flake_url}", options.url.as_str()),
             ("%{_flake_license}", options.license.as_str()),
-            ("%{_flake_maintainer}", options.maintainer.as_str()),
+            ("%{_flake_maintainer_name}", options.maintainer_name.as_str()),
+            ("%{_flake_maintainer_email}", options.maintainer_email.as_str()),
             ("%{_flake_pilot}", config.engine().pilot()),
             ("%{_flake_requires}", &requires),
             ("%{_flake_dir}", &config::FLAKE_DIR.to_string_lossy()),

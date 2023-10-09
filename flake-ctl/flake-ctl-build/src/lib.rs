@@ -1,9 +1,10 @@
 pub use std::path::{Path, PathBuf};
-use std::{env::var, fs::remove_dir_all, io::stdin, process::Command};
+use std::{env::var, fs::{remove_dir_all, create_dir_all}, io::stdin, process::Command};
 
 use anyhow::{anyhow, Context, Result};
 use clap::{Args, FromArgMatches, Parser};
-use flakes::config::{self, itf::FlakeConfig};
+use flakes::config::{self, itf::FlakeConfig, FLAKE_DIR};
+use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir;
 
 pub trait FlakeBuilder {
@@ -64,7 +65,7 @@ pub trait FlakeBuilder {
         // Clean the location if it is reused, ignore errors here
         self.cleanup(&location).ok();
         self.setup(&location)?;
-        let config = config::load_from_target(Path::new(&options.name))?;
+        let config = config::load_from_target(Path::new(&options.name)).context(format!("Failed to load config for {}", options.name))?;
         self.create_bundle(options, &config, &location)?;
 
         let result = if build { self.build(options, target.as_ref().map(AsRef::as_ref), &location) } else { Ok(()) };
@@ -90,7 +91,8 @@ pub struct PackageOptions {
     pub description: String,
     pub version: String,
     pub url: String,
-    pub maintainer: String,
+    pub maintainer_name: String,
+    pub maintainer_email: String,
     pub license: String,
 }
 
@@ -105,7 +107,9 @@ pub struct PackageOptionsBuilder {
     #[arg(long)]
     pub url: Option<String>,
     #[arg(long)]
-    pub maintainer: Option<String>,
+    pub maintainer_name: Option<String>,
+    #[arg(long)]
+    pub maintainer_email: Option<String>,
     #[arg(long)]
     pub license: Option<String>,
 }
@@ -117,7 +121,8 @@ impl PackageOptionsBuilder {
             description: self.description.ok_or_else(|| anyhow!("Missing package description"))?,
             version: self.version.ok_or_else(|| anyhow!("Missing package version"))?,
             url: self.url.ok_or_else(|| anyhow!("Missing package url"))?,
-            maintainer: self.maintainer.ok_or_else(|| anyhow!("Missing package maintainer"))?,
+            maintainer_name: self.maintainer_name.ok_or_else(|| anyhow!("Missing package maintainer name"))?,
+            maintainer_email: self.maintainer_email.ok_or_else(|| anyhow!("Missing package maintainer email"))?,
             license: self.license.ok_or_else(|| anyhow!("Missing package license"))?,
         })
     }
@@ -187,7 +192,8 @@ impl BuilderArgs {
         options.description = options.description.or_else(|| var("PKG_FLAKE_DESCRIPTION").ok());
         options.version = options.version.or_else(|| var("PKG_FLAKE_VERSION").ok());
         options.url = options.url.or_else(|| var("PKG_FLAKE_URL").ok());
-        options.maintainer = options.maintainer.or_else(|| var("PKG_FLAKE_MAINTAINER").ok());
+        options.maintainer_name = options.maintainer_name.or_else(|| var("PKG_FLAKE_MAINTAINER_NAME").ok());
+        options.maintainer_email = options.maintainer_email.or_else(|| var("PKG_FLAKE_MAINTAINER_EMAIL").ok());
         options.license = options.license.or_else(|| var("PKG_FLAKE_LICENSE").ok());
 
         if !self.ci {
@@ -195,7 +201,8 @@ impl BuilderArgs {
             options.description = options.description.or_else(|| user_input("Description").ok());
             options.version = options.version.or_else(|| user_input("Version").ok());
             options.url = options.url.or_else(|| user_input("URL").ok());
-            options.maintainer = options.maintainer.or_else(|| user_input("Maintainer").ok());
+            options.maintainer_name = options.maintainer_name.or_else(|| user_input("Maintainer Name").ok());
+            options.maintainer_email = options.maintainer_email.or_else(|| user_input("Maintainer Email").ok());
             options.license = options.license.or_else(|| user_input("License").ok());
         }
 
@@ -212,6 +219,16 @@ fn user_input(name: &str) -> Result<String> {
 
 pub fn export_flake(name: &str, pilot: &str, bundling_dir: &Path) -> Result<()> {
     Command::new("flake-ctl").arg(pilot).arg("export").arg(name).arg(bundling_dir.join(name)).status()?;
+    Ok(())
+}
+
+pub fn copy_configs(name: &str, bundling_dir: &Path) -> Result<()> {
+    let config_path = FLAKE_DIR.join(name);
+    let configs = [config_path.with_extension("yaml"), config_path.with_extension("d")];
+
+    let fake_flake_dir = bundling_dir.join("usr/share/flakes");
+    create_dir_all(&fake_flake_dir)?;
+    copy_items(&configs, &fake_flake_dir, &CopyOptions::new())?;
     Ok(())
 }
 

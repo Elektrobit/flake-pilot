@@ -5,6 +5,7 @@ Release:        1%{?dist}
 Summary:        Lorem Ipsum 
 BuildArch:      noarch
 License:        %{_flake_license}
+Maintainer:     "%{_flake_maintainer_name}" <%{_flake_maintainer_email}>
 
 %{_flake_requires}
 
