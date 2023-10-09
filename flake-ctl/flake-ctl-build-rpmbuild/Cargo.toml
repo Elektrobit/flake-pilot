@@ -1,5 +1,5 @@
 [package]
-name = "flake-ctl-build-debbuild"
+name = "flake-ctl-build-rpmbuild"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,14 +1,14 @@
 use anyhow::Result;
 use clap::Parser;
-use debbuild::Tooling;
+use rpmbuild::Tooling;
 use flake_ctl_build::{self, FlakeBuilder, Path, PathBuf};
 
-mod debbuild;
+mod rpmbuild;
 
 fn main() -> Result<()> {
     let args = Args::parse();
     let template = args.template.unwrap_or_else(|| Path::new("/usr/share/flakes/package/debbuild").to_owned());
-    debbuild::Builder { template_dir: &template, edit: !args.no_edit, tooling: args.tooling }.run(&args.builder_args)?;
+    rpmbuild::Builder { template_dir: &template, edit: !args.no_edit, tooling: args.tooling }.run(&args.builder_args)?;
     Ok(())
 }
 
