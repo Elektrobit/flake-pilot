@@ -67,16 +67,19 @@ pub trait FlakeBuilder {
         let config = config::load_from_target(Path::new(&options.name))?;
         self.create_bundle(options, &config, &location)?;
 
-        if build {
-            self.build(options, target.as_ref().map(AsRef::as_ref), &location)?;
-        }
+        let result = if build {
+            self.build(options, target.as_ref().map(AsRef::as_ref), &location)
+        } else {
+            Ok(())
+        };
+
         if !keep {
             self.cleanup(&location)?;
             if cleanup_default {
                 self.cleanup_default_directory(&location)?
             }
         }
-        Ok(())
+        result
     }
 
     fn run(&self, args: &BuilderArgs) -> Result<()> {
