@@ -161,6 +161,20 @@ impl RPMBuilder {
         let data = self.template.join(config.engine().pilot());
         let requires = fs::read_to_string(&data).context(format!("Failed to load pilot specific data, {data:?}"))?;
 
+        let link_create = config
+            .runtime()
+            .paths()
+            .values()
+            .map(|p| format!("ln -s %{{_bindir}}/%{{_flake_pilot}}-pilot {}", p.exports().to_string_lossy()))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let link_remove = config
+            .runtime()
+            .paths()
+            .values()
+            .map(|p| format!("rm {}", p.exports().to_string_lossy()))
+            .collect::<Vec<_>>()
+            .join("\n");
         let vals = [
             ("%{_flake_name}", options.name.as_str()),
             ("%{_flake_version}", options.version.as_str()),
@@ -171,13 +185,13 @@ impl RPMBuilder {
             ("%{_flake_pilot}", config.engine().pilot()),
             ("%{_flake_requires}", &requires),
             ("%{_flake_dir}", &config::FLAKE_DIR.to_string_lossy()),
+            ("%{_flake_links_create}", &link_create),
+            ("%{_flake_links_remove}", &link_remove),
         ];
 
         for (placeholder, value) in vals {
             template = template.replace(placeholder, value);
         }
-
-        // TODO: multiple links
 
         Ok(template)
     }

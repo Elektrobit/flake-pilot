@@ -27,10 +27,10 @@ cp %{name} $RPM_BUILD_ROOT/tmp
 
 %post
 podman load < /tmp/%{name}
-ln -s %{_bindir}/%{_flake_pilot}-pilot %{_bindir}/%{name}
+%{_flake_links_create}
 
 %postun
-rm %{_bindir}/%{name}
+%{_flake_links_remove}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
