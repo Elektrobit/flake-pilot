@@ -226,7 +226,7 @@ pub fn copy_configs(name: &str, bundling_dir: &Path) -> Result<()> {
     let config_path = FLAKE_DIR.join(name);
     let configs = [config_path.with_extension("yaml"), config_path.with_extension("d")];
 
-    let fake_flake_dir = bundling_dir.join("usr/share/flakes");
+    let fake_flake_dir = bundling_dir.join(flakes::config::FLAKE_DIR.strip_prefix("/").unwrap());
     create_dir_all(&fake_flake_dir)?;
     copy_items(&configs, &fake_flake_dir, &CopyOptions::new())?;
     Ok(())

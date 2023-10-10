@@ -15,8 +15,8 @@ fn main() -> Result<()> {
 
 #[derive(Debug, Args)]
 struct DPKGBuilder {
-    /// Location of .spec template and pilot specific data
-    #[arg(long, default_value = "/usr/share/flakes/package/dpkg")]
+    /// Location of pilot specific data
+    #[arg(long, default_value = flakes::config::FLAKE_DIR.join("package/dpkg").into_os_string())]
     template: PathBuf,
 
     /// skip control editing
@@ -37,7 +37,7 @@ impl FlakeBuilder for DPKGBuilder {
         self.rules_file(location).context("Failed to create rules file")?;
         self.install_script(location, config).context("Failed to create install script")?;
         self.uninstall_script(location, config).context("Failed to create uninstall script")?;
-        let export_path = &location.join("usr/share/flakes");
+        let export_path = &location.join(flakes::config::FLAKE_DIR.strip_prefix("/").unwrap());
         create_dir_all(export_path)?;
         export_flake(&options.name, config.engine().pilot(), export_path).context("Failed to export flake")?;
         copy_configs(&options.name, location)?;
