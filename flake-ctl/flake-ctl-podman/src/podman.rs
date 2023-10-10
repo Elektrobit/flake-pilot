@@ -22,7 +22,7 @@
 // SOFTWARE.
 //
 use anyhow::{bail, Context, Result};
-use flakes::config::{load_from_target, self};
+use flakes::config::load_from_target;
 use log::{error, info, warn};
 use std::fs;
 use std::path::Path;
