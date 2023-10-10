@@ -5,7 +5,9 @@ Release:        1%{?dist}
 Summary:        Lorem Ipsum 
 BuildArch:      noarch
 License:        %{_flake_license}
+%if "%{_vendor}" == "debbuild"
 Maintainer:     "%{_flake_maintainer_name}" <%{_flake_maintainer_email}>
+%endif
 
 %{_flake_requires}
 
