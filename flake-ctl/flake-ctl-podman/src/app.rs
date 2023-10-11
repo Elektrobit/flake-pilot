@@ -59,7 +59,7 @@ pub fn remove(app: &Path) -> Result<()> {
     /*!
     Delete application link and config files
     !*/
-    if app.is_absolute() {
+    if !app.is_absolute() {
         bail!("Application must be specified with an absolute path");
     }
     info!("Removing application: {}", app.to_string_lossy());
