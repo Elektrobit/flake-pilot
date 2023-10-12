@@ -1,13 +1,13 @@
 use std::{
     fs::{self, create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
-    process::Command,
+    process::Command, path::{PathBuf, Path},
 };
 
 use anyhow::{Context, Ok, Result};
 use clap::Args;
-use flake_ctl_build::{copy_configs, export_flake, FlakeBuilder, PackageOptions, Path, PathBuf};
-use flakes::config::itf::FlakeConfig;
+use flake_ctl_build::{copy_configs, export_flake, FlakeBuilder, PackageOptions};
+use flakes::{config::itf::FlakeConfig, paths::RootedPath};
 
 fn main() -> Result<()> {
     flake_ctl_build::run::<DPKGBuilder>()
@@ -25,29 +25,23 @@ struct DPKGBuilder {
 }
 
 impl FlakeBuilder for DPKGBuilder {
-    fn setup(&self, location: &flake_ctl_build::Path) -> anyhow::Result<()> {
+    fn setup(&self, location: &Path) -> Result<()> {
         self.infrastructure(location, create_dir_all)
     }
 
-    fn create_bundle(
-        &self, options: &flake_ctl_build::PackageOptions, config: &flakes::config::itf::FlakeConfig,
-        location: &flake_ctl_build::Path,
-    ) -> anyhow::Result<()> {
+    fn create_bundle(&self, flake_name: &RootedPath, options: &PackageOptions, config: &FlakeConfig, location: &Path) -> Result<()> {
         self.control_file(options, location, config.engine().pilot()).context("Failed to create control file")?;
         self.rules_file(location).context("Failed to create rules file")?;
         self.install_script(location, config).context("Failed to create install script")?;
         self.uninstall_script(location, config).context("Failed to create uninstall script")?;
         let export_path = &location.join(flakes::config::FLAKE_DIR.strip_prefix("/").unwrap());
         create_dir_all(export_path)?;
-        export_flake(&options.name, config.engine().pilot(), export_path).context("Failed to export flake")?;
-        copy_configs(&options.name, location)?;
+        export_flake(flake_name, config.engine().pilot(), export_path).context("Failed to export flake")?;
+        copy_configs(flake_name, location)?;
         Ok(())
     }
 
-    fn build(
-        &self, options: &flake_ctl_build::PackageOptions, target: Option<&flake_ctl_build::Path>,
-        location: &flake_ctl_build::Path,
-    ) -> anyhow::Result<()> {
+    fn build(&self, options: &PackageOptions, target: Option<&Path>, location: &Path) -> Result<()> {
         Command::new("dpkg-deb")
             .arg("--root-owner-group")
             .arg("--nocheck")
@@ -58,7 +52,7 @@ impl FlakeBuilder for DPKGBuilder {
         Ok(())
     }
 
-    fn cleanup(&self, location: &flake_ctl_build::Path) -> anyhow::Result<()> {
+    fn cleanup(&self, location: &Path) -> Result<()> {
         self.infrastructure(location, remove_dir_all)
     }
 }
