@@ -23,14 +23,15 @@
 //
 use crate::defaults;
 use anyhow::{bail, Context, Result};
+use flakes::paths::{PathExt, flake_dir_from};
 use glob::glob;
 use log::{error, info};
 use std::ffi::OsStr;
-use std::fs;
+use std::fs::{self, create_dir_all};
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 
-pub fn register(host_app_path: &str, target_app_path: &str, engine: &str) -> Result<()> {
+pub fn register(root: &Path, host_app_path: &str, target_app_path: &str, engine: &str) -> Result<()> {
     /*!
     Register container application for specified engine.
 
@@ -46,28 +47,31 @@ pub fn register(host_app_path: &str, target_app_path: &str, engine: &str) -> Res
     // host_app_path -> pointing to engine
     let host_app_dir = Path::new(host_app_path).parent().unwrap().to_str().unwrap();
     fs::create_dir_all(host_app_dir).context(format!("Could not create {host_app_dir}"))?;
-    symlink(engine, host_app_path).context("Could not create symlink")?;
+    if let Some(parent) = root.join_ignore_abs(host_app_path).parent() {
+        create_dir_all(parent)?;
+    }
+    symlink(engine, root.join_ignore_abs(host_app_path)).context("Could not create symlink")?;
 
     // creating default app configuration
     let app_basename = Path::new(host_app_path).file_name().unwrap().to_str().unwrap();
     let app_config_dir = format!("{}/{}.d", defaults::FLAKE_DIR, &app_basename);
-    fs::create_dir_all(app_config_dir).context("Failed to create config directory")?;
+    fs::create_dir_all(root.join_ignore_abs(app_config_dir)).context("Failed to create config directory")?;
     Ok(())
 }
 
-pub fn remove(app: &Path) -> Result<()> {
+pub fn remove(root: &Path, app: &Path) -> Result<()> {
     /*!
     Delete application link and config files
     !*/
-    if app.is_absolute() {
+    if !app.is_absolute() {
         bail!("Application must be specified with an absolute path");
     }
     info!("Removing application: {}", app.to_string_lossy());
     // remove pilot link if valid
 
-    let pilot = fs::read_link(app).context(format!("Could not read symlink {}", app.to_string_lossy()))?;
+    let pilot = fs::read_link(root.join_ignore_abs(app)).context(format!("Could not read symlink {}", app.to_string_lossy()))?;
     if pilot.file_name() == Some(OsStr::new("podman-pilot")) {
-        fs::remove_file(app).context("Could not delete app")?;
+        fs::remove_file(root.join_ignore_abs(app)).context("Could not delete app")?;
     } else {
         bail!("Not a podman-pilot app")
     }
@@ -75,8 +79,8 @@ pub fn remove(app: &Path) -> Result<()> {
     // remove config file and config directory
     match app.file_name() {
         Some(basename) => {
-            fs::remove_file(Path::new(defaults::FLAKE_DIR).join(basename).with_extension("yaml"))?;
-            fs::remove_dir(Path::new(defaults::FLAKE_DIR).join(basename).with_extension("d"))?;
+            fs::remove_file(flake_dir_from(Some(root)).join(basename).with_extension("yaml"))?;
+            fs::remove_dir(flake_dir_from(Some(root)).join(basename).with_extension("d"))?;
         }
         None => bail!("malformed app path {}", app.to_string_lossy()),
     };
@@ -119,7 +123,7 @@ pub fn app_names() -> Vec<String> {
     flakes
 }
 
-pub fn init(app: &str) -> Result<()> {
+pub fn init(root: &Path, app: &str) -> Result<()> {
     /*!
     Create required directory structure.
 
@@ -127,7 +131,7 @@ pub fn init(app: &str) -> Result<()> {
     The init method makes sure to create this directory unless it
     already exists.
     !*/
-    if Path::new(&app).exists() {
+    if root.join_ignore_abs(app).exists() {
         bail!("App path {app} already exists");
     }
     let flake_dir = fs::read_link(defaults::FLAKE_DIR).unwrap_or_else(|_| PathBuf::from(defaults::FLAKE_DIR));

@@ -2,6 +2,7 @@ use std::{fs::OpenOptions, path::{Path, PathBuf}};
 
 use anyhow::{bail, Context, Result};
 use clap::{ArgGroup, Args, Parser};
+use flakes::paths::flake_dir_from;
 
 use crate::{
     app,
@@ -37,6 +38,10 @@ pub enum Podman {
         /// Application absolute path to be removed from host
         #[clap(long)]
         app: Option<String>,
+
+        /// The (fake) root to use for this operation
+        #[clap(long, default_value = "/")]
+        root: PathBuf,
     },
     /// Register container application
     #[clap(
@@ -81,7 +86,11 @@ pub enum Podman {
         /// 
         /// The semantics are identical to `mv` on unix, so if a path with a name is given the exported archive will have that name,
         /// if a path with a trailing slash is given the archive will be exported in to that directory with its original name
-        target: PathBuf
+        target: PathBuf,
+        /// The (fake) root to use for this operation
+        #[clap(long, default_value = "/")]
+        root: PathBuf,
+
     },
     /// Print the info string for flake-ctl
     About
@@ -159,6 +168,10 @@ pub struct Register {
     /// Print registration information from container if provided
     #[clap(long)]
     info: bool,
+
+    /// The (fake) root to use for this operation
+    #[clap(long, default_value = "/")]
+    root: PathBuf,
 }
 
 impl Register {
@@ -173,8 +186,8 @@ impl Register {
             bail!("Layer(s) specified without a base");
         }
 
-        app::init(&app)?;
-        app::register(&app, self.target.as_ref().unwrap_or(&app), defaults::PODMAN_PILOT)?;
+        app::init(&self.root, &app)?;
+        app::register(&self.root, &app, self.target.as_ref().unwrap_or(&app), defaults::PODMAN_PILOT)?;
 
         let config = AppConfig {
             include: AppInclude { tar: self.include_tar },
@@ -199,7 +212,7 @@ impl Register {
             OpenOptions::new()
                 .write(true)
                 .create(true)
-                .open(Path::new(defaults::FLAKE_DIR).join(base_name).with_extension("yaml"))
+                .open(flake_dir_from(Some(self.root)).join(base_name).with_extension("yaml"))
                 .context("Could not open yaml file")?,
             &config,
         )?;

@@ -22,7 +22,8 @@
 // SOFTWARE.
 //
 use anyhow::{bail, Context, Result};
-use flakes::config::{load_from_target, self};
+use flakes::config::{load_from_target, FLAKE_DIR};
+use flakes::paths::PathExt;
 use log::{error, info, warn};
 use std::fs;
 use std::path::Path;
@@ -147,7 +148,7 @@ pub fn umount_container(container_name: &str) -> i32 {
     status_code
 }
 
-pub fn purge_container(container: &str) -> Result<()> {
+pub fn purge_container(root: &Path, container: &str) -> Result<()> {
     /*!
     Iterate over all yaml config files and find those connected
     to the container. Delete all app registrations for this
@@ -159,7 +160,7 @@ pub fn purge_container(container: &str) -> Result<()> {
         match app_config::AppConfig::from_file(&config_file) {
             Ok(app_conf) if app_conf.container.name == container => {
                 let path = &app_conf.container.host_app_path;
-                app::remove(Path::new(path)).map_err(|err| warn!("Could not delete {path}: {err}")).ok();
+                app::remove(root, Path::new(path)).map_err(|err| warn!("Could not delete {path}: {err}")).ok();
             }
             Ok(_) => (),
             Err(error) => warn!("Error in flake \"{}\": {}", config_file.to_string_lossy(), error),
@@ -189,26 +190,30 @@ pub fn print_container_info(container: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn export(flake: &str, target: &Path) -> Result<()> {
-    let config = load_from_target(&config::FLAKE_DIR.join(flake)).context("failed to read flake config")?;
+pub fn export(root: &Path, flake: &str, target: &Path) -> Result<()> {
+    let config = load_from_target(Some(root), &FLAKE_DIR.join(flake)).context("failed to read flake config")?;
     if config.engine().pilot() != "podman" {
         bail!("Can only export podman flakes. This is a {} flake", config.engine().pilot())
     }
     let image = config.runtime().image_name();
 
+    println!("Root {}  flake {}  target {}", root.to_string_lossy(), flake, target.to_string_lossy());
+
     let tmp = tempdir().context("Failed to create tmp dir")?;
+    let tmp_target = tmp.path().join_ignore_abs(flake);
+    println!("{}", tmp_target.to_string_lossy());
     let status = Command::new("podman")
         .arg("save")
         .args(["--format", "oci-archive"])
         .arg("-o")
-        .arg(tmp.path().join(image))
+        .arg(tmp_target)
         .arg(image)
         .status()
         .context("Failed to export oci-archive")?;
     if !status.success() {
         bail!("Failed to export oci-archive");
     }
-    let status = Command::new("mv").arg(tmp.path().join(image)).arg(target).status()?;
+    let status = Command::new("mv").arg(tmp.path().join(flake)).arg(target).status()?;
     if !status.success() {
         bail!("Failed to move oci-archive to target location");
     }
