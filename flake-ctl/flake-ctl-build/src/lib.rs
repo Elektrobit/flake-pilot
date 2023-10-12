@@ -1,10 +1,21 @@
-pub use std::path::{Path, PathBuf};
-use std::{env::var, fs::{remove_dir_all, create_dir_all}, io::stdin, process::Command};
+pub mod options;
+
+pub use options::PackageOptions;
+
+use std::{
+    fs::{create_dir_all, remove_dir_all},
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::{anyhow, Context, Result};
-use clap::{Args, FromArgMatches, Parser};
-use flakes::config::{self, itf::FlakeConfig, FLAKE_DIR};
+use clap::{Args, FromArgMatches, Parser, Subcommand};
+use flakes::{
+    config::{self, itf::FlakeConfig, FLAKE_DIR},
+    paths::{PathExt, RootedPath},
+};
 use fs_extra::{copy_items, dir::CopyOptions};
+use options::PackageOptionsBuilder;
 use tempfile::tempdir;
 
 pub trait FlakeBuilder {
@@ -12,7 +23,9 @@ pub trait FlakeBuilder {
     fn setup(&self, location: &Path) -> Result<()>;
 
     /// Copy all the necessary files to the build location and create the configuration for the package (e.g. a .spec file)
-    fn create_bundle(&self, options: &PackageOptions, config: &FlakeConfig, location: &Path) -> Result<()>;
+    fn create_bundle(
+        &self, flake_path: &RootedPath, options: &PackageOptions, config: &FlakeConfig, location: &Path,
+    ) -> Result<()>;
 
     /// Perform the actual build process.
     ///
@@ -51,102 +64,157 @@ pub trait FlakeBuilder {
     /// [build] is only run if `build` is `true`
     ///
     /// [cleanup] is not run if `keep` is `true`
-    fn execute(
-        &self, options: &PackageOptions, target: Option<impl AsRef<Path>>, location: Option<impl AsRef<Path>>, build: bool,
-        keep: bool,
-    ) -> Result<()> {
-        let cleanup_default = location.is_none();
+    fn execute(&self, options: PackageOptions, mode: Mode) -> Result<()> {
+        let args = mode.args();
 
-        let location = match location.as_ref() {
-            Some(location) => location.as_ref().to_owned(),
+        let cleanup_default = args.location.is_none();
+
+        let location = match args.location.as_ref() {
+            Some(location) => location.to_owned(),
             None => self.get_default_build_directory()?,
         };
+
+        let flake_path = mode.prepare()?;
+        let flake_name = flake_path.path().file_name().ok_or_else(|| anyhow!("Invalid flake path"))?;
 
         // Clean the location if it is reused, ignore errors here
         self.cleanup(&location).ok();
         self.setup(&location)?;
-        let config = config::load_from_target(Path::new(&options.name)).context(format!("Failed to load config for {}", options.name))?;
-        self.create_bundle(options, &config, &location)?;
+        let config = config::load_from_target(flake_path.root(), Path::new(flake_name))
+            .context(format!("Failed to load config for {}", options.name))?;
+        self.create_bundle(&flake_path, &options, &config, &location)?;
 
-        let result = if build { self.build(options, target.as_ref().map(AsRef::as_ref), &location) } else { Ok(()) };
+        let result = if !args.dry_run { self.build(&options, args.target.as_deref(), &location) } else { Ok(()) };
 
-        if !keep {
+        let cleanup_mode = mode.cleanup(&flake_path);
+        if !args.keep {
             self.cleanup(&location)?;
             if cleanup_default {
                 self.cleanup_default_directory(&location)?
             }
         }
-        result
+
+        // Do not short circuit these errors so no temporary data are left lying around
+        [result, cleanup_mode].into_iter().collect()
     }
 
-    fn run(&self, args: &BuilderArgs) -> Result<()> {
-        let options = args.determine_options()?;
-        self.execute(&options, args.target.as_ref(), args.location.as_ref(), !args.dry_run, args.keep)
+    fn run(&self, mode: Mode) -> Result<()> {
+        let options = mode.args().determine_options()?;
+        self.execute(options, mode)
     }
 }
 
-#[derive(Debug)]
-pub struct PackageOptions {
-    pub name: String,
-    pub description: String,
-    pub version: String,
-    pub url: String,
-    pub maintainer_name: String,
-    pub maintainer_email: String,
-    pub license: String,
+#[derive(Debug, Subcommand)]
+pub enum Mode {
+    /// Package an existing flake
+    Flake {
+        /// The name of the local flake
+        flake_name: String,
+        #[command(flatten)]
+        args: BuilderArgs,
+    },
+    /// Package an existing image as a flake
+    Image {
+        /// The type of pilot/engine to use
+        ///
+        /// The interpretation of `name` depends on `pilot`
+        pilot: String,
+        /// The name of the container
+        ///
+        /// The container may be pulled if it does not exist locally.
+        ///
+        /// The interpretation of `name` depends on `pilot`
+        image_name: String,
+        /// The app path of the flake
+        // TODO: multi path support
+        app: PathBuf,
+        #[command(flatten)]
+        args: BuilderArgs,
+    },
+    /// Package an existing package as a flake
+    Package {
+        /// The type of pilot/engine to use
+        ///
+        /// The interpretation of `name` depends on `pilot`
+        pilot: String,
+        /// The package manager to use when installing the packages
+        manager: String,
+        /// Depending on the package manager the names may include version information
+        package: String,
+        /// The name of the base image for the packages, if not given a delta flake will be produced
+        #[arg(long)]
+        base_image: Option<String>,
+        #[command(flatten)]
+        args: BuilderArgs,
+    },
 }
 
-#[derive(Debug, Default, Args, Clone)]
-pub struct PackageOptionsBuilder {
-    #[arg(long)]
-    pub name: Option<String>,
-    #[arg(long)]
-    pub description: Option<String>,
-    #[arg(long)]
-    pub version: Option<String>,
-    #[arg(long)]
-    pub url: Option<String>,
-    #[arg(long)]
-    pub maintainer_name: Option<String>,
-    #[arg(long)]
-    pub maintainer_email: Option<String>,
-    #[arg(long)]
-    pub license: Option<String>,
-}
+impl Mode {
+    fn args(&self) -> &BuilderArgs {
+        match self {
+            Mode::Flake { args, .. } => args,
+            Mode::Image { args, .. } => args,
+            Mode::Package { args, .. } => args,
+        }
+    }
 
-impl PackageOptionsBuilder {
-    pub fn build(self) -> Result<PackageOptions> {
-        Ok(PackageOptions {
-            name: self.name.ok_or_else(|| anyhow!("Missing package name"))?,
-            description: self.description.ok_or_else(|| anyhow!("Missing package description"))?,
-            version: self.version.ok_or_else(|| anyhow!("Missing package version"))?,
-            url: self.url.ok_or_else(|| anyhow!("Missing package url"))?,
-            maintainer_name: self.maintainer_name.ok_or_else(|| anyhow!("Missing package maintainer name"))?,
-            maintainer_email: self.maintainer_email.ok_or_else(|| anyhow!("Missing package maintainer email"))?,
-            license: self.license.ok_or_else(|| anyhow!("Missing package license"))?,
-        })
+    /// Prepare the flake to be packaged
+    ///
+    /// Returns the name of the flake
+    fn prepare(&self) -> Result<RootedPath> {
+        match self {
+            Mode::Flake { flake_name, .. } => Ok(flake_name.into()),
+            Mode::Image { pilot, image_name, app, args, .. } => {
+                // let name = args.options.name.as_deref().unwrap_or(".tmp");
+                // let flake_name = format!("{}-{}", name, uuid::Uuid::new_v4().as_hyphenated().to_string());
+
+                let tmp_dir = tempdir()?.into_path();
+                std::process::Command::new("flake-ctl")
+                    .arg(pilot)
+                    .arg("register")
+                    .arg("--root")
+                    .arg(&tmp_dir)
+                    .arg("--app")
+                    .arg(app)
+                    .arg("--container")
+                    .arg(image_name)
+                    .args(args.trailing.iter())
+                    .status()?;
+
+                Ok(app.with_root(Some(tmp_dir)))
+            }
+            Mode::Package { .. } => todo!(),
+        }
+    }
+
+    fn cleanup(&self, path: &RootedPath) -> Result<()> {
+        match self {
+            Mode::Flake { .. } => {
+                // TODO: Once flake modification is implemented the modifications must be cleaned up here
+                Ok(())
+            }
+            Mode::Image { pilot, app, .. } => {
+                if let Some(root) = path.root() {
+                    std::process::Command::new("flake-ctl")
+                        .arg(pilot)
+                        .arg("remove")
+                        .arg("--root")
+                        .arg(root)
+                        .arg("--app")
+                        .arg(app)
+                        .status()?;
+                }
+                // remove_file(path)?;
+                Ok(())
+            }
+            Mode::Package { .. } => todo!(),
+        }
     }
 }
 
 /// Include this with #[command(flatten)] into your args
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct BuilderArgs {
-    /// Package a local flake
-    #[arg(long)]
-    pub flake: Option<String>,
-    /// Package a remote image
-    ///
-    /// The formatting of this parameter depends on the type of pilot used
-    #[arg(long)]
-    pub source: Option<String>,
-    /// The type of pilot used in the package
-    ///
-    /// Must match with --source if specified.
-    ///
-    /// Can be omitted for --flake but must match if given
-    #[arg(long)]
-    pub pilot: Option<String>,
-
     /// Name of the final package
     #[arg(long)]
     pub target: Option<PathBuf>,
@@ -161,9 +229,11 @@ pub struct BuilderArgs {
     #[arg(long)]
     pub keep: bool,
 
-    /// Where to build the package; default: tmp directory
+    /// Where to build the package;
+    ///
+    /// defaults to a tmp directory that is deleted afterwards
     #[arg(long)]
-    pub location: Option<String>,
+    pub location: Option<PathBuf>,
 
     /// Run in CI (non interactive) mode
     #[arg(long)]
@@ -175,56 +245,28 @@ pub struct BuilderArgs {
     #[arg(trailing_var_arg = true)]
     /// Modify the settings of the flake before packaging
     ///
-    /// Same as `flake-ctl register <PILOT>` if --source is given
+    /// Same as `flake-ctl register <PILOT>` for `image` and `package`
     // TODO: enable this if we ever have a "flake modify"
     ///
-    /// Ignored if --flake is given
-    // `flake-ctl modify` if --flake is given
+    /// Ignored for `flake`
+    // `flake-ctl modify`
     pub trailing: Vec<String>,
 }
 
-impl BuilderArgs {
-    pub fn determine_options(&self) -> Result<PackageOptions> {
-        let mut options = self.options.clone();
-
-        // Read from env where not given
-        options.name = options.name.or_else(|| var("PKG_FLAKE_NAME").ok());
-        options.description = options.description.or_else(|| var("PKG_FLAKE_DESCRIPTION").ok());
-        options.version = options.version.or_else(|| var("PKG_FLAKE_VERSION").ok());
-        options.url = options.url.or_else(|| var("PKG_FLAKE_URL").ok());
-        options.maintainer_name = options.maintainer_name.or_else(|| var("PKG_FLAKE_MAINTAINER_NAME").ok());
-        options.maintainer_email = options.maintainer_email.or_else(|| var("PKG_FLAKE_MAINTAINER_EMAIL").ok());
-        options.license = options.license.or_else(|| var("PKG_FLAKE_LICENSE").ok());
-
-        if !self.ci {
-            options.name = options.name.or_else(|| user_input("Name").ok());
-            options.description = options.description.or_else(|| user_input("Description").ok());
-            options.version = options.version.or_else(|| user_input("Version").ok());
-            options.url = options.url.or_else(|| user_input("URL").ok());
-            options.maintainer_name = options.maintainer_name.or_else(|| user_input("Maintainer Name").ok());
-            options.maintainer_email = options.maintainer_email.or_else(|| user_input("Maintainer Email").ok());
-            options.license = options.license.or_else(|| user_input("License").ok());
-        }
-
-        options.build().context("Missing packaging option")
+pub fn export_flake(path: &RootedPath, pilot: &str, bundling_dir: &Path) -> Result<()> {
+    let mut cmd = Command::new("flake-ctl");
+    cmd.arg(pilot).arg("export");
+    if let Some(root) = path.root() {
+        cmd.arg("--root").arg(root);
     }
-}
 
-fn user_input(name: &str) -> Result<String> {
-    let mut buf = String::new();
-    println!("{name}: ");
-    stdin().read_line(&mut buf)?;
-    Ok(buf.trim_end().to_owned())
-}
-
-pub fn export_flake(name: &str, pilot: &str, bundling_dir: &Path) -> Result<()> {
-    Command::new("flake-ctl").arg(pilot).arg("export").arg(name).arg(bundling_dir.join(name)).status()?;
+    cmd.arg(path.file_name().unwrap()).arg(bundling_dir.join_ignore_abs(path.file_name().unwrap())).status()?;
     Ok(())
 }
 
-pub fn copy_configs(name: &str, bundling_dir: &Path) -> Result<()> {
-    let config_path = FLAKE_DIR.join(name);
-    let configs = [config_path.with_extension("yaml"), config_path.with_extension("d")];
+pub fn copy_configs(path: &RootedPath, bundling_dir: &Path) -> Result<()> {
+    let config_path = FLAKE_DIR.join(path.path().file_name().unwrap()).with_root(path.root());
+    let configs = [config_path.path_on_disk().with_extension("yaml"), config_path.path_on_disk().with_extension("d")];
 
     let fake_flake_dir = bundling_dir.join(flakes::config::FLAKE_DIR.strip_prefix("/").unwrap());
     create_dir_all(&fake_flake_dir)?;
@@ -234,8 +276,8 @@ pub fn copy_configs(name: &str, bundling_dir: &Path) -> Result<()> {
 
 #[derive(Parser)]
 struct FullArgs<T: FromArgMatches + Args + FlakeBuilder> {
-    #[command(flatten)]
-    args: BuilderArgs,
+    #[command(subcommand)]
+    mode: Mode,
 
     #[command(flatten)]
     builder: T,
@@ -243,5 +285,5 @@ struct FullArgs<T: FromArgMatches + Args + FlakeBuilder> {
 
 pub fn run<T: FromArgMatches + Args + FlakeBuilder>() -> Result<()> {
     let command = FullArgs::<T>::parse();
-    command.builder.run(&command.args)
+    command.builder.run(command.mode)
 }
