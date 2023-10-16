@@ -112,6 +112,15 @@ install:
 	install -m 644 doc/*.8 ${DESTDIR}/usr/share/man/man8
 	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
 
+	# dpkg
+
+	install -dm 644 flake-ctl/flake-ctl-build-dpkg/templates $(FLAKEDIR)/package/dpkg
+	install -m 755 target/release/flake-ctl-build-dpkg $(DESTDIR)$(BINDIR)/flake-ctl-build-dpkg
+
+	# rpmbuild
+	install -dm 644 flake-ctl/flake-ctl-build-rpmbuild/templates $(FLAKEDIR)/package/rpmbuild
+	install -m 755 target/release/flake-ctl-build-rpmbuild $(DESTDIR)$(BINDIR)/flake-ctl-build-rpmbuild
+
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-podman

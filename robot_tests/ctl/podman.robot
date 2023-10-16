@@ -41,5 +41,9 @@ Register a Container with Base
 
 *** Keywords ***
 Delete all Containers and Flakes
-    Run Process    sudo  rm  -r  /usr/share/flakes
+    # Only delete config files for individual flakes
+    Run Process    sudo  rm  -r  /usr/share/flakes/*.d
+    Run Process    sudo  rm  -r  /usr/share/flakes/*.yaml
+
+    # Remove all non-running containers
     Run Process    podman  prune  -a  -f
