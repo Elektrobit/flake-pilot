@@ -23,7 +23,7 @@ pub trait FlakeBuilder {
     /// This may be run before _and_ after each build
     ///
     /// Only modify the contents of `location`, if the directory itself needs to be deleted this will be handled by [cleanup_default_directory]
-    fn cleanup(&self, location: &Path) -> Result<()>;
+    fn purge(&self, location: &Path) -> Result<()>;
 
     /// What directory to use when no build location is given, this defaults to a new tmp directory
     ///
@@ -61,8 +61,8 @@ pub trait FlakeBuilder {
             None => self.get_default_build_directory()?,
         };
 
-        // Clean the location if it is reused, ignore errors here
-        self.cleanup(&location).ok();
+        // Clean the location because it may be reused, ignore errors here
+        self.purge(&location).ok();
         self.setup(&location)?;
         let config = config::load_from_target(Path::new(&options.name))?;
         self.create_bundle(options, &config, &location)?;
@@ -70,7 +70,7 @@ pub trait FlakeBuilder {
         let result = if build { self.build(options, target.as_ref().map(AsRef::as_ref), &location) } else { Ok(()) };
 
         if !keep {
-            self.cleanup(&location)?;
+            self.purge(&location)?;
             if cleanup_default {
                 self.cleanup_default_directory(&location)?
             }

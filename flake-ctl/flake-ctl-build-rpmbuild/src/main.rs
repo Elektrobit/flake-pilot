@@ -88,7 +88,7 @@ impl FlakeBuilder for RPMBuilder {
         Ok(())
     }
 
-    fn cleanup(&self, location: &Path) -> Result<()> {
+    fn purge(&self, location: &Path) -> Result<()> {
         self.infrastructure(location, remove_dir_all)
     }
 }
