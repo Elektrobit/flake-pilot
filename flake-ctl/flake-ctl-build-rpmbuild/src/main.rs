@@ -78,13 +78,13 @@ impl FlakeBuilder for RPMBuilder {
             .arg("--define")
             .arg(format!("_topdir {}", location.to_string_lossy()))
             .arg(location.join("SPECS").join(&options.name).with_extension("spec"))
-            .status()?;
+            .status().context(format!("Failed to run {:?}", self.tooling))?;
 
         let package_dir = match self.tooling {
             Tooling::RPMBuild => "RPMS",
             Tooling::DebBuild => "DEBS",
         };
-        copy_items(&[location.join(package_dir)], target.unwrap_or_else(|| Path::new(".")), &CopyOptions::default())?;
+        copy_items(&[location.join(package_dir)], target.unwrap_or_else(|| Path::new(".")), &CopyOptions::default()).context("Failed to copy build result")?;
         Ok(())
     }
 

@@ -84,13 +84,13 @@ pub trait FlakeBuilder {
             .context(format!("Failed to load config for {}", options.name))?;
         self.create_bundle(&flake_path, &options, &config, &location)?;
 
-        let result = if !args.dry_run { self.build(&options, args.target.as_deref(), &location) } else { Ok(()) };
+        let result = if !args.dry_run { self.build(&options, args.target.as_deref(), &location).context("Build failed") } else { Ok(()) };
 
-        let cleanup_mode = mode.cleanup(&flake_path);
+        let cleanup_mode = mode.cleanup(&flake_path).context("Cleanup failed (temporary flake)");
         if !args.keep {
-            self.cleanup(&location)?;
+            self.cleanup(&location).context("Cleanup failed (build files)")?;
             if cleanup_default {
-                self.cleanup_default_directory(&location)?
+                self.cleanup_default_directory(&location).context("Cleanup failed (build location)")?
             }
         }
 
@@ -203,7 +203,7 @@ impl Mode {
                         .arg("--app")
                         .arg(app)
                         .status()?;
-                }
+                                    }
                 // remove_file(path)?;
                 Ok(())
             }
