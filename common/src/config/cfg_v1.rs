@@ -2,9 +2,9 @@ use crate::config::{cfgparse::FlakeCfgVersionParser, itf::FlakeConfig};
 use nix::unistd::User;
 use serde::Deserialize;
 use serde_yaml::Value;
-use std::{collections::HashMap, io::Error, path::PathBuf};
+use std::{io::Error, path::PathBuf};
 
-use super::itf::{FlakeCfgEngine, FlakeCfgPathProperties, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode};
+use super::itf::{FlakeCfgEngine, FlakeCfgPathProperties, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode, PathMap};
 
 #[derive(Deserialize, Debug)]
 struct CfgV1Spec {
@@ -120,11 +120,11 @@ impl CfgV1OciRuntime {
     }
 
     fn has_resume(&self) -> bool {
-        self.resume.is_some()
+        self.resume.unwrap_or(false)
     }
 
     fn has_attach(&self) -> bool {
-        self.attach.is_some()
+        self.attach.unwrap_or(false)
     }
 
     /// Get podman runtime. At the time of config v1 was no other runtime support.
@@ -240,10 +240,10 @@ impl FlakeCfgV1 {
             rt_flags |= InstanceMode::Resume;
         }
 
-        let mut paths: HashMap<PathBuf, FlakeCfgPathProperties> = HashMap::new();
-        paths.insert(
-            PathBuf::from(spec.get_container().get_target_app_path()),
-            FlakeCfgPathProperties::new(PathBuf::from(spec.get_container().get_host_app_path())),
+        let mut paths = PathMap::default();
+        paths.inner.insert(
+            PathBuf::from(spec.get_container().get_host_app_path()),
+            FlakeCfgPathProperties::new(PathBuf::from(spec.get_container().get_target_app_path())),
         );
 
         FlakeConfig {
@@ -275,10 +275,10 @@ impl FlakeCfgV1 {
             rt_flags |= InstanceMode::Resume;
         }
 
-        let mut paths: HashMap<PathBuf, FlakeCfgPathProperties> = HashMap::new();
-        paths.insert(
-            PathBuf::from(spec.get_vm().get_target_app_path()),
-            FlakeCfgPathProperties::new(PathBuf::from(spec.get_vm().get_host_app_path())),
+        let mut paths: PathMap = PathMap::new();
+        paths.inner.insert(
+            PathBuf::from(spec.get_vm().get_host_app_path()),
+            FlakeCfgPathProperties::new(PathBuf::from(spec.get_vm().get_target_app_path())),
         );
 
         FlakeConfig {
@@ -307,9 +307,9 @@ impl FlakeCfgVersionParser for FlakeCfgV1 {
         match serde_yaml::from_value::<CfgV1Spec>(self.content.to_owned()) {
             Ok(spec) => {
                 if let Value::Mapping(content) = &self.content {
-                    if content.contains_key("container") {
+                    if content.contains_key("container") && content.get("container").is_some() {
                         return Ok(self.as_container(spec));
-                    } else if content.contains_key("vm") {
+                    } else if content.contains_key("vm") && content.get("vm").is_some() {
                         return Ok(self.as_vm(spec));
                     }
                 }
