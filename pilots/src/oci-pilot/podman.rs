@@ -54,18 +54,4 @@ impl PodmanPilot {
 
         Ok(())
     }
-
-    fn is_image_exists(&self, name: &str) -> Result<bool, Error> {
-        Ok(false)
-    }
-
-    /// Mount container. Returns the mount point, if succeeded
-    fn mount(&self, as_image: bool) -> Result<PathBuf, Error> {
-        Ok(PathBuf::from("/mount/point"))
-    }
-
-    /// Umount container.
-    fn umount(&self, mountpoint: PathBuf, as_image: bool) -> Result<(), Error> {
-        Ok(())
-    }
 }
