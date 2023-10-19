@@ -1,11 +1,10 @@
-use crate::{datasync::DataSync, fgc::CidGarbageCollector, pdsys::PdSysCall};
+use crate::{fgc::CidGarbageCollector, pdsys::PdSysCall};
 use flakes::config::itf::{FlakeConfig, InstanceMode};
 use std::fs;
 use std::io::Error;
 use std::path::PathBuf;
 
 pub(crate) struct PodmanRunner {
-    datasync: DataSync,
     app: String,
     cfg: FlakeConfig,
     gc: CidGarbageCollector,
@@ -18,7 +17,6 @@ pub(crate) struct PodmanRunner {
 impl PodmanRunner {
     pub(crate) fn new(app: String, cfg: FlakeConfig, debug: bool) -> Self {
         PodmanRunner {
-            datasync: DataSync {},
             gc: CidGarbageCollector::new(debug),
             pds: PdSysCall::new(debug),
             cid: None,

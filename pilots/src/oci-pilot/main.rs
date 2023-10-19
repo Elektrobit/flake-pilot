@@ -1,7 +1,6 @@
 use flakes::logger;
 use std::env;
 
-mod datasync;
 mod datatracker;
 mod fgc;
 mod pdm_tests;
