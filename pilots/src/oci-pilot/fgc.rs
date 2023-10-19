@@ -54,27 +54,19 @@ impl CidGarbageCollector {
     /// Check all existing CID files for their validity
     pub fn on_all(&self) -> Result<(), Error> {
         log::debug!("GC start");
-        for e in flakes::config::get_cid_store()?.read_dir()? {
-            if let Ok(e) = e {
-                match self.on_cidfile(e.path()) {
-                    Ok(r) => {
-                        if !r.0 {
-                            log::debug!("Removed {:?}", e.file_name());
-                        }
+        for e in flakes::config::get_cid_store()?.read_dir()?.flatten() {
+            match self.on_cidfile(e.path()) {
+                Ok(r) => {
+                    if !r.0 {
+                        log::debug!("Removed {:?}", e.file_name());
                     }
-                    Err(err) => {
-                        log::error!("Garbage collector error: {}", err);
-                    }
+                }
+                Err(err) => {
+                    log::error!("Garbage collector error: {}", err);
                 }
             }
         }
         log::debug!("GC finished");
-        Ok(())
-    }
-
-    /// Remove CID file no matter what. Used usually as a deferred method
-    /// on non-resumable Flake
-    pub fn force_cidfile(&self, cidfile: PathBuf) -> Result<(), Error> {
         Ok(())
     }
 }
