@@ -5,6 +5,7 @@ use flakes::config::itf::FlakeConfig;
 /// Podman caller
 ///
 
+#[derive(Clone)]
 pub(crate) struct PdSysCall {
     debug: bool,
     cfg: FlakeConfig,

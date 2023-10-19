@@ -27,6 +27,8 @@ impl PodmanPilot {
 
     /// Start Podman Pilot instance
     pub(crate) fn start(&mut self) -> Result<(), Error> {
+        let jh = self.runner.cid_collect();
+
         if self.runner.setup_container()? && self.runner.is_running()? {
             if *self.runner.get_cfg().runtime().instance_mode() & InstanceMode::Attach == InstanceMode::Attach {
                 (self.stdout, self.stderr) = self.runner.attach()?;
@@ -50,6 +52,10 @@ impl PodmanPilot {
 
         if !self.stderr.is_empty() {
             log::error!("{}", self.stderr);
+        }
+
+        if let Err(err) = jh.join() {
+            log::error!("{:?}", err);
         }
 
         Ok(())

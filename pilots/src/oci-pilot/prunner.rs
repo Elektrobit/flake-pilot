@@ -1,8 +1,8 @@
 use crate::{fgc::CidGarbageCollector, pdsys::PdSysCall};
 use flakes::config::itf::{FlakeConfig, InstanceMode};
-use std::fs;
-use std::io::Error;
 use std::path::PathBuf;
+use std::{fs, thread};
+use std::{io::Error, thread::JoinHandle};
 
 pub(crate) struct PodmanRunner {
     app: String,
@@ -67,6 +67,12 @@ impl PodmanRunner {
 
         self.cidfile = Some(flakes::config::get_cid_store()?.join(format!("{}{}.cid", self.app.to_owned(), suff)));
         Ok(self.cidfile.to_owned().unwrap())
+    }
+
+    /// Purge bogus CID files
+    pub(crate) fn cid_collect(&self) -> JoinHandle<Result<(), Error>> {
+        let gc = self.gc.to_owned();
+        thread::spawn(move || gc.on_all())
     }
 
     /// Get CID (should be initialised)
