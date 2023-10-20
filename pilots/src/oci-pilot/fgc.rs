@@ -53,16 +53,25 @@ impl CidGarbageCollector {
 
     /// Check all existing CID files for their validity
     pub fn on_all(&self, current: PathBuf) -> Result<(), Error> {
-        log::debug!("GC start");
+        if self.debug {
+            log::debug!("GC start");
+        }
+
         for e in flakes::config::get_cid_store()?.read_dir()?.flatten() {
             if e.path() == current {
                 continue; // skip current CID, which will be examined anyways
             }
-            log::debug!("GC: verifying {:?}", e.file_name());
+
+            if self.debug {
+                log::debug!("GC: verifying {:?}", e.file_name());
+            }
+
             match self.on_cidfile(e.path()) {
                 Ok(r) => {
                     if !r.0 {
-                        log::debug!("GC: Removed {:?}", e.file_name());
+                        if self.debug {
+                            log::debug!("GC: Removed {:?}", e.file_name());
+                        }
                     }
                 }
                 Err(err) => {
@@ -70,7 +79,11 @@ impl CidGarbageCollector {
                 }
             }
         }
-        log::debug!("GC finished");
+
+        if self.debug {
+            log::debug!("GC finished");
+        }
+
         Ok(())
     }
 }
