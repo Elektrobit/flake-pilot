@@ -58,14 +58,15 @@ impl CidGarbageCollector {
             if e.path() == current {
                 continue; // skip current CID, which will be examined anyways
             }
+            log::debug!("GC: verifying {:?}", e.file_name());
             match self.on_cidfile(e.path()) {
                 Ok(r) => {
                     if !r.0 {
-                        log::debug!("Removed {:?}", e.file_name());
+                        log::debug!("GC: Removed {:?}", e.file_name());
                     }
                 }
                 Err(err) => {
-                    log::error!("Garbage collector error: {}", err);
+                    log::error!("GC error: {}", err);
                 }
             }
         }
