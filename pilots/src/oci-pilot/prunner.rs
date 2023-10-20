@@ -153,7 +153,7 @@ impl PodmanRunner {
             args.push("--rm".to_string());
         }
 
-        for arg in self.get_cfg().engine().args().unwrap_or(vec![]) {
+        for arg in self.get_cfg().engine().args().unwrap_or_default() {
             // Remove params that are already there
             if arg == "-ti" || arg == "--rm" {
                 continue;
