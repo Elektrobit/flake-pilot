@@ -68,10 +68,8 @@ impl CidGarbageCollector {
 
             match self.on_cidfile(e.path()) {
                 Ok(r) => {
-                    if !r.0 {
-                        if self.debug {
-                            log::debug!("GC: Removed {:?}", e.file_name());
-                        }
+                    if !r.0 && self.debug {
+                        log::debug!("GC: Removed {:?}", e.file_name());
                     }
                 }
                 Err(err) => {
