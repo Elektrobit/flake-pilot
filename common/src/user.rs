@@ -1,11 +1,9 @@
-use std::{process::Command, ffi::OsStr};
-
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
+use std::{ffi::OsStr, process::Command};
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub struct User<'a> {
-    name: Option<&'a str>
+    name: Option<&'a str>,
 }
 
 impl<'a> From<&'a str> for User<'a> {
@@ -15,7 +13,7 @@ impl<'a> From<&'a str> for User<'a> {
 }
 
 impl<'a> User<'a> {
-    pub const ROOT: User<'static> = User { name: Some("root")};
+    pub const ROOT: User<'static> = User { name: Some("root") };
 
     pub fn run<S: AsRef<OsStr>>(&self, command: S) -> Command {
         let mut c = Command::new("sudo");

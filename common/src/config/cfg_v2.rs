@@ -1,4 +1,4 @@
-use super::itf::{FlakeCfgEngine, FlakeCfgPathProperties, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode};
+use super::itf::{FlakeCfgEngine, FlakeCfgPathProperties, FlakeCfgRuntime, FlakeCfgSetup, FlakeCfgStatic, InstanceMode, PathMap};
 use crate::config::{cfgparse::FlakeCfgVersionParser, itf::FlakeConfig};
 use nix::unistd::User;
 use serde::Deserialize;
@@ -56,8 +56,8 @@ impl CfgV2Runtime {
         im
     }
 
-    fn get_path_map(&self) -> HashMap<PathBuf, FlakeCfgPathProperties> {
-        let mut pmap: HashMap<PathBuf, FlakeCfgPathProperties> = HashMap::default();
+    fn get_path_map(&self) -> PathMap {
+        let mut pmap: PathMap = PathMap::default();
         self.path_map.clone().into_iter().for_each(|(target, props)| {
             if let Ok(rp) = serde_yaml::from_value::<CfgV2PathProperties>(props) {
                 let mut i_mode = InstanceMode::Volatile;
@@ -77,7 +77,7 @@ impl CfgV2Runtime {
                 } else {
                     i_mode = self.get_instance();
                 }
-                pmap.insert(
+                pmap.inner.insert(
                     PathBuf::from(target.clone()),
                     FlakeCfgPathProperties {
                         exports: if rp.exports.is_none() { PathBuf::from(target) } else { PathBuf::from(rp.exports.unwrap()) },

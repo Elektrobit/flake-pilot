@@ -1,7 +1,13 @@
 use bitflags::bitflags;
 use nix::unistd::User;
 use serde_yaml::Value;
-use std::{collections::HashMap, default::Default, path::PathBuf};
+use std::{
+    collections::HashMap,
+    default::Default,
+    hash::Hash,
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+};
 
 /// FlakeConfig is an interface for all configuration possible
 /// across all suppirted versions of the config.
@@ -66,6 +72,39 @@ impl Default for FlakeConfig {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct PathMap {
+    pub(crate) inner: HashMap<PathBuf, FlakeCfgPathProperties>,
+}
+
+impl Deref for PathMap {
+    type Target = HashMap<PathBuf, FlakeCfgPathProperties>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for PathMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl PathMap {
+    pub fn new() -> Self {
+        PathMap { inner: HashMap::new() }
+    }
+
+    /// Get properties by a PathBuf.
+    pub fn get_by_path(&self, p: PathBuf) -> Option<&FlakeCfgPathProperties> {
+        if let Some(p) = self.get(&p) {
+            return Some(p);
+        }
+        self.get(&PathBuf::from(p.file_name().unwrap()))
+    }
+}
+
 /// FlakeConfigRuntime is a namespace for all runtime-related
 /// configuration options
 #[derive(Debug, Clone)]
@@ -83,7 +122,8 @@ pub struct FlakeCfgRuntime {
 
     pub(crate) instance_mode: InstanceMode,
 
-    pub(crate) paths: HashMap<PathBuf, FlakeCfgPathProperties>,
+    //pub(crate) paths: HashMap<PathBuf, FlakeCfgPathProperties>,
+    pub(crate) paths: PathMap,
 }
 
 impl FlakeCfgRuntime {
@@ -118,7 +158,7 @@ impl FlakeCfgRuntime {
     }
 
     /// Get the path-map
-    pub fn paths(&self) -> &HashMap<PathBuf, FlakeCfgPathProperties> {
+    pub fn paths(&self) -> &PathMap {
         &self.paths
     }
 }
@@ -131,7 +171,7 @@ impl Default for FlakeCfgRuntime {
             layers: None,
             run_as: None,
             instance_mode: InstanceMode::default(),
-            paths: HashMap::default(),
+            paths: PathMap::default(),
         }
     }
 }
