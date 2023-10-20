@@ -70,9 +70,10 @@ impl PodmanRunner {
     }
 
     /// Purge bogus CID files
-    pub(crate) fn cid_collect(&self) -> JoinHandle<Result<(), Error>> {
+    pub(crate) fn cid_collect(&mut self) -> JoinHandle<Result<(), Error>> {
+        let cidf = self.get_cidfile().unwrap().to_owned();
         let gc = self.gc.to_owned();
-        thread::spawn(move || gc.on_all())
+        thread::spawn(move || gc.on_all(cidf))
     }
 
     /// Get CID (should be initialised)
