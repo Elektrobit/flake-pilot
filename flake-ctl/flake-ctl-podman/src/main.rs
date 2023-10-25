@@ -54,7 +54,8 @@ fn main() -> Result<ExitCode> {
         Podman::About => {
             println!("Manage podman/oci based flakes;ENGINE");
             Ok(())
-        }
+        },
+        Podman::Export { flake, target } => podman::export(&flake, &target),
     }?;
     Ok(ExitCode::SUCCESS)
 }

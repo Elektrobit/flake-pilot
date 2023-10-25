@@ -1,6 +1,6 @@
 use self::{cfgparse::FlakeCfgParser, itf::FlakeConfig};
 use lazy_static::lazy_static;
-use std::{env, fs, io::Error, path::PathBuf, sync::Mutex};
+use std::{env, fs, io::Error, path::{PathBuf, Path}, sync::Mutex};
 
 pub mod cfg_v1;
 pub mod cfg_v2;
@@ -92,12 +92,10 @@ pub fn app_path() -> Result<PathBuf, Error> {
 
 pub fn get() -> FlakeConfig {
     CFG.to_owned()
-}
 
-/// Load config for the host app path
-fn load() -> Result<FlakeConfig, Error> {
-    //pub fn load_for_app() {
-    let app_p = app_path().unwrap();
+}
+pub fn load_from_target(app_p: &Path) -> Result<FlakeConfig, Error> {
+
     let app_ps = app_p.file_name().unwrap().to_str().unwrap().to_string();
 
     // Get app configuration
@@ -119,4 +117,11 @@ fn load() -> Result<FlakeConfig, Error> {
         Some(cfg) => Ok(cfg),
         None => Err(Error::new(std::io::ErrorKind::NotFound, "Unable to read configuration")),
     }
+}
+
+/// Load config for the host app path
+pub fn load() -> Result<FlakeConfig, Error> {
+    //pub fn load_for_app() {
+    let app_p = app_path().unwrap();
+    load_from_target(&app_p)
 }

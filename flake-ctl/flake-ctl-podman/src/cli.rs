@@ -1,4 +1,4 @@
-use std::{fs::OpenOptions, path::Path};
+use std::{fs::OpenOptions, path::{Path, PathBuf}};
 
 use anyhow::{bail, Context, Result};
 use clap::{ArgGroup, Args, Parser};
@@ -72,6 +72,16 @@ pub enum Podman {
         /// If not specified it will be taken from uname -m
         #[clap(long)]
         arch: Option<String>,
+    },
+    /// Export the oci-container
+    Export {
+        /// Flake name
+        flake: String,
+        /// Where to store the export
+        /// 
+        /// The semantics are identical to `mv` on unix, so if a path with a name is given the exported archive will have that name,
+        /// if a path with a trailing slash is given the archive will be exported in to that directory with its original name
+        target: PathBuf
     },
     /// Print the info string for flake-ctl
     About
