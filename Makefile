@@ -39,6 +39,7 @@ sourcetar:
 	cp -a doc package/flake-pilot/
 	cp -a utils package/flake-pilot/
 	cp -a vendor package/flake-pilot
+	cp -a common package/flake-pilot/
 	cp Cargo.toml package/flake-pilot
 
 	# Delete any target directories that may be present
@@ -111,6 +112,10 @@ install:
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker.json
 	install -m 644 doc/*.8 ${DESTDIR}/usr/share/man/man8
 	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
+	install -m 644 flake-ctl/flake-ctl-firecracker/templates/firecracker.yaml \
+	    $(DESTDIR)$(TEMPLATEDIR)
+	install -m 644 flake-ctl/flake-ctl-podman/templates/podman.yaml \
+	    $(DESTDIR)$(TEMPLATEDIR)
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl

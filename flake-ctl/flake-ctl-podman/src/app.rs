@@ -56,10 +56,8 @@ pub fn register(host_app_path: &str, target_app_path: &str, engine: &str) -> Res
 }
 
 pub fn remove(app: &Path) -> Result<()> {
-    /*!
-    Delete application link and config files
-    !*/
-    if app.is_absolute() {
+    //    Delete application link and config files
+    if !app.is_absolute() {
         bail!("Application must be specified with an absolute path");
     }
     info!("Removing application: {}", app.to_string_lossy());

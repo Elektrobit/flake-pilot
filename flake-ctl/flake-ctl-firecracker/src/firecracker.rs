@@ -131,10 +131,10 @@ pub async fn pull_component_image(
                     file: Cow::Borrowed(&kernel_file),
                 }
             );
-            if initrd_uri.is_some() {
+            if let Some(initrd_uri) = initrd_uri {
                 download_files.push(
                     Component {
-                        uri: initrd_uri.unwrap().to_string(),
+                        uri: initrd_uri.to_string(),
                         file: Cow::Borrowed(&initrd_file),
                     }
                 );
