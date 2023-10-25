@@ -3,7 +3,7 @@ use std::{env::var, io::stdin};
 use anyhow::{Result, anyhow, Context};
 use clap::Args;
 
-use crate::BuilderArgs;
+use crate::builder::BuilderArgs;
 
 
 fn user_input(name: &str) -> Result<String> {
@@ -13,27 +13,38 @@ fn user_input(name: &str) -> Result<String> {
     Ok(buf.trim_end().to_owned())
 }
 
+macro_rules! update {
+    ($options:ident : $($name:ident = $getter:expr;)*) => {
+        $($options.$name = $options.$name.or_else(|| $getter.ok());)*
+    };
+}
+
 impl BuilderArgs {
     pub fn determine_options(&self) -> Result<PackageOptions> {
+        // Options may already be filled via the cli
         let mut options = self.options.clone();
 
         // Read from env where not given
-        options.name = options.name.or_else(|| var("PKG_FLAKE_NAME").ok());
-        options.description = options.description.or_else(|| var("PKG_FLAKE_DESCRIPTION").ok());
-        options.version = options.version.or_else(|| var("PKG_FLAKE_VERSION").ok());
-        options.url = options.url.or_else(|| var("PKG_FLAKE_URL").ok());
-        options.maintainer_name = options.maintainer_name.or_else(|| var("PKG_FLAKE_MAINTAINER_NAME").ok());
-        options.maintainer_email = options.maintainer_email.or_else(|| var("PKG_FLAKE_MAINTAINER_EMAIL").ok());
-        options.license = options.license.or_else(|| var("PKG_FLAKE_LICENSE").ok());
+        update!(options:
+            name = var("PKG_FLAKE_NAME");
+            description = var("PKG_FLAKE_DESCRIPTION");
+            version = var("PKG_FLAKE_VERSION");
+            url = var("PKG_FLAKE_URL");
+            maintainer_name = var("PKG_FLAKE_MAINTAINER_NAME");
+            maintainer_email = var("PKG_FLAKE_MAINTAINER_EMAIL");
+            license = var("PKG_FLAKE_LICENSE");
+        );
 
         if !self.ci {
-            options.name = options.name.or_else(|| user_input("Name").ok());
-            options.description = options.description.or_else(|| user_input("Description").ok());
-            options.version = options.version.or_else(|| user_input("Version").ok());
-            options.url = options.url.or_else(|| user_input("URL").ok());
-            options.maintainer_name = options.maintainer_name.or_else(|| user_input("Maintainer Name").ok());
-            options.maintainer_email = options.maintainer_email.or_else(|| user_input("Maintainer Email").ok());
-            options.license = options.license.or_else(|| user_input("License").ok());
+            update!(options:
+                name = user_input("Name");
+                description = user_input("Description");
+                version = user_input("Version");
+                url = user_input("URL");
+                maintainer_name = user_input("Maintainer Name");
+                maintainer_email = user_input("Maintainer Email");
+                license = user_input("License");
+            );
         }
 
         options.build().context("Missing packaging option")

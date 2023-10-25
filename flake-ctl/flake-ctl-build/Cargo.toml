@@ -1,5 +1,5 @@
 [package]
-name = "flake_ctl_build"
+name = "flake-ctl-build"
 version = "0.1.0"
 edition = "2021"
 
@@ -18,3 +18,4 @@ fs_extra = "1.3.0"
 anyhow = "1.0.75"
 derive_builder = "0.12.0"
 uuid = { version = "1.4.1", features = ["v4"] }
+sys-info = "0.9.1"
