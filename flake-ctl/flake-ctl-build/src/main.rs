@@ -65,15 +65,15 @@ struct Cli {
 
 #[derive(Debug)]
 enum PackageManager {
-    RPM,
-    DPKG,
+    Rpm,
+    Dpkg,
 }
 
 impl Display for PackageManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PackageManager::RPM => f.write_str("rpmbuild"),
-            PackageManager::DPKG => f.write_str("dpkg-deb"),
+            PackageManager::Rpm => f.write_str("rpmbuild"),
+            PackageManager::Dpkg => f.write_str("dpkg-deb"),
         }
     }
 }
@@ -92,8 +92,8 @@ impl PackageManager {
 
     fn run(&self) -> Result<ExitStatus> {
         Command::new(match self {
-            PackageManager::RPM => "flake-ctl-build-rpmbuild",
-            PackageManager::DPKG => "flake-ctl-build-dpkg",
+            PackageManager::Rpm => "flake-ctl-build-rpmbuild",
+            PackageManager::Dpkg => "flake-ctl-build-dpkg",
         })
         .args(env::args().skip(1))
         .status()
@@ -105,8 +105,8 @@ impl FromStr for PackageManager {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "debian" => Ok(Self::DPKG),
-            "redhat" => Ok(Self::RPM),
+            "debian" => Ok(Self::Dpkg),
+            "redhat" => Ok(Self::Rpm),
             _ => Err(anyhow!("No Packagemanager available")),
         }
     }

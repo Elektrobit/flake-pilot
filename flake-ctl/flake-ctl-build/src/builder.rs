@@ -108,7 +108,7 @@ pub trait FlakeBuilder {
 #[derive(Debug, Subcommand)]
 pub enum Subcmd {
     #[clap(flatten)]
-    Mode(Mode),
+    Mode(Box<Mode>),
     #[clap(hide = true)]
     About,
 }
@@ -276,7 +276,7 @@ struct FullArgs<T: FromArgMatches + Args + FlakeBuilder> {
 pub fn run<T: FromArgMatches + Args + FlakeBuilder>() -> Result<()> {
     let command = FullArgs::<T>::parse();
     match command.subcmd {
-        Subcmd::Mode(mode) => command.builder.run(mode),
+        Subcmd::Mode(mode) => command.builder.run(*mode),
         Subcmd::About => {
             println!("{};PACKAGER", command.builder.description());
             Ok(())
