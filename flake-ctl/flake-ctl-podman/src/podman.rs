@@ -199,7 +199,8 @@ pub fn export(flake: &str, target: &Path) -> Result<()> {
     let tmp = tempdir().context("Failed to create tmp dir")?;
     let status = Command::new("podman")
         .arg("save")
-        .args(["--format", "oci-archive"])
+        .arg("--format")
+        .arg("oci-archive")
         .arg("-o")
         .arg(tmp.path().join(image))
         .arg(image)
