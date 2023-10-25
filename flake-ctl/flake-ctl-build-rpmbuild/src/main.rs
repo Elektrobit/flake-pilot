@@ -5,6 +5,7 @@ use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir_in;
 
 use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, PathBuf, copy_configs};
+use flakes::config::FLAKE_DIR;
 
 fn main() -> Result<()> {
     flake_ctl_build::run::<RPMBuilder>()
@@ -20,7 +21,7 @@ use std::{
 #[derive(Args)]
 pub struct RPMBuilder {
     /// Location of .spec template and pilot specific data
-    #[arg(long, default_value = "/usr/share/flakes/package/rpmbuild")]
+    #[arg(long, default_value = FLAKE_DIR.join("package/rpmbuild").into_os_string())]
     template: PathBuf,
 
     /// skip spec editing
