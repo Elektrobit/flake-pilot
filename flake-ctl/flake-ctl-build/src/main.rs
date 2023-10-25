@@ -84,7 +84,7 @@ impl PackageManager {
         id_like
             .into_iter()
             .flat_map(|list| list.split(' ').map(str::to_owned).collect::<Vec<_>>())
-            .chain(id.into_iter())
+            .chain(id)
             .map(|x| x.parse())
             .find(Result::is_ok)
             .unwrap_or(Err(anyhow!("No Packagemanager available")))
