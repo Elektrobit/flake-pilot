@@ -49,6 +49,11 @@ impl From<Tooling> for OsStr {
 }
 
 impl FlakeBuilder for RPMBuilder {
+
+    fn description(&self) -> &str {
+        "Package flakes with rpmbuild"
+    }
+
     fn setup(&self, location: &Path) -> Result<()> {
         self.infrastructure(location, create_dir_all)
     }

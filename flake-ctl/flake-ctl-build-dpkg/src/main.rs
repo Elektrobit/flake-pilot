@@ -25,6 +25,10 @@ struct DPKGBuilder {
 }
 
 impl FlakeBuilder for DPKGBuilder {
+    fn description(&self) -> &str {
+        "Package flakes with dpkg-deb"
+    }
+
     fn setup(&self, location: &Path) -> Result<()> {
         self.infrastructure(location, create_dir_all)
     }

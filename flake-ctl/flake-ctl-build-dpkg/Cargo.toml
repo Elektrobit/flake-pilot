@@ -15,5 +15,5 @@ fs_extra = "1.3.0"
 anyhow = "1.0.75"
 derive_builder = "0.12.0"
 
-flake_ctl_build = { version = "0.1.0", path = "../flake-ctl-build" }
+flake-ctl-build = { version = "0.1.0", path = "../flake-ctl-build" }
 flakes = { version = "0.1.0", path = "../../common" }
