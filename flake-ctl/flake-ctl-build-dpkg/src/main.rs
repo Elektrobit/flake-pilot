@@ -56,7 +56,7 @@ impl FlakeBuilder for DPKGBuilder {
         Ok(())
     }
 
-    fn cleanup(&self, location: &Path) -> Result<()> {
+    fn purge(&self, location: &Path) -> anyhow::Result<()> {
         self.infrastructure(location, remove_dir_all)
     }
 }

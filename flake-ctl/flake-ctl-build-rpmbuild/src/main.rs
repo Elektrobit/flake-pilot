@@ -5,6 +5,7 @@ use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir_in;
 
 use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, copy_configs};
+use flakes::config::FLAKE_DIR;
 
 fn main() -> Result<()> {
     flake_ctl_build::run::<RPMBuilder>()
@@ -20,7 +21,7 @@ use std::{
 #[derive(Args)]
 pub struct RPMBuilder {
     /// Location of .spec template and pilot specific data
-    #[arg(long, default_value = "/usr/share/flakes/package/rpmbuild")]
+    #[arg(long, default_value = FLAKE_DIR.join("package/rpmbuild").into_os_string())]
     template: PathBuf,
 
     /// skip spec editing
@@ -93,7 +94,7 @@ impl FlakeBuilder for RPMBuilder {
         Ok(())
     }
 
-    fn cleanup(&self, location: &Path) -> Result<()> {
+    fn purge(&self, location: &Path) -> Result<()> {
         self.infrastructure(location, remove_dir_all)
     }
 }
@@ -157,6 +158,20 @@ impl RPMBuilder {
         let data = self.template.join(config.engine().pilot());
         let requires = fs::read_to_string(&data).context(format!("Failed to load pilot specific data, {data:?}"))?;
 
+        let link_create = config
+            .runtime()
+            .paths()
+            .values()
+            .map(|p| format!("ln -s %{{_bindir}}/%{{_flake_pilot}}-pilot {}", p.exports().to_string_lossy()))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let link_remove = config
+            .runtime()
+            .paths()
+            .values()
+            .map(|p| format!("rm {}", p.exports().to_string_lossy()))
+            .collect::<Vec<_>>()
+            .join("\n");
         let vals = [
             ("%{_flake_name}", flake_name),
             ("%{_flake_package_name}", options.name.as_str()),
@@ -169,13 +184,13 @@ impl RPMBuilder {
             ("%{_flake_pilot}", config.engine().pilot()),
             ("%{_flake_requires}", &requires),
             ("%{_flake_dir}", &config::FLAKE_DIR.to_string_lossy()),
+            ("%{_flake_links_create}", &link_create),
+            ("%{_flake_links_remove}", &link_remove),
         ];
 
         for (placeholder, value) in vals {
             template = template.replace(placeholder, value);
         }
-
-        // TODO: multiple links
 
         Ok(template)
     }

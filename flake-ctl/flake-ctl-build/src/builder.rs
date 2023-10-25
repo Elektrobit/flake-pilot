@@ -37,7 +37,7 @@ pub trait FlakeBuilder {
     /// This may be run before _and_ after each build
     ///
     /// Only modify the contents of `location`, if the directory itself needs to be deleted this will be handled by [cleanup_default_directory]
-    fn cleanup(&self, location: &Path) -> Result<()>;
+    fn purge(&self, location: &Path) -> Result<()>;
 
     /// What directory to use when no build location is given, this defaults to a new tmp directory
     ///
@@ -78,7 +78,7 @@ pub trait FlakeBuilder {
         let flake_name = flake_path.path().file_name().ok_or_else(|| anyhow!("Invalid flake path"))?;
 
         // Clean the location if it is reused, ignore errors here
-        self.cleanup(&location).ok();
+        self.purge(&location).ok();
         self.setup(&location)?;
         let config = config::load_from_target(flake_path.root(), Path::new(flake_name))
             .context(format!("Failed to load config for {}", options.name))?;
@@ -89,7 +89,7 @@ pub trait FlakeBuilder {
 
         let cleanup_mode = mode.cleanup(&flake_path).context("Cleanup failed (temporary flake)");
         if !args.keep {
-            self.cleanup(&location).context("Cleanup failed (build files)")?;
+            self.purge(&location).context("Cleanup failed (build files)")?;
             if cleanup_default {
                 self.cleanup_default_directory(&location).context("Cleanup failed (build location)")?
             }

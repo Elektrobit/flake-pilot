@@ -204,7 +204,8 @@ pub fn export(root: &Path, flake: &str, target: &Path) -> Result<()> {
     println!("{}", tmp_target.to_string_lossy());
     let status = Command::new("podman")
         .arg("save")
-        .args(["--format", "oci-archive"])
+        .arg("--format")
+        .arg("oci-archive")
         .arg("-o")
         .arg(tmp_target)
         .arg(image)

@@ -29,11 +29,11 @@ cp ./%{_flake_dir}/%{_flake_name}.d $RPM_BUILD_ROOT/%{_flake_dir} -r
 cp %{_flake_name} $RPM_BUILD_ROOT/tmp
 
 %post
-podman load < /tmp/%{_flake_name}
-ln -s %{_bindir}/%{_flake_pilot}-pilot %{_bindir}/%{_flake_name}
+podman load < /tmp/%{name}
+%{_flake_links_create}
 
 %postun
-rm %{_bindir}/%{name}
+%{_flake_links_remove}
 
 %clean
 rm -rf $RPM_BUILD_ROOT

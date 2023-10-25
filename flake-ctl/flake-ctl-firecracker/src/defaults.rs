@@ -26,7 +26,7 @@ pub const FLAKE_DIR: &str =
 pub const FIRECRACKER_PILOT: &str =
     "/usr/bin/firecracker-pilot";
 pub const FLAKE_TEMPLATE_FIRECRACKER:&str =
-    "/etc/flakes/firecracker-flake.yaml";
+    "/etc/flakes/firecracker.yaml";
 pub const FIRECRACKER_REGISTRY_DIR:&str =
     "/var/lib/firecracker";
 pub const FIRECRACKER_IMAGES_DIR:&str =
