@@ -96,8 +96,6 @@ pub fn get() -> FlakeConfig {
 }
 pub fn load_from_target(app_p: &Path) -> Result<FlakeConfig, Error> {
 
-    //pub fn load_for_app() {
-    let app_p = app_path().unwrap();
     let app_ps = app_p.file_name().unwrap().to_str().unwrap().to_string();
 
     // Get app configuration
