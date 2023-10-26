@@ -113,7 +113,7 @@ pub enum Subcmd {
     About,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, Clone)]
 pub enum Mode {
     /// Package an existing flake
     Flake {
@@ -203,7 +203,7 @@ impl Mode {
 }
 
 /// Include this with #[command(flatten)] into your args
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 pub struct BuilderArgs {
     /// Name of the final package
     #[arg(long)]

@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
+use builder::{Mode, BuilderArgs};
 use clap::{Parser, Subcommand};
 use sys_info::LinuxOSReleaseInfo;
 
@@ -17,50 +18,46 @@ const NO_PACMAN_FOUND: &str = "No native package manager found. You can try to r
 fn main() -> Result<ExitCode> {
     let cli = Cli::parse();
 
-    match cli.subcmd.unwrap_or_default() {
+    match cli.subcmd {
         Subcmds::About => {
             println!("Package flakes and images with the native package manager;TOOL");
             Ok(ExitCode::SUCCESS)
         }
-        cmd @ (Subcmds::Which | Subcmds::Build) => {
+        Subcmds::Which => {
             let pacman = PackageManager::try_find_local_manager().context(NO_PACMAN_FOUND)?;
-
-            if cmd == Subcmds::Which {
-                println!("{pacman}");
-                Ok(ExitCode::SUCCESS)
-            } else {
-                match pacman.run()?.code() {
-                    Some(code) => Ok((code as u8).into()),
-                    None => Ok(ExitCode::FAILURE),
-                }
+            println!("{pacman};{}", pacman.builder());
+            Ok(ExitCode::SUCCESS)
+        }
+        // Concrete mode is ignored since it will be forwarded to the builder as-is.
+        Subcmds::Mode(_) => {
+            let pacman = PackageManager::try_find_local_manager().context(NO_PACMAN_FOUND)?;
+            match pacman.run()?.code() {
+                Some(code) => Ok((code as u8).into()),
+                None => Ok(ExitCode::FAILURE),
             }
         }
     }
 }
 
-#[derive(Subcommand, Debug, Clone, PartialEq)]
+#[derive(Subcommand, Debug, Clone)]
 enum Subcmds {
     #[clap(hide = true)]
     About,
-    /// Print the name of the native packaging tool
+    /// Prints the native package manager and flake builder
     Which,
-    #[clap(hide = true)]
-    Build,
-}
-
-impl Default for Subcmds {
-    fn default() -> Self {
-        Self::Build
-    }
+    // Embed the mode so help is generated accordingly
+    #[clap(flatten)]
+    Mode(Box<Mode>),
 }
 
 #[derive(Parser)]
 /// Package a flake using your native packaging tool
 struct Cli {
     #[clap(subcommand)]
-    subcmd: Option<Subcmds>,
-    #[clap(trailing_var_arg = true)]
-    args: Vec<String>,
+    subcmd: Subcmds,
+    // #[clap(trailing_var_arg = true)]
+    #[clap(flatten)]
+    args: BuilderArgs,
 }
 
 #[derive(Debug)]
@@ -90,11 +87,15 @@ impl PackageManager {
             .unwrap_or(Err(anyhow!("No Packagemanager available")))
     }
 
-    fn run(&self) -> Result<ExitStatus> {
-        Command::new(match self {
+    fn builder(&self) -> &str {
+        match self {
             PackageManager::Rpm => "flake-ctl-build-rpmbuild",
             PackageManager::Dpkg => "flake-ctl-build-dpkg",
-        })
+        }
+    }
+
+    fn run(&self) -> Result<ExitStatus> {
+        Command::new(self.builder())
         .args(env::args().skip(1))
         .status()
         .context("Failed to run builder")
