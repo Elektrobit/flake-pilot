@@ -1,7 +1,8 @@
 use std::{
     fs::{self, create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
-    process::Command, path::{PathBuf, Path},
+    path::{Path, PathBuf},
+    process::Command,
 };
 
 use anyhow::{Context, Ok, Result};
@@ -33,7 +34,9 @@ impl FlakeBuilder for DPKGBuilder {
         self.infrastructure(location, create_dir_all)
     }
 
-    fn create_bundle(&self, flake_name: &RootedPath, options: &PackageOptions, config: &FlakeConfig, location: &Path) -> Result<()> {
+    fn create_bundle(
+        &self, flake_name: &RootedPath, options: &PackageOptions, config: &FlakeConfig, location: &Path,
+    ) -> Result<()> {
         self.control_file(options, location, config.engine().pilot()).context("Failed to create control file")?;
         self.rules_file(location).context("Failed to create rules file")?;
         self.install_script(location, config).context("Failed to create install script")?;
@@ -108,11 +111,12 @@ impl DPKGBuilder {
     fn install_script(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let pilot = conf.engine().pilot();
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("postinst"))?;
-        conf.runtime()
-            .paths()
-            .values()
-            .map(|x| x.exports().to_string_lossy())
-            .try_for_each(|path| script.write_all(format!("ln /usr/bin/{pilot}-pilot {path}\n").as_bytes()))?;
+        
+        if let Some((first, mut rest)) = conf.runtime().get_symlinks() {
+            let first = first.to_string_lossy();
+            script.write_all(format!("ln /usr/bin/{pilot}-pilot {first}\n").as_bytes())?;
+            rest.try_for_each(|path| script.write_all(format!("ln {first} {}\n", path.to_string_lossy()).as_bytes()))?;
+        }
         Ok(())
     }
 
@@ -120,8 +124,8 @@ impl DPKGBuilder {
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("prerm"))?;
         conf.runtime()
             .paths()
-            .values()
-            .map(|x| x.exports().to_string_lossy())
+            .keys()
+            .map(|x| x.to_string_lossy())
             .try_for_each(|path| script.write_all(format!("rm {path}\n").as_bytes()))?;
         Ok(())
     }

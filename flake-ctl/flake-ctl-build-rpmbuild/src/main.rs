@@ -157,21 +157,23 @@ impl RPMBuilder {
         // TODO: Drop line with empty information completely
         let data = self.template.join(config.engine().pilot());
         let requires = fs::read_to_string(&data).context(format!("Failed to load pilot specific data, {data:?}"))?;
+        
+        let mut symlinks: Vec<String> = vec![];
+        if let Some((first, rest)) = config.runtime().get_symlinks() {
+            let first = first.to_string_lossy();
+            symlinks.push(format!("ln -s %{{_bindir}}/%{{_flake_pilot}}-pilot {first}"));
+            symlinks.extend(rest.map(|path| format!("ln {first} {}", path.to_string_lossy())))
+        }
+        let link_create = symlinks.join("\n");
 
-        let link_create = config
-            .runtime()
-            .paths()
-            .values()
-            .map(|p| format!("ln -s %{{_bindir}}/%{{_flake_pilot}}-pilot {}", p.exports().to_string_lossy()))
-            .collect::<Vec<_>>()
-            .join("\n");
         let link_remove = config
             .runtime()
             .paths()
-            .values()
-            .map(|p| format!("rm {}", p.exports().to_string_lossy()))
+            .keys()
+            .map(|p| format!("rm {}", p.to_string_lossy()))
             .collect::<Vec<_>>()
             .join("\n");
+
         let vals = [
             ("%{_flake_name}", flake_name),
             ("%{_flake_package_name}", options.name.as_str()),
