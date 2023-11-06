@@ -39,11 +39,12 @@ impl FlakeBuilder for DPKGBuilder {
     ) -> Result<()> {
         self.control_file(options, location, config.engine().pilot()).context("Failed to create control file")?;
         self.rules_file(location).context("Failed to create rules file")?;
-        self.install_script(location, config).context("Failed to create install script")?;
+        self.install_script(flake_name, location, config).context("Failed to create install script")?;
         self.uninstall_script(location, config).context("Failed to create uninstall script")?;
         let export_path = &location.join(flakes::config::FLAKE_DIR.strip_prefix("/").unwrap());
         create_dir_all(export_path)?;
-        export_flake(flake_name, config.engine().pilot(), export_path).context("Failed to export flake")?;
+        create_dir_all(location.join("tmp"))?;
+        export_flake(flake_name, config.engine().pilot(), &location.join("tmp")).context("Failed to export flake")?;
         copy_configs(flake_name, location)?;
         Ok(())
     }
@@ -108,14 +109,18 @@ impl DPKGBuilder {
         Ok(())
     }
 
-    fn install_script(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
+    fn install_script(&self, flake_name: &RootedPath, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let pilot = conf.engine().pilot();
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("postinst"))?;
         
+        let name = flake_name.file_name().unwrap_or_default().to_string_lossy();
+        // TODO: Needs to be read from template for other pilots
+        script.write_all(format!("podman load  < /tmp/{name}\n").as_bytes())?;
+
         if let Some((first, mut rest)) = conf.runtime().get_symlinks() {
             let first = first.to_string_lossy();
-            script.write_all(format!("ln /usr/bin/{pilot}-pilot {first}\n").as_bytes())?;
-            rest.try_for_each(|path| script.write_all(format!("ln {first} {}\n", path.to_string_lossy()).as_bytes()))?;
+            script.write_all(format!("ln -s /usr/bin/{pilot}-pilot {first}\n").as_bytes())?;
+            rest.try_for_each(|path| script.write_all(format!("ln -s {first} {}\n", path.to_string_lossy()).as_bytes()))?;
         }
         Ok(())
     }
