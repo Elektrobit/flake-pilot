@@ -89,10 +89,13 @@ pub trait FlakeBuilder {
 
         let cleanup_mode = mode.cleanup(&flake_path).context("Cleanup failed (temporary flake)");
         if !args.keep {
+            println!("Cleaning staging area");
             self.purge(&location).context("Cleanup failed (build files)")?;
             if cleanup_default {
                 self.cleanup_default_directory(&location).context("Cleanup failed (build location)")?
             }
+        } else {
+            println!("Staging area: {}", location.to_string_lossy());
         }
 
         // Do not short circuit these errors so no temporary data are left lying around
