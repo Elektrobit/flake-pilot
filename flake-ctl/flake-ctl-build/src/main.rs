@@ -1,5 +1,6 @@
 pub mod builder;
-mod options;
+pub mod options;
+pub mod config;
 
 use std::{
     env,

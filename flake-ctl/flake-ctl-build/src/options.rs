@@ -1,9 +1,10 @@
 use std::{env::var, io::stdin};
 
-use anyhow::{Result, anyhow, Context};
+use anyhow::{anyhow, Context, Result};
 use clap::Args;
+use serde::Deserialize;
 
-use crate::builder::BuilderArgs;
+use crate::{BuilderArgs, config::{get_global, get_local}};
 
 
 fn user_input(name: &str) -> Result<String> {
@@ -13,7 +14,7 @@ fn user_input(name: &str) -> Result<String> {
     Ok(buf.trim_end().to_owned())
 }
 
-macro_rules! update {
+macro_rules! fill_in {
     ($options:ident : $($name:ident = $getter:expr;)*) => {
         $($options.$name = $options.$name.or_else(|| $getter.ok());)*
     };
@@ -21,11 +22,21 @@ macro_rules! update {
 
 impl BuilderArgs {
     pub fn determine_options(&self) -> Result<PackageOptions> {
-        // Options may already be filled via the cli
-        let mut options = self.options.clone();
+        let mut options = PackageOptionsBuilder::default();
+
+        // Get options from global/local settings
+        if let Ok(global) = get_global() {
+            options = options.update(global);
+        }
+        if let Ok(local) = get_local() {
+            options = options.update(local);
+        }
+
+        // Options on CLI override global/local settings
+        options = options.update(self.options.clone());
 
         // Read from env where not given
-        update!(options:
+        fill_in!(options:
             name = var("PKG_FLAKE_NAME");
             description = var("PKG_FLAKE_DESCRIPTION");
             version = var("PKG_FLAKE_VERSION");
@@ -34,9 +45,10 @@ impl BuilderArgs {
             maintainer_email = var("PKG_FLAKE_MAINTAINER_EMAIL");
             license = var("PKG_FLAKE_LICENSE");
         );
-
+        
+        // Read from stdin where still not given
         if !self.ci {
-            update!(options:
+            fill_in!(options:
                 name = user_input("Name");
                 description = user_input("Description");
                 version = user_input("Version");
@@ -62,7 +74,7 @@ pub struct PackageOptions {
     pub license: String,
 }
 
-#[derive(Debug, Default, Args, Clone)]
+#[derive(Debug, Default, Args, Clone, Deserialize)]
 pub struct PackageOptionsBuilder {
     #[arg(long)]
     /// The name of the package (excluding version, arch, etc.)
@@ -83,6 +95,18 @@ pub struct PackageOptionsBuilder {
 }
 
 impl PackageOptionsBuilder {
+    pub fn update(self, other: Self) -> Self {
+        Self {
+            name: other.name.or(self.name),
+            description: other.description.or(self.description),
+            version: other.version.or(self.version),
+            url: other.url.or(self.url),
+            maintainer_name: other.maintainer_name.or(self.maintainer_name),
+            maintainer_email: other.maintainer_email.or(self.maintainer_email),
+            license: other.license.or(self.license),
+        }
+    }
+
     pub fn build(self) -> Result<PackageOptions> {
         Ok(PackageOptions {
             name: self.name.ok_or_else(|| anyhow!("Missing package name"))?,

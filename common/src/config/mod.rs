@@ -28,6 +28,12 @@ lazy_static! {
 
     // Config instance
     static ref CFG: FlakeConfig = load().unwrap();
+
+    /// Local Config directory for flake packaging
+    pub static ref LOCAL_PACKAGING_CONFIG: PathBuf = PathBuf::from(".flakes/package/options.yaml");
+
+    /// Global Config directory for flake packaging
+    pub static ref GLOBAL_PACKAGING_CONFIG: PathBuf = PathBuf::from("~").join(&*LOCAL_PACKAGING_CONFIG);
 }
 
 /// Get CID store, depending on the call
