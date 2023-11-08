@@ -127,7 +127,7 @@ impl DPKGBuilder {
 
     fn uninstall_script(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("prerm"))?;
-        script.write_all(format!("podman rmi --ignore {}\n", conf.runtime().image_name()).as_bytes())?;
+        script.write_all(format!("podman rmi {}\n", conf.runtime().image_name()).as_bytes())?;
         conf.runtime()
             .paths()
             .keys()
