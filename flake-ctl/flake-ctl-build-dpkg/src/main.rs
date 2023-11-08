@@ -115,7 +115,7 @@ impl DPKGBuilder {
         
         let name = flake_name.file_name().unwrap_or_default().to_string_lossy();
         // TODO: Needs to be read from template for other pilots
-        script.write_all(format!("podman load  < /tmp/{name}\n").as_bytes())?;
+        script.write_all(format!("podman load < /tmp/{name}\n").as_bytes())?;
 
         if let Some((first, mut rest)) = conf.runtime().get_symlinks() {
             let first = first.to_string_lossy();
@@ -127,6 +127,7 @@ impl DPKGBuilder {
 
     fn uninstall_script(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("prerm"))?;
+        script.write_all(format!("podman rmi --ignore {}\n", conf.runtime().image_name()).as_bytes())?;
         conf.runtime()
             .paths()
             .keys()

@@ -34,6 +34,7 @@ podman load < /tmp/%{name}
 
 %postun
 %{_flake_links_remove}
+podman rmi --ignore %{_flake_image_tag}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
