@@ -15,7 +15,7 @@ pub fn get_local() -> Result<PackageOptionsBuilder> {
 
 fn get_from(x: impl AsRef<Path>) -> Result<PackageOptionsBuilder> {
     let path = x.as_ref();
-    let reader = OpenOptions::new().read(true).open(&path);
+    let reader = OpenOptions::new().read(true).open(path);
     let path = path.to_string_lossy();
     let reader = reader.context(format!("Could not open {path}"))?;
     serde_yaml::from_reader(reader).context(format!("Failed to deserialize {path}"))

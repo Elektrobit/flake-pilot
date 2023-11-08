@@ -188,7 +188,7 @@ impl RPMBuilder {
             ("%{_flake_dir}", &config::FLAKE_DIR.to_string_lossy()),
             ("%{_flake_links_create}", &link_create),
             ("%{_flake_links_remove}", &link_remove),
-            ("%{_flake_image_tag}", &config.runtime().image_name()),
+            ("%{_flake_image_tag}", config.runtime().image_name()),
         ];
 
         for (placeholder, value) in vals {
