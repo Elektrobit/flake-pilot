@@ -162,7 +162,7 @@ pub struct Register {
     /// Container runtime option, and optional value, used to
     /// create the container. This option can be
     /// specified multiple times.
-    #[clap(long, multiple = true)]
+    #[clap(long, multiple = true, allow_hyphen_values = true)]
     opt: Option<Vec<String>>,
 
     /// Print registration information from container if provided

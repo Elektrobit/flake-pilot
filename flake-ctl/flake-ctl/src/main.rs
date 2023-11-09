@@ -33,7 +33,7 @@ fn main() -> ExitCode {
                 clap::Command::new(clap::builder::Str::from(addon.name.clone()))
                 .about(addon.description.as_ref().cloned().unwrap_or_default())
                 .trailing_var_arg(true)
-                .arg(arg!(<cmd> ... "args for the tool").required(false))
+                .arg(arg!(<cmd> ... "args for the tool").required(false).allow_hyphen_values(true))
                 // Remove this when subcommand headings work
                 .hide(true),
             );
