@@ -71,7 +71,7 @@ impl DPKGBuilder {
         F: FnMut(PathBuf) -> Result<(), std::io::Error>,
         P: AsRef<Path>,
     {
-        ["bin", "tmp", "etc", "usr", "DEBIAN"].into_iter().map(|x| location.as_ref().join(x)).try_for_each(f)?;
+        ["tmp", "usr", "DEBIAN"].into_iter().map(|x| location.as_ref().join(x)).try_for_each(f)?;
         Ok(())
     }
 
