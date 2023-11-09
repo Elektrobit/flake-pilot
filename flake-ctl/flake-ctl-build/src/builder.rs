@@ -187,18 +187,10 @@ impl Mode {
                 // TODO: Once flake modification is implemented the modifications must be cleaned up here
                 Ok(())
             }
-            Mode::Image { pilot, app, .. } => {
+            Mode::Image { .. } => {
                 if let Some(root) = path.root() {
-                    std::process::Command::new("flake-ctl")
-                        .arg(pilot)
-                        .arg("remove")
-                        .arg("--root")
-                        .arg(root)
-                        .arg("--app")
-                        .arg(app)
-                        .status()?;
+                    remove_dir_all(root)?;
                 }
-                // remove_file(path)?;
                 Ok(())
             }
         }
@@ -235,10 +227,10 @@ pub struct BuilderArgs {
     #[command(flatten)]
     pub options: PackageOptionsBuilder,
 
-    #[arg(trailing_var_arg = true)]
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     /// Modify the settings of the flake before packaging
     ///
-    /// Same as `flake-ctl register <PILOT>` for `image` and `package`
+    /// Same as `flake-ctl register <PILOT>` for `image`
     // TODO: enable this if we ever have a "flake modify"
     ///
     /// Ignored for `flake`
