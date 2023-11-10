@@ -2,7 +2,7 @@ use bitflags::bitflags;
 use nix::unistd::User;
 use serde_yaml::Value;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, hash_map::Keys},
     default::Default,
     hash::Hash,
     ops::{Deref, DerefMut},
@@ -160,6 +160,14 @@ impl FlakeCfgRuntime {
     /// Get the path-map
     pub fn paths(&self) -> &PathMap {
         &self.paths
+    }
+
+    /// Returns a tuple containing the "proper" name of the flake and an iterator over all other paths
+    /// 
+    /// Returns `None` if there are not paths in the config
+    pub fn get_symlinks(&self) -> Option<(&PathBuf, Keys<'_, PathBuf, FlakeCfgPathProperties>)> {
+        let mut paths = self.paths.keys();
+        paths.next().map(|first| (first, paths))
     }
 }
 

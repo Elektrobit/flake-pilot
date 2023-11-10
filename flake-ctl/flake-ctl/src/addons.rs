@@ -47,6 +47,7 @@ pub struct Addon {
 pub enum AddonType {
     Engine,
     Tool,
+    Packager,
     Other(String),
 }
 impl AddonType {
@@ -54,6 +55,7 @@ impl AddonType {
         match self {
             AddonType::Engine => "Engines",
             AddonType::Tool => "Tools",
+            AddonType::Packager => "Packagers",
             AddonType::Other(s) => s,
         }
     }
@@ -77,6 +79,7 @@ impl FromStr for AddonType {
         Ok(match s.to_ascii_lowercase().as_str().trim() {
             "engine" => Self::Engine,
             "tool" => Self::Tool,
+            "packager" => Self::Packager,
             _ => Self::Other(s.to_owned()),
         })
     }

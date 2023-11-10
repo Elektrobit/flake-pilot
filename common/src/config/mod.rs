@@ -1,3 +1,5 @@
+use crate::paths::flake_dir_from;
+
 use self::{cfgparse::FlakeCfgParser, itf::FlakeConfig};
 use lazy_static::lazy_static;
 use std::{env, fs, io::Error, path::{PathBuf, Path}, sync::Mutex};
@@ -26,6 +28,12 @@ lazy_static! {
 
     // Config instance
     static ref CFG: FlakeConfig = load().unwrap();
+
+    /// Local Config directory for flake packaging
+    pub static ref LOCAL_PACKAGING_CONFIG: PathBuf = PathBuf::from(".flakes/package/options.yaml");
+
+    /// Global Config directory for flake packaging
+    pub static ref GLOBAL_PACKAGING_CONFIG: PathBuf = PathBuf::from("~").join(&*LOCAL_PACKAGING_CONFIG);
 }
 
 /// Get CID store, depending on the call
@@ -94,12 +102,12 @@ pub fn get() -> FlakeConfig {
     CFG.to_owned()
 
 }
-pub fn load_from_target(app_p: &Path) -> Result<FlakeConfig, Error> {
+pub fn load_from_target(root: Option<&Path>, app_p: &Path) -> Result<FlakeConfig, Error> {
 
     let app_ps = app_p.file_name().unwrap().to_str().unwrap().to_string();
 
     // Get app configuration
-    let cfg_d_paths: Vec<PathBuf> = std::fs::read_dir(FLAKE_DIR.join(app_ps.to_owned() + ".d"))
+    let cfg_d_paths: Vec<PathBuf> = std::fs::read_dir(flake_dir_from(root).join(app_ps.to_owned() + ".d"))
         .unwrap()
         .filter_map(|entry| -> Option<PathBuf> {
             if let Ok(entry) = entry {
@@ -113,7 +121,7 @@ pub fn load_from_target(app_p: &Path) -> Result<FlakeConfig, Error> {
         })
         .collect();
 
-    match FlakeCfgParser::new(FLAKE_DIR.join(app_ps + ".yaml"), cfg_d_paths)?.parse() {
+    match FlakeCfgParser::new(flake_dir_from(root).join(app_ps + ".yaml"), cfg_d_paths)?.parse() {
         Some(cfg) => Ok(cfg),
         None => Err(Error::new(std::io::ErrorKind::NotFound, "Unable to read configuration")),
     }
@@ -123,5 +131,5 @@ pub fn load_from_target(app_p: &Path) -> Result<FlakeConfig, Error> {
 pub fn load() -> Result<FlakeConfig, Error> {
     //pub fn load_for_app() {
     let app_p = app_path().unwrap();
-    load_from_target(&app_p)
+    load_from_target(None, &app_p)
 }

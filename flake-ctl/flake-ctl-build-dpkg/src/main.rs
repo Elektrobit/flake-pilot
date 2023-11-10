@@ -1,13 +1,14 @@
 use std::{
     fs::{self, create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
+    path::{Path, PathBuf},
     process::Command,
 };
 
 use anyhow::{Context, Ok, Result};
 use clap::Args;
-use flake_ctl_build::{copy_configs, export_flake, FlakeBuilder, PackageOptions, Path, PathBuf};
-use flakes::config::itf::FlakeConfig;
+use flake_ctl_build::{copy_configs, export_flake, FlakeBuilder, PackageOptions};
+use flakes::{config::itf::FlakeConfig, paths::RootedPath};
 
 fn main() -> Result<()> {
     flake_ctl_build::run::<DPKGBuilder>()
@@ -25,29 +26,30 @@ struct DPKGBuilder {
 }
 
 impl FlakeBuilder for DPKGBuilder {
-    fn setup(&self, location: &flake_ctl_build::Path) -> anyhow::Result<()> {
+    fn description(&self) -> &str {
+        "Package flakes with dpkg-deb"
+    }
+
+    fn setup(&self, location: &Path) -> Result<()> {
         self.infrastructure(location, create_dir_all)
     }
 
     fn create_bundle(
-        &self, options: &flake_ctl_build::PackageOptions, config: &flakes::config::itf::FlakeConfig,
-        location: &flake_ctl_build::Path,
-    ) -> anyhow::Result<()> {
+        &self, flake_name: &RootedPath, options: &PackageOptions, config: &FlakeConfig, location: &Path,
+    ) -> Result<()> {
         self.control_file(options, location, config.engine().pilot()).context("Failed to create control file")?;
         self.rules_file(location).context("Failed to create rules file")?;
-        self.install_script(location, config).context("Failed to create install script")?;
+        self.install_script(flake_name, location, config).context("Failed to create install script")?;
         self.uninstall_script(location, config).context("Failed to create uninstall script")?;
         let export_path = &location.join(flakes::config::FLAKE_DIR.strip_prefix("/").unwrap());
         create_dir_all(export_path)?;
-        export_flake(&options.name, config.engine().pilot(), export_path).context("Failed to export flake")?;
-        copy_configs(&options.name, location)?;
+        create_dir_all(location.join("tmp"))?;
+        export_flake(flake_name, config.engine().pilot(), &location.join("tmp")).context("Failed to export flake")?;
+        copy_configs(flake_name, location)?;
         Ok(())
     }
 
-    fn build(
-        &self, options: &flake_ctl_build::PackageOptions, target: Option<&flake_ctl_build::Path>,
-        location: &flake_ctl_build::Path,
-    ) -> anyhow::Result<()> {
+    fn build(&self, options: &PackageOptions, target: Option<&Path>, location: &Path) -> Result<()> {
         Command::new("dpkg-deb")
             .arg("--root-owner-group")
             .arg("--nocheck")
@@ -58,7 +60,7 @@ impl FlakeBuilder for DPKGBuilder {
         Ok(())
     }
 
-    fn purge(&self, location: &flake_ctl_build::Path) -> anyhow::Result<()> {
+    fn purge(&self, location: &Path) -> anyhow::Result<()> {
         self.infrastructure(location, remove_dir_all)
     }
 }
@@ -69,7 +71,7 @@ impl DPKGBuilder {
         F: FnMut(PathBuf) -> Result<(), std::io::Error>,
         P: AsRef<Path>,
     {
-        ["bin", "etc", "usr", "DEBIAN"].into_iter().map(|x| location.as_ref().join(x)).try_for_each(f)?;
+        ["tmp", "usr", "DEBIAN"].into_iter().map(|x| location.as_ref().join(x)).try_for_each(f)?;
         Ok(())
     }
 
@@ -107,23 +109,29 @@ impl DPKGBuilder {
         Ok(())
     }
 
-    fn install_script(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
+    fn install_script(&self, flake_name: &RootedPath, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let pilot = conf.engine().pilot();
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("postinst"))?;
-        conf.runtime()
-            .paths()
-            .values()
-            .map(|x| x.exports().to_string_lossy())
-            .try_for_each(|path| script.write_all(format!("ln /usr/bin/{pilot}-pilot {path}\n").as_bytes()))?;
+        
+        let name = flake_name.file_name().unwrap_or_default().to_string_lossy();
+        // TODO: Needs to be read from template for other pilots
+        script.write_all(format!("podman load < /tmp/{name}\n").as_bytes())?;
+
+        if let Some((first, mut rest)) = conf.runtime().get_symlinks() {
+            let first = first.to_string_lossy();
+            script.write_all(format!("ln -s /usr/bin/{pilot}-pilot {first}\n").as_bytes())?;
+            rest.try_for_each(|path| script.write_all(format!("ln -s {first} {}\n", path.to_string_lossy()).as_bytes()))?;
+        }
         Ok(())
     }
 
     fn uninstall_script(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("prerm"))?;
+        script.write_all(format!("podman rmi {}\n", conf.runtime().image_name()).as_bytes())?;
         conf.runtime()
             .paths()
-            .values()
-            .map(|x| x.exports().to_string_lossy())
+            .keys()
+            .map(|x| x.to_string_lossy())
             .try_for_each(|path| script.write_all(format!("rm {path}\n").as_bytes()))?;
         Ok(())
     }

@@ -45,8 +45,8 @@ fn main() -> Result<ExitCode> {
         Podman::Pull { uri } => exit(podman::pull(&uri)),
         Podman::Load { oci } => exit(podman::load(&oci)),
         Podman::Register(reg) => reg.call(),
-        Podman::Remove { app: Some(app), .. } => app::remove(Path::new(&app)),
-        Podman::Remove { container: Some(container), .. } => podman::purge_container(&container),
+        Podman::Remove { app: Some(app), root, .. } => app::remove(&root, Path::new(&app)),
+        Podman::Remove { container: Some(container), root, .. } => podman::purge_container(&root, &container),
         Podman::Remove { .. } => unreachable!(),
         cli::Podman::BuildDeb { oci, app, repo, arch } => {
             exit(deb::ocideb(&oci, &repo, &app, arch.as_deref()));
@@ -55,7 +55,7 @@ fn main() -> Result<ExitCode> {
             println!("Manage podman/oci based flakes;ENGINE");
             Ok(())
         },
-        Podman::Export { flake, target } => podman::export(&flake, &target),
+        Podman::Export { root, flake, target } => podman::export(&root, &flake, &target),
     }?;
     Ok(ExitCode::SUCCESS)
 }

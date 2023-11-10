@@ -39,7 +39,21 @@ Register a Container with Base
     ...    base=registry.opensuse.org/home/marcus.schaefer/delta_containers/containers_suse/basesystem
     [Teardown]  Run Process    sudo  rm  -r  /usr/bin/joe
 
+Export a Container
+    Pull Podman Container    ubuntu
+    Register Podman Container    ubuntu    ubu-flake 
+    ${result} =  Run Process  flake-ctl  podman  export  ubu-flake  ${TEMPDIR}
+    Log  ${result.stderr}
+    Should Be Equal As Integers    ${result.rc}    0
+    File Should Exist    ${TEMPDIR}/ubu-flake
+    [Teardown]  Run Process    sudo  rm  -r  /usr/bin/ubu-flake
+    
+
 *** Keywords ***
 Delete all Containers and Flakes
-    Run Process    sudo  rm  -r  /usr/share/flakes
+    # Only delete config files for individual flakes
+    Run Process    sudo  rm  -r  /usr/share/flakes/*.d
+    Run Process    sudo  rm  -r  /usr/share/flakes/*.yaml
+
+    # Remove all non-running containers
     Run Process    podman  prune  -a  -f

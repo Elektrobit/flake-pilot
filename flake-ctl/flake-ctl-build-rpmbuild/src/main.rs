@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use clap::{builder::OsStr, Args, ValueEnum};
-use flakes::config::{self, itf::FlakeConfig};
+use flakes::{config::{self, itf::FlakeConfig}, paths::RootedPath};
 use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir_in;
 
-use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, PathBuf, copy_configs};
+use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, copy_configs};
 use flakes::config::FLAKE_DIR;
 
 fn main() -> Result<()> {
@@ -14,7 +14,7 @@ fn main() -> Result<()> {
 use std::{
     fs::{self, copy, create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
-    path::Path,
+    path::{Path, PathBuf},
     process::Command,
 };
 
@@ -50,11 +50,16 @@ impl From<Tooling> for OsStr {
 }
 
 impl FlakeBuilder for RPMBuilder {
+
+    fn description(&self) -> &str {
+        "Package flakes with rpmbuild"
+    }
+
     fn setup(&self, location: &Path) -> Result<()> {
         self.infrastructure(location, create_dir_all)
     }
 
-    fn create_bundle(&self, options: &PackageOptions, config: &FlakeConfig, location: &Path) -> Result<()> {
+    fn create_bundle(&self, flake_path: &RootedPath, options: &PackageOptions, config: &FlakeConfig, location: &Path) -> Result<()> {
         let PackageOptions { name, version, .. } = options;
         let temp_dir = tempdir_in(location).context("Failed to create bundling dir")?;
         let bundling_dir = temp_dir.path().join(format!("{name}-{version}"));
@@ -62,13 +67,13 @@ impl FlakeBuilder for RPMBuilder {
         create_dir_all(&bundling_dir)?;
 
         self.copy_includes(config, &bundling_dir).context("Failed to copy includes to bundling dir")?;
-        copy_configs(name, &bundling_dir).context("Failed to copy configs to bundling dir")?;
-        export_flake(name, config.engine().pilot(), &bundling_dir).context("Failed to export flake image(s)")?;
+        copy_configs(flake_path, &bundling_dir).context("Failed to copy configs to bundling dir")?;
+        export_flake(flake_path, config.engine().pilot(), &bundling_dir).context("Failed to export flake image(s)")?;
         self.compress_bundle(temp_dir.path(), name, version).context("Failed to compress bundle")?;
         copy(bundling_dir.with_extension("tar.gz"), location.join("SOURCES").join(name).with_extension("tar.gz"))
             .context("Failed to move bundle to build dir")?;
 
-        self.create_spec(&location.join("SPECS"), options, config).context("Failed to create spec")?;
+        self.create_spec(flake_path, &location.join("SPECS"), options, config).context("Failed to create spec")?;
 
         Ok(())
     }
@@ -79,13 +84,13 @@ impl FlakeBuilder for RPMBuilder {
             .arg("--define")
             .arg(format!("_topdir {}", location.to_string_lossy()))
             .arg(location.join("SPECS").join(&options.name).with_extension("spec"))
-            .status()?;
+            .status().context(format!("Failed to run {:?}", self.tooling))?;
 
         let package_dir = match self.tooling {
             Tooling::RPMBuild => "RPMS",
             Tooling::DebBuild => "DEBS",
         };
-        copy_items(&[location.join(package_dir)], target.unwrap_or_else(|| Path::new(".")), &CopyOptions::default())?;
+        copy_items(&[location.join(package_dir)], target.unwrap_or_else(|| Path::new(".")), &CopyOptions::default()).context("Failed to copy build result")?;
         Ok(())
     }
 
@@ -130,10 +135,10 @@ impl RPMBuilder {
         Ok(())
     }
 
-    fn create_spec(&self, path: &Path, options: &PackageOptions, config: &FlakeConfig) -> Result<()> {
+    fn create_spec(&self, flake_path: &RootedPath, path: &Path, options: &PackageOptions, config: &FlakeConfig) -> Result<()> {
         let spec_path = path.join(&options.name).with_extension("spec");
         let mut spec = OpenOptions::new().write(true).create_new(true).open(&spec_path)?;
-        let content = self.construct_spec(config, options)?;
+        let content = self.construct_spec(&flake_path.file_name().unwrap().to_string_lossy(), config, options)?;
         spec.write_all(content.as_bytes())?;
         spec.flush()?;
 
@@ -144,7 +149,7 @@ impl RPMBuilder {
         Ok(())
     }
 
-    fn construct_spec(&self, config: &FlakeConfig, options: &PackageOptions) -> Result<String> {
+    fn construct_spec(&self, flake_name: &str, config: &FlakeConfig, options: &PackageOptions) -> Result<String> {
         let mut template =
             fs::read_to_string(self.template.join("template").with_extension("spec")).context("Failed to read spec template")?;
 
@@ -152,23 +157,26 @@ impl RPMBuilder {
         // TODO: Drop line with empty information completely
         let data = self.template.join(config.engine().pilot());
         let requires = fs::read_to_string(&data).context(format!("Failed to load pilot specific data, {data:?}"))?;
+        
+        let mut symlinks: Vec<String> = vec![];
+        if let Some((first, rest)) = config.runtime().get_symlinks() {
+            let first = first.to_string_lossy();
+            symlinks.push(format!("ln -s %{{_bindir}}/%{{_flake_pilot}}-pilot {first}"));
+            symlinks.extend(rest.map(|path| format!("ln {first} {}", path.to_string_lossy())))
+        }
+        let link_create = symlinks.join("\n");
 
-        let link_create = config
-            .runtime()
-            .paths()
-            .values()
-            .map(|p| format!("ln -s %{{_bindir}}/%{{_flake_pilot}}-pilot {}", p.exports().to_string_lossy()))
-            .collect::<Vec<_>>()
-            .join("\n");
         let link_remove = config
             .runtime()
             .paths()
-            .values()
-            .map(|p| format!("rm {}", p.exports().to_string_lossy()))
+            .keys()
+            .map(|p| format!("rm {}", p.to_string_lossy()))
             .collect::<Vec<_>>()
             .join("\n");
+
         let vals = [
-            ("%{_flake_name}", options.name.as_str()),
+            ("%{_flake_name}", flake_name),
+            ("%{_flake_package_name}", options.name.as_str()),
             ("%{_flake_version}", options.version.as_str()),
             ("%{_flake_desc}", options.description.as_str()),
             ("%{_flake_url}", options.url.as_str()),
@@ -180,6 +188,7 @@ impl RPMBuilder {
             ("%{_flake_dir}", &config::FLAKE_DIR.to_string_lossy()),
             ("%{_flake_links_create}", &link_create),
             ("%{_flake_links_remove}", &link_remove),
+            ("%{_flake_image_tag}", config.runtime().image_name()),
         ];
 
         for (placeholder, value) in vals {
