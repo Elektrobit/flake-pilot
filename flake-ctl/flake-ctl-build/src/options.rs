@@ -1,17 +1,25 @@
 use std::{env::var, io::stdin};
 
-use anyhow::{anyhow, Context, Result};
+use crate::{
+    config::{get_global, get_local},
+    BuilderArgs,
+};
+use anyhow::{anyhow, Context, Result, bail};
 use clap::Args;
-use serde::Deserialize;
-
-use crate::{BuilderArgs, config::{get_global, get_local}};
-
+use colored::Colorize;
+use serde::{Deserialize, Serialize};
 
 fn user_input(name: &str) -> Result<String> {
     let mut buf = String::new();
-    println!("{name}: ");
+    eprint!("{}: ", name.bold());
     stdin().read_line(&mut buf)?;
-    Ok(buf.trim_end().to_owned())
+    let buf = buf.trim_end().to_owned();
+    eprint!("{}{}\r", termion::cursor::Up(1), termion::clear::CurrentLine);
+    if buf.len() == 0 {
+        // Turns empty input into None
+        bail!("")
+    }
+    Ok(buf)
 }
 
 macro_rules! fill_in {
@@ -45,18 +53,10 @@ impl BuilderArgs {
             maintainer_email = var("PKG_FLAKE_MAINTAINER_EMAIL");
             license = var("PKG_FLAKE_LICENSE");
         );
-        
+
         // Read from stdin where still not given
         if !self.ci {
-            fill_in!(options:
-                name = user_input("Name");
-                description = user_input("Description");
-                version = user_input("Version");
-                url = user_input("URL");
-                maintainer_name = user_input("Maintainer Name");
-                maintainer_email = user_input("Maintainer Email");
-                license = user_input("License");
-            );
+            options = options.fill_from_terminal();
         }
 
         options.build().context("Missing packaging option")
@@ -74,23 +74,30 @@ pub struct PackageOptions {
     pub license: String,
 }
 
-#[derive(Debug, Default, Args, Clone, Deserialize)]
+#[derive(Debug, Default, Args, Clone, Serialize, Deserialize)]
 pub struct PackageOptionsBuilder {
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// The name of the package (excluding version, arch, etc.)
     pub name: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// A url pointing to the packages source
     pub url: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub maintainer_name: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub maintainer_email: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub license: Option<String>,
 }
 
@@ -117,5 +124,18 @@ impl PackageOptionsBuilder {
             maintainer_email: self.maintainer_email.ok_or_else(|| anyhow!("Missing package maintainer email"))?,
             license: self.license.ok_or_else(|| anyhow!("Missing package license"))?,
         })
+    }
+
+    pub fn fill_from_terminal(mut self) -> Self {
+        fill_in!(self:
+            name = user_input("Name");
+            description = user_input("Description");
+            version = user_input("Version");
+            url = user_input("URL");
+            maintainer_name = user_input("Maintainer Name");
+            maintainer_email = user_input("Maintainer Email");
+            license = user_input("License");
+        );
+        self
     }
 }
