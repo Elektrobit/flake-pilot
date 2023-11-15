@@ -15,7 +15,7 @@ fn user_input(name: &str) -> Result<String> {
     stdin().read_line(&mut buf)?;
     let buf = buf.trim_end().to_owned();
     eprint!("{}{}\r", termion::cursor::Up(1), termion::clear::CurrentLine);
-    if buf.len() == 0 {
+    if buf.is_empty() {
         // Turns empty input into None
         bail!("")
     }

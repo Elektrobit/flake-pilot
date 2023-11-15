@@ -1,13 +1,13 @@
 use std::{
     ffi::OsStr,
-    fs::{copy, create_dir, create_dir_all, read_dir, ReadDir},
+    fs::{copy, create_dir_all, read_dir},
     path::Path,
     process::{Command, Stdio},
 };
 
 use anyhow::{bail, Context, Ok, Result};
 use colored::Colorize;
-use flakes::config::{itf::FlakeConfig, load_from_path};
+use flakes::config::load_from_path;
 use fs_extra::{copy_items, dir::CopyOptions};
 use termion::clear;
 
@@ -55,7 +55,7 @@ fn discover_image_builder() -> Result<ImageBuilder> {
         _ => None,
     });
     let found = i.next();
-    if let Some(_) = i.next() {
+    if i.next().is_some() {
         bail!("Discovered more than one image build method")
     }
     if let Some(found) = found {

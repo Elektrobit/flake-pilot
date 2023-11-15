@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::options::{PackageOptions, PackageOptionsBuilder};
-use anyhow::{anyhow, Context, Result, Ok};
+use anyhow::{anyhow, Context, Ok, Result};
 use clap::{Args, FromArgMatches, Parser, Subcommand};
 use flakes::{
     config::{self, itf::FlakeConfig, FLAKE_DIR},
@@ -15,8 +15,7 @@ use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir;
 
 pub trait FlakeBuilder {
-
-    /// Brief info about the package manager used by this builder 
+    /// Brief info about the package manager used by this builder
     fn description(&self) -> &str;
 
     /// Create the infrastructure to build the flake package in the given directory
@@ -82,7 +81,7 @@ pub trait FlakeBuilder {
         self.setup(&location)?;
         let config = config::load_from_target(flake_path.root(), Path::new(flake_name))
             .context(format!("Failed to load config for {}", options.name))?;
-        self.create_bundle(&flake_path, &args, &options, &config, &location)?;
+        self.create_bundle(&flake_path, args, &options, &config, &location)?;
 
         let result =
             if !args.dry_run { self.build(&options, args.target.as_deref(), &location).context("Build failed") } else { Ok(()) };
@@ -113,17 +112,20 @@ pub enum Subcmd {
     #[clap(flatten)]
     Mode(Box<Mode>),
     /// Compile an existing staging environment
-    /// 
+    ///
     /// To generate a staging environment run a command with `--location <somewhere>` and `--keep`,
     /// use `--dry-run` to skip compilation when creating the staging environment
-    Compile {
-        /// Staging environment to compile
-        location: PathBuf,
-        #[command(flatten)]
-        args: BuilderArgs,
-    },
+    Compile(Box<Compile>),
     #[clap(hide = true)]
     About,
+}
+
+#[derive(Args, Debug)]
+pub struct Compile {
+    /// Staging environment to compile
+    location: PathBuf,
+    #[command(flatten)]
+    args: BuilderArgs,
 }
 
 #[derive(Debug, Subcommand, Clone)]
@@ -187,7 +189,7 @@ impl Mode {
                     .status()?;
 
                 Ok(app.with_root(Some(tmp_dir)))
-            },
+            }
         }
     }
 
@@ -282,7 +284,7 @@ pub fn run<T: FromArgMatches + Args + FlakeBuilder>() -> Result<()> {
     let command = FullArgs::<T>::parse();
     match command.subcmd {
         Subcmd::Mode(mode) => command.builder.run(*mode),
-        Subcmd::Compile { location, args } => command.builder.build(&args.determine_options()?, args.target.as_deref(), &location),
+        Subcmd::Compile(comp) => command.builder.build(&comp.args.determine_options()?, comp.args.target.as_deref(), &comp.location),
         Subcmd::About => {
             println!("{};PACKAGER", command.builder.description());
             Ok(())

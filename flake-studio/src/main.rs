@@ -1,7 +1,7 @@
 mod build;
 pub mod init;
 
-use std::{fs::{create_dir, remove_dir, remove_dir_all}, path::PathBuf};
+use std::{fs::remove_dir_all, path::PathBuf};
 
 use anyhow::{Context, Result};
 use clap::Parser;
