@@ -1,6 +1,6 @@
 use std::{
     ffi::OsStr,
-    fs::{copy, create_dir_all, read_dir},
+    fs::{copy, create_dir_all},
     path::Path,
     process::{Command, Stdio},
 };
@@ -20,9 +20,11 @@ pub(crate) fn build() -> Result<()> {
     println!("{}\r{}", clear::CurrentLine, "Setup".green().bold());
 
     print!("{}", " Building Image... ".yellow().bold());
-    let method = discover_image_builder()?;
     let name = "image_name";
-    method.build(name)?;
+    let out = Command::new("src/build.sh").arg(name).stderr(Stdio::inherit()).output().context("Failed to run src/build.sh")?;
+    if !out.status.success() {
+        bail!("Failed to build image with build.sh")
+    }
     println!("{}\r{} ({})", clear::CurrentLine, "Built Image".green().bold(), name);
 
     print!("{}", " Compiling... ".yellow().bold());
@@ -41,41 +43,4 @@ fn setup(name: &OsStr) -> Result<()> {
     copy("src/options.yaml", ".flakes/package/options.yaml").context("No flake.yaml")?;
     copy_items(&["src/flake.d"], staging.join(name).with_extension("d"), &CopyOptions::default()).ok();
     Ok(())
-}
-
-enum ImageBuilder {
-    Dockerfile,
-    Script,
-}
-
-fn discover_image_builder() -> Result<ImageBuilder> {
-    let mut i = read_dir("src")?.filter_map(Result::ok).filter_map(|f| match f.file_name().to_str() {
-        Some("Dockerfile") => Some(ImageBuilder::Dockerfile),
-        Some("build.sh") => Some(ImageBuilder::Script),
-        _ => None,
-    });
-    let found = i.next();
-    if i.next().is_some() {
-        bail!("Discovered more than one image build method")
-    }
-    if let Some(found) = found {
-        Ok(found)
-    } else {
-        bail!("No image build method discovered")
-    }
-}
-
-impl ImageBuilder {
-    fn build(&self, name: &str) -> Result<String> {
-        match self {
-            ImageBuilder::Dockerfile => todo!(),
-            ImageBuilder::Script => {
-                let out = Command::new("src/build.sh").arg(name).stderr(Stdio::inherit()).output().context("Failed to run src/build.sh")?;
-                if !out.status.success() {
-                    bail!("Failed to build image with build.sh")
-                }
-            }
-        }
-        Ok(name.to_owned())
-    }
 }
