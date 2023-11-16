@@ -23,8 +23,6 @@ pub fn new(options: PackageOptionsBuilder, scratch: bool, app: &Path) -> Result<
     eprint!(".");
     options_file(options, scratch).context("Failed to create options.yaml")?;
     eprint!(".");
-    gitignore().context("Failed to create .gitignore")?;
-    eprint!(".");
     flake(app).context("Failed to init flake")?;
     eprint!(".");
     yaml(app).context("Failed to create config files")?;
@@ -77,15 +75,5 @@ fn yaml(app: &Path) -> Result<()> {
     let name = config.runtime().get_symlinks().unwrap().0.file_name().unwrap();
     copy(staging.join(name).with_extension("yaml"), "src/flake.yaml").context("No flake.yaml")?;
     copy_items(&[staging.join(name).with_extension("d")], "src/flake.d", &CopyOptions::default()).ok();
-    Ok(())
-}
-
-fn gitignore() -> Result<()> {
-    OpenOptions::new()
-        .truncate(true)
-        .create(true)
-        .write(true)
-        .open(".flakes/package/.gitignore")?
-        .write_all("out\n.staging\n".as_bytes())?;
     Ok(())
 }
