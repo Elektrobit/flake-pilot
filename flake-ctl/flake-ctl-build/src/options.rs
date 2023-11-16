@@ -4,27 +4,27 @@ use crate::{
     config::{get_global, get_local},
     BuilderArgs,
 };
-use anyhow::{anyhow, Context, Result, bail};
+use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
-fn user_input(name: &str) -> Result<String> {
+fn user_input(name: &str) -> Option<String> {
     let mut buf = String::new();
-    eprint!("{}: ", name.bold());
-    stdin().read_line(&mut buf)?;
+    print!("{}: ", name.bold());
+    stdin().read_line(&mut buf).ok();
     let buf = buf.trim_end().to_owned();
-    eprint!("{}{}\r", termion::cursor::Up(1), termion::clear::CurrentLine);
+    print!("{}{}\r", termion::cursor::Up(1), termion::clear::CurrentLine);
     if buf.is_empty() {
-        // Turns empty input into None
-        bail!("")
+        None
+    } else {
+        Some(buf)
     }
-    Ok(buf)
 }
 
 macro_rules! fill_in {
     ($options:ident : $($name:ident = $getter:expr;)*) => {
-        $($options.$name = $options.$name.or_else(|| $getter.ok());)*
+        $($options.$name = $options.$name.or_else(|| $getter);)*
     };
 }
 
@@ -45,13 +45,13 @@ impl BuilderArgs {
 
         // Read from env where not given
         fill_in!(options:
-            name = var("PKG_FLAKE_NAME");
-            description = var("PKG_FLAKE_DESCRIPTION");
-            version = var("PKG_FLAKE_VERSION");
-            url = var("PKG_FLAKE_URL");
-            maintainer_name = var("PKG_FLAKE_MAINTAINER_NAME");
-            maintainer_email = var("PKG_FLAKE_MAINTAINER_EMAIL");
-            license = var("PKG_FLAKE_LICENSE");
+            name = var("PKG_FLAKE_NAME").ok();
+            description = var("PKG_FLAKE_DESCRIPTION").ok();
+            version = var("PKG_FLAKE_VERSION").ok();
+            url = var("PKG_FLAKE_URL").ok();
+            maintainer_name = var("PKG_FLAKE_MAINTAINER_NAME").ok();
+            maintainer_email = var("PKG_FLAKE_MAINTAINER_EMAIL").ok();
+            license = var("PKG_FLAKE_LICENSE").ok();
         );
 
         // Read from stdin where still not given
