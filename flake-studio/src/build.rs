@@ -15,21 +15,21 @@ pub(crate) fn build() -> Result<()> {
     let config = load_from_path(Path::new("src/flake"))?;
     let name = config.runtime().get_symlinks().unwrap().0.file_name().unwrap();
 
-    eprint!("{}", " Setup... ".yellow().bold());
+    print!("{}", " Setup... ".yellow().bold());
     setup(name).context("Setup failed")?;
-    eprintln!("{}\r{}", clear::CurrentLine, "Setup".green().bold());
+    println!("{}\r{}", clear::CurrentLine, "Setup".green().bold());
 
-    eprint!("{}", " Building Image... ".yellow().bold());
+    print!("{}", " Building Image... ".yellow().bold());
     let method = discover_image_builder()?;
     let name = "image_name";
     method.build(name)?;
-    eprintln!("{}\r{} ({})", clear::CurrentLine, "Built Image".green().bold(), name);
+    println!("{}\r{} ({})", clear::CurrentLine, "Built Image".green().bold(), name);
 
-    eprint!("{}", " Compiling... ".yellow().bold());
+    print!("{}", " Compiling... ".yellow().bold());
     Command::new("flake-ctl").arg("build").arg("compile").arg(".staging").arg("--target").arg("out").output()?;
-    eprintln!("{}\r{}", clear::CurrentLine, "Compiled".green().bold());
+    println!("{}\r{}", clear::CurrentLine, "Compiled".green().bold());
 
-    eprintln!("{} ({})", "Build finished".green().bold(), name);
+    println!("{} ({})", "Build finished".green().bold(), name);
     Ok(())
 }
 
