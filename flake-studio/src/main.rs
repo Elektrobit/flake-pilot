@@ -6,6 +6,7 @@ use std::{fs::remove_dir_all, path::PathBuf};
 use anyhow::{Context, Result};
 use clap::Parser;
 use flake_ctl_build::PackageOptionsBuilder;
+use init::Init;
 
 fn main() -> Result<()> {
     Cli::parse().run()
@@ -14,20 +15,13 @@ fn main() -> Result<()> {
 #[derive(Parser)]
 enum Cli {
     New {
-        app: PathBuf,
-        /// Ignore global options in ~/.flakes/package/options.yaml
-        #[clap(long)]
-        scratch: bool,
+        name: String,
         #[clap(flatten)]
-        options: PackageOptionsBuilder,
+        init: Init
     },
-    Init {
-        app: PathBuf,
-        /// Ignore global options in ~/.flakes/package/options.yaml
-        #[clap(long)]
-        scratch: bool,
+    Init{
         #[clap(flatten)]
-        options: PackageOptionsBuilder,
+        init: Init
     },
     Build {},
     Clean {},
@@ -36,8 +30,8 @@ enum Cli {
 impl Cli {
     fn run(self) -> Result<()> {
         match self {
-            Self::New { options, scratch, app } => init::new(options, scratch, &app),
-            Self::Init { options, scratch, app } => init::init(options, scratch, &app),
+            Self::New { name, init} => init::new(name, init),
+            Self::Init { init } => init::init(init),
             Self::Build {} => build::build(),
             Self::Clean {} => remove_dir_all("out").context("No output directory to remove"),
         }

@@ -1,10 +1,12 @@
 use std::{
-    fs::{copy, create_dir_all, OpenOptions},
+    env::set_current_dir,
+    fs::{copy, create_dir, create_dir_all, OpenOptions},
     io::Write,
-    path::Path,
+    path::{Path, PathBuf},
     process::Command,
 };
 
+use clap::Args;
 use colored::Colorize;
 
 use anyhow::{bail, Context, Result};
@@ -13,22 +15,41 @@ use flakes::{config::load_from_path, paths::flake_dir_from};
 use fs_extra::{copy_items, dir::CopyOptions};
 use termion::clear;
 
-pub fn init(options: PackageOptionsBuilder, scratch: bool, app: &Path) -> Result<()> {
-    new(options.fill_from_terminal(), scratch, app)
+#[derive(Args)]
+pub struct Init {
+    app: PathBuf,
+    /// Ignore global options in ~/.flakes/package/options.yaml
+    #[clap(long)]
+    scratch: bool,
+    #[clap(flatten)]
+    options: PackageOptionsBuilder,
 }
 
-pub fn new(options: PackageOptionsBuilder, scratch: bool, app: &Path) -> Result<()> {
-    eprint!("{}", "Initializing".yellow().bold());
+pub fn new(name: String, i: Init) -> Result<()> {
+    print!("{} {}", "Creating project".yellow().bold(), name);
+    create_dir(&name).context("Failed to create project directory")?;
+    set_current_dir(&name).context("Failed to enter project directory")?;
+    _init(i)
+}
+
+pub fn init(init: Init) -> Result<()> {
+    _init(init)?;
+    println!("{}\r{}", clear::CurrentLine, "Initialized".green().bold());
+    println!("Run {} to package your flake", "flake-studio build".bold());
+    Ok(())
+}
+
+fn _init(init: Init) -> Result<()> {
+    let Init { options, scratch, app } = init;
+    print!("{}", "Initializing".yellow().bold());
     structure().context("Failed to setup meta directories")?;
-    eprint!(".");
+    print!(".");
     options_file(options, scratch).context("Failed to create options.yaml")?;
-    eprint!(".");
-    flake(app).context("Failed to init flake")?;
-    eprint!(".");
-    yaml(app).context("Failed to create config files")?;
-    eprint!(".");
-    eprintln!("{}\r{}", clear::CurrentLine, "Initialized".green().bold());
-    eprintln!("Run {} to package your flake", "flake-studio build".bold());
+    print!(".");
+    flake(&app).context("Failed to init flake")?;
+    print!(".");
+    yaml(&app).context("Failed to create config files")?;
+    print!(".");
     Ok(())
 }
 
