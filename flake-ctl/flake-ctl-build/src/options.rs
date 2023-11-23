@@ -1,4 +1,4 @@
-use std::{env::var, io::stdin};
+use std::{env::var, io::{stdin, stdout, Write}};
 
 use crate::{
     config::{get_global, get_local},
@@ -12,9 +12,11 @@ use serde::{Deserialize, Serialize};
 fn user_input(name: &str) -> Option<String> {
     let mut buf = String::new();
     print!("{}: ", name.bold());
+    stdout().flush().ok();
     stdin().read_line(&mut buf).ok();
     let buf = buf.trim_end().to_owned();
     print!("{}{}\r", termion::cursor::Up(1), termion::clear::CurrentLine);
+    stdout().flush().ok();
     if buf.is_empty() {
         None
     } else {

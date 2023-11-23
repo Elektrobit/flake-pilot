@@ -1,46 +1,65 @@
 use std::{
-    ffi::OsStr,
     fs::{copy, create_dir_all},
+    io::{stdout, Write},
     path::Path,
     process::{Command, Stdio},
 };
 
 use anyhow::{bail, Context, Ok, Result};
 use colored::Colorize;
-use flakes::config::load_from_path;
+
 use fs_extra::{copy_items, dir::CopyOptions};
 use termion::clear;
 
-pub(crate) fn build() -> Result<()> {
-    let config = load_from_path(Path::new("src/flake"))?;
-    let name = config.runtime().get_symlinks().unwrap().0.file_name().unwrap();
+use crate::{
+    init::flake,
+    util::{check_build_sh, discover_project_root, project_name},
+};
 
-    print!("{}", " Setup... ".yellow().bold());
-    setup(name).context("Setup failed")?;
-    println!("{}\r{}", clear::CurrentLine, "Setup".green().bold());
+pub(crate) fn build() -> Result<()> {
+    discover_project_root()?;
+
+    let name = project_name()?;
+
+    let image_name = format!("{}.flake", name);
 
     print!("{}", " Building Image... ".yellow().bold());
-    let name = "image_name";
-    let out = Command::new("src/build.sh").arg(name).stderr(Stdio::inherit()).output().context("Failed to run src/build.sh")?;
+    stdout().flush()?;
+    check_build_sh()?;
+    let out =
+        Command::new("src/build.sh").arg(&image_name).stderr(Stdio::inherit()).output().context("Failed to run src/build.sh")?;
     if !out.status.success() {
         bail!("Failed to build image with build.sh")
     }
-    println!("{}\r{} ({})", clear::CurrentLine, "Built Image".green().bold(), name);
+    flake(&name)?;
+    println!("{}\r{} ({})", clear::CurrentLine, "Built Image".green().bold(), &image_name);
+
+    print!("{}", " Setup".yellow().bold());
+    stdout().flush()?;
+    setup(&name).context("Setup failed")?;
+    println!("{}\r{}", clear::CurrentLine, "Setup".green().bold());
 
     print!("{}", " Compiling... ".yellow().bold());
+    stdout().flush()?;
     Command::new("flake-ctl").arg("build").arg("compile").arg(".staging").arg("--target").arg("out").output()?;
     println!("{}\r{}", clear::CurrentLine, "Compiled".green().bold());
 
-    println!("{} ({})", "Build finished".green().bold(), name);
+    println!("{}", "Build finished".green().bold());
     Ok(())
 }
 
-fn setup(name: &OsStr) -> Result<()> {
+fn setup(name: &str) -> Result<()> {
     create_dir_all("out").context("could not create output directory")?;
 
     let staging = Path::new(".staging/usr/share/flakes");
     copy("src/flake.yaml", staging.join(name).with_extension("yaml")).context("No flake.yaml")?;
+    print!(".");
+    stdout().flush()?;
     copy("src/options.yaml", ".flakes/package/options.yaml").context("No flake.yaml")?;
+    print!(".");
+    stdout().flush()?;
     copy_items(&["src/flake.d"], staging.join(name).with_extension("d"), &CopyOptions::default()).ok();
+    print!(".");
+    stdout().flush()?;
     Ok(())
 }

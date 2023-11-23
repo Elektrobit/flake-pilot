@@ -1,12 +1,13 @@
 mod build;
 pub mod init;
+pub mod util;
 
-use std::{fs::remove_dir_all, path::PathBuf};
+use std::fs::remove_dir_all;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use flake_ctl_build::PackageOptionsBuilder;
-use init::Init;
+use init::InitArgs;
+use util::discover_project_root;
 
 fn main() -> Result<()> {
     Cli::parse().run()
@@ -15,13 +16,13 @@ fn main() -> Result<()> {
 #[derive(Parser)]
 enum Cli {
     New {
-        name: String,
+        project_name: String,
         #[clap(flatten)]
-        init: Init
+        init: InitArgs,
     },
-    Init{
+    Init {
         #[clap(flatten)]
-        init: Init
+        boba: InitArgs,
     },
     Build {},
     Clean {},
@@ -30,10 +31,13 @@ enum Cli {
 impl Cli {
     fn run(self) -> Result<()> {
         match self {
-            Self::New { name, init} => init::new(name, init),
-            Self::Init { init } => init::init(init),
+            Self::New { project_name: name, init } => init::new(name, init),
+            Self::Init { boba, .. } => init::init(boba),
             Self::Build {} => build::build(),
-            Self::Clean {} => remove_dir_all("out").context("No output directory to remove"),
+            Self::Clean {} => {
+                discover_project_root()?;
+                remove_dir_all("out").context("No output directory to remove")
+            }
         }
     }
 }
