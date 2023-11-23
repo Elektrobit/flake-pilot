@@ -98,3 +98,12 @@ fn yaml(app: &Path) -> Result<()> {
     copy_items(&[staging.join(name).with_extension("d")], "src/flake.d", &CopyOptions::default()).ok();
     Ok(())
 }
+
+fn build_sh() -> Result<()> {
+    if home::home_dir().map(|dir| dir.join(".flakes/package/build.sh")).map(|dir| copy(dir, BUILD_SH).ok()).flatten().is_none() {
+        fs::write(BUILD_SH, include_str!("../default_build_sh"))?;
+    }
+    check_build_sh()?;
+    set_permissions(BUILD_SH, Permissions::from_mode(0o777))?;
+    Ok(())
+}
