@@ -8,5 +8,7 @@ echo "Please setup src/build.sh before building your package" 1>&2; exit 1
 # You can create/fetch you container however you want, the only condition is
 # that its tag must be equal to the contents of $1
 
+# Build a container from a Dockerfile using docker
+# docker build -f src/Dockerfile -t $1 .
 # Build a container from a Dockerfile using buildah
 # buildah build -f src/Dockerfile -t $1 .
