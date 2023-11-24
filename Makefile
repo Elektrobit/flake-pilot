@@ -100,6 +100,8 @@ install:
 		$(DESTDIR)$(SBINDIR)/sci
 	install -m 755 target/release/flake-ctl \
 		$(DESTDIR)$(BINDIR)/flake-ctl
+	install -m 755 target/release/flake-studio \
+		$(DESTDIR)$(BINDIR)/flake-studio
 	install -m 755 target/release/flake-ctl-podman \
 		$(DESTDIR)$(BINDIR)/flake-ctl-podman
 	install -m 755 target/release/flake-ctl-firecracker \
@@ -132,6 +134,10 @@ uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-podman
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-firecracker
+	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build
+	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build-dpkg
+	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build-rpmbuild
+	rm -f $(DESTDIR)$(BINDIR)/flake-studio
 	rm -f $(DESTDIR)$(BINDIR)/podman-pilot
 	rm -f $(DESTDIR)$(BINDIR)/firecracker-pilot
 	rm -f $(DESTDIR)$(BINDIR)/firecracker-service
