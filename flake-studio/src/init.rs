@@ -1,9 +1,8 @@
 use std::{
-    env::{current_dir, set_current_dir},
+    env::set_current_dir,
     fs::{self, copy, create_dir, create_dir_all, set_permissions, OpenOptions, Permissions},
     io::{stdout, Write},
     os::unix::fs::PermissionsExt,
-    path::{Path, PathBuf},
     process::Command,
 };
 
@@ -126,7 +125,7 @@ fn yaml(app: &str) -> Result<()> {
 }
 
 fn build_sh() -> Result<()> {
-    if home::home_dir().map(|dir| dir.join(".flakes/package/build.sh")).map(|dir| copy(dir, BUILD_SH).ok()).flatten().is_none() {
+    if home::home_dir().map(|dir| dir.join(".flakes/package/build.sh")).and_then(|dir| copy(dir, BUILD_SH).ok()).is_none() {
         fs::write(BUILD_SH, include_str!("../default_build_sh"))?;
     }
     check_build_sh()?;

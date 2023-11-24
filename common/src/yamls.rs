@@ -17,7 +17,7 @@ pub fn make_template<T: ?Sized + Serialize>(thing: &T, doc: HashMap<String, (Str
 
 pub fn string_to_template(string: String, doc: HashMap<String, (String, Option<String>)>) -> String {
     string
-        .split_inclusive("\n")
+        .split_inclusive('\n')
         .map(|line| match strip_default(line) {
             Some(line) => match doc.get(line.trim()) {
                 Some((desc, Some(default))) => format!("# {desc} \n# {line}: {default}\n"),
