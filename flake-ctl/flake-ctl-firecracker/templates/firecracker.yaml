@@ -1,0 +1,27 @@
+# Example configuration, version 1
+#
+vm:
+  name: name
+  target_app_path: path/to/program/in/container
+  host_app_path: path/to/program/on/host
+
+  runtime:
+    runas: root
+    resume: true
+
+    firecracker:
+      boot_args:
+        - "init=/usr/sbin/sci"
+        - "console=ttyS0"
+        - "root=/dev/vda"
+        - "acpi=off"
+        - "rd.neednet=1"
+        - "ip=dhcp"
+        - "quiet"
+      mem_size_mib: 4096
+      vcpu_count: 2
+      cache_type: Writeback
+      overlay_size: 20GiB
+      rootfs_image_path: /var/lib/firecracker/images/NAME/rootfs
+      kernel_image_path: /var/lib/firecracker/images/NAME/kernel
+      initrd_path: /var/lib/firecracker/images/NAME/initrd

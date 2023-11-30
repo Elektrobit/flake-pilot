@@ -1,5 +1,5 @@
 name: CI-Unit
-  
+
 on:
   push:
     branches:
@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # RUSTFLAGS: -D warnings
 
 jobs:
   unit_tests:
@@ -15,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install latest nextest release
+        uses: taiki-e/install-action@nextest
+
       - uses: actions/checkout@v2
       - name: Run test target
         run: |

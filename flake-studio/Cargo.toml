@@ -1,0 +1,19 @@
+[package]
+name = "flake-studio"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+clap = { version = "=4.3.24", features = ["string", "derive"] }
+fs_extra = "1.3.0"
+flake-ctl-build = { path = "../flake-ctl/flake-ctl-build"}
+serde = "1.0.192"
+serde_yaml = "0.9.27"
+colored = "2.0.4"
+termion = "2.0.3"
+flakes = { version = "0.1.0", path = "../common" }
+home = "0.5.5"
+

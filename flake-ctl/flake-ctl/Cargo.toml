@@ -1,0 +1,16 @@
+[package]
+name = "flake-ctl"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+itertools = "0.11.0"
+colored = "2.0.4"
+
+# Fix these four in place for now because ubuntu ruts is still at 1.66
+clap = { version = "=4.3.24", features=["string"] }
+clap_lex = {version = "=0.5.0"}
+anstyle = {version = "=1.0.2"}
+anstyle-parse = {version = "=0.2.1"}

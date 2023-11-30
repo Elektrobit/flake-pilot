@@ -1,0 +1,52 @@
+container:
+  name: banana
+  target_app_path: /banana/in/the/container
+  host_app_path: /usr/bin/banana
+
+  # Optional base container to use with a delta 'container: name'
+  # If specified the given 'container: name' is expected to be
+  # an overlay for the specified base_container. podman-pilot
+  # combines the 'container: name' with the base_container into
+  # one overlay and starts the result as a container instance
+  #
+  # Default: not_specified
+  base_container: cobol_rules
+
+  # Optional additional container layers on top of the
+  # specified base container
+  layers:
+    - fortran_for_web
+    - prolog_for_productivity
+
+  runtime:
+    # Run the container engine as a user other than the
+    # default target user root. The user may be either
+    # a user name or a numeric user-ID (UID) prefixed
+    # with the ‘#’ character (e.g. #0 for UID 0). The call
+    # of the container engine is performed by sudo.
+    # The behavior of sudo can be controlled via the
+    # file /etc/sudoers
+    runas: root
+
+    # Resume the container from previous execution.
+    # If the container is still running, the app will be
+    # executed inside of this container instance.
+    #
+    # Default: false
+    resume: true
+
+    # Attach to the container if still running, rather than
+    # executing the app again. Only makes sense for interactive
+    # sessions like a shell running as app in the container.
+    #
+    # Default: false
+    attach: true
+
+    podman:
+      - --storage-opt size=10G
+      - --rm
+      - -ti
+
+include:
+  tar:
+    - irq-dropout.tar.gz

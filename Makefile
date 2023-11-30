@@ -39,6 +39,7 @@ sourcetar:
 	cp -a doc package/flake-pilot/
 	cp -a utils package/flake-pilot/
 	cp -a vendor package/flake-pilot
+	cp -a common package/flake-pilot/
 	cp Cargo.toml package/flake-pilot
 
 	# Delete any target directories that may be present
@@ -80,8 +81,7 @@ clean:
 	$(shell find . -type d -name vendor | xargs rm -rf)
 
 test:
-	cd podman-pilot && cargo -v build
-	cd podman-pilot && cargo -v test
+	cargo nextest run
 
 install:
 	install -d -m 755 $(DESTDIR)$(BINDIR)
@@ -100,21 +100,44 @@ install:
 		$(DESTDIR)$(SBINDIR)/sci
 	install -m 755 target/release/flake-ctl \
 		$(DESTDIR)$(BINDIR)/flake-ctl
-	install -m 755 flake-ctl/debbuild/oci-deb \
+	install -m 755 target/release/flake-studio \
+		$(DESTDIR)$(BINDIR)/flake-studio
+	install -m 755 target/release/flake-ctl-podman \
+		$(DESTDIR)$(BINDIR)/flake-ctl-podman
+	install -m 755 target/release/flake-ctl-firecracker \
+		$(DESTDIR)$(BINDIR)/flake-ctl-firecracker
+	install -m 755 flake-ctl/flake-ctl-podman/debbuild/oci-deb \
 		$(DESTDIR)$(BINDIR)/oci-deb
-	install -m 644 flake-ctl/debbuild/container.spec.in \
+	install -m 644 flake-ctl/flake-ctl-podman/debbuild/container.spec.in \
 		$(DESTDIR)$(SHAREDIR)/container.spec.in
-	install -m 644 flake-ctl/template/container-flake.yaml \
-		$(DESTDIR)$(TEMPLATEDIR)/container-flake.yaml
-	install -m 644 flake-ctl/template/firecracker-flake.yaml \
-		$(DESTDIR)$(TEMPLATEDIR)/firecracker-flake.yaml
 	install -m 644 firecracker-pilot/template/firecracker.json \
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker.json
 	install -m 644 doc/*.8 ${DESTDIR}/usr/share/man/man8
 	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
+	install -m 644 flake-ctl/flake-ctl-firecracker/templates/firecracker.yaml \
+	    $(DESTDIR)$(TEMPLATEDIR)
+	install -m 644 flake-ctl/flake-ctl-podman/templates/podman.yaml \
+	    $(DESTDIR)$(TEMPLATEDIR)
+
+	# dpkg
+
+	install -d -m 755 $(FLAKEDIR)/package/dpkg
+	install -m 644 flake-ctl/flake-ctl-build-dpkg/templates/* $(FLAKEDIR)/package/dpkg
+	install -m 755 target/release/flake-ctl-build-dpkg $(DESTDIR)$(BINDIR)/flake-ctl-build-dpkg
+
+	# rpmbuild
+	install -d -m 755 $(FLAKEDIR)/package/rpmbuild
+	install -m 644 flake-ctl/flake-ctl-build-rpmbuild/templates/* $(FLAKEDIR)/package/rpmbuild
+	install -m 755 target/release/flake-ctl-build-rpmbuild $(DESTDIR)$(BINDIR)/flake-ctl-build-rpmbuild
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl
+	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-podman
+	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-firecracker
+	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build
+	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build-dpkg
+	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build-rpmbuild
+	rm -f $(DESTDIR)$(BINDIR)/flake-studio
 	rm -f $(DESTDIR)$(BINDIR)/podman-pilot
 	rm -f $(DESTDIR)$(BINDIR)/firecracker-pilot
 	rm -f $(DESTDIR)$(BINDIR)/firecracker-service

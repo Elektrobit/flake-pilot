@@ -4,7 +4,6 @@ use crate::error::{CommandError, CommandExtTrait, FlakeError};
 use flakes::user::User;
 use nix::unistd;
 use spinoff::{spinners, Color, Spinner};
-use std::fs;
 use std::fs::File;
 use std::io::Seek;
 use std::io::SeekFrom;
@@ -12,6 +11,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::{env, os::unix::prelude::PermissionsExt};
+use std::{fs, path::PathBuf};
 use tempfile::tempfile;
 
 use crate::defaults;
@@ -266,7 +266,10 @@ fn prepare_container(mut app: Command) -> Result<String, FlakeError> {
 }
 
 /// Start container with the given container ID
-pub fn start(program_name: &str) -> Result<(), FlakeError> {
+pub fn start(pth: PathBuf) -> Result<(), FlakeError> {
+    //TODO: remove paths as strings from all over the place and use the PathBuf instead
+    let program_name = pth.file_name().unwrap().to_str().unwrap();
+
     let cid = &create(&program_name.to_string())?.0;
     let RuntimeSection { runas, resume, attach, .. } = config().runtime();
 

@@ -175,11 +175,13 @@ install -m 755 %{buildroot}/usr/sbin/sci \
 %dir /usr/share/flakes
 %dir /etc/flakes
 /usr/bin/flake-ctl
+/usr/bin/flake-ctl-podman
+/usr/bin/flake-ctl-firecracker
 %doc /usr/share/man/man8/flake-ctl.8.gz
 %doc /usr/share/man/man8/flake-ctl-list.8.gz
 
 %files -n flake-pilot-podman
-%config /etc/flakes/container-flake.yaml
+%config /etc/flakes/podman.yaml
 /usr/bin/podman-pilot
 /usr/sbin/flake-registry
 %doc /usr/share/man/man8/flake-ctl-podman-build-deb.8.gz
@@ -194,7 +196,7 @@ install -m 755 %{buildroot}/usr/sbin/sci \
 %dir /var/lib/firecracker/images
 %dir /var/lib/firecracker/storage
 %dir /usr/lib/flake-pilot
-%config /etc/flakes/firecracker-flake.yaml
+%config /etc/flakes/firecracker.yaml
 %config /etc/flakes/firecracker.json
 %doc /usr/share/man/man8/flake-ctl-firecracker-pull.8.gz
 %doc /usr/share/man/man8/flake-ctl-firecracker-remove.8.gz
