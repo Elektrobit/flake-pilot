@@ -9,6 +9,7 @@ panic = "abort"
 resolver = "2"
 members = [
     "flake-ctl/*",
+    "flake-studio",
     "podman-pilot",
     "firecracker-pilot",
     "firecracker-pilot/guestvm-tools/sci",

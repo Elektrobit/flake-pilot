@@ -4,7 +4,7 @@ use flakes::{config::{self, itf::FlakeConfig}, paths::RootedPath};
 use fs_extra::{copy_items, dir::CopyOptions};
 use tempfile::tempdir_in;
 
-use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, copy_configs};
+use flake_ctl_build::{export_flake, FlakeBuilder, PackageOptions, copy_configs, BuilderArgs};
 use flakes::config::FLAKE_DIR;
 
 fn main() -> Result<()> {
@@ -59,7 +59,7 @@ impl FlakeBuilder for RPMBuilder {
         self.infrastructure(location, create_dir_all)
     }
 
-    fn create_bundle(&self, flake_path: &RootedPath, options: &PackageOptions, config: &FlakeConfig, location: &Path) -> Result<()> {
+    fn create_bundle(&self, flake_path: &RootedPath, args: &BuilderArgs, options: &PackageOptions, config: &FlakeConfig, location: &Path) -> Result<()> {
         let PackageOptions { name, version, .. } = options;
         let temp_dir = tempdir_in(location).context("Failed to create bundling dir")?;
         let bundling_dir = temp_dir.path().join(format!("{name}-{version}"));
@@ -73,7 +73,8 @@ impl FlakeBuilder for RPMBuilder {
         copy(bundling_dir.with_extension("tar.gz"), location.join("SOURCES").join(name).with_extension("tar.gz"))
             .context("Failed to move bundle to build dir")?;
 
-        self.create_spec(flake_path, &location.join("SPECS"), options, config).context("Failed to create spec")?;
+        let edit = !self.no_edit && !args.ci;
+        self.create_spec(flake_path, &location.join("SPECS"), options, config, edit).context("Failed to create spec")?;
 
         Ok(())
     }
@@ -135,7 +136,7 @@ impl RPMBuilder {
         Ok(())
     }
 
-    fn create_spec(&self, flake_path: &RootedPath, path: &Path, options: &PackageOptions, config: &FlakeConfig) -> Result<()> {
+    fn create_spec(&self, flake_path: &RootedPath, path: &Path, options: &PackageOptions, config: &FlakeConfig, edit: bool) -> Result<()> {
         let spec_path = path.join(&options.name).with_extension("spec");
         let mut spec = OpenOptions::new().write(true).create_new(true).open(&spec_path)?;
         let content = self.construct_spec(&flake_path.file_name().unwrap().to_string_lossy(), config, options)?;
@@ -143,7 +144,7 @@ impl RPMBuilder {
         spec.flush()?;
 
         // TODO: Select default text editor
-        if !self.no_edit {
+        if edit {
             Command::new("vi").arg(&spec_path).status().context("Failed to open text editor")?;
         }
         Ok(())

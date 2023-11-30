@@ -1,22 +1,32 @@
-use std::{env::var, io::stdin};
+use std::{env::var, io::{stdin, stdout, Write}};
 
+use crate::{
+    config::{get_global, get_local},
+    BuilderArgs,
+};
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
-use serde::Deserialize;
+use colored::Colorize;
+use serde::{Deserialize, Serialize};
 
-use crate::{BuilderArgs, config::{get_global, get_local}};
-
-
-fn user_input(name: &str) -> Result<String> {
+fn user_input(name: &str) -> Option<String> {
     let mut buf = String::new();
-    println!("{name}: ");
-    stdin().read_line(&mut buf)?;
-    Ok(buf.trim_end().to_owned())
+    print!("{}: ", name.bold());
+    stdout().flush().ok();
+    stdin().read_line(&mut buf).ok();
+    let buf = buf.trim_end().to_owned();
+    print!("{}{}\r", termion::cursor::Up(1), termion::clear::CurrentLine);
+    stdout().flush().ok();
+    if buf.is_empty() {
+        None
+    } else {
+        Some(buf)
+    }
 }
 
 macro_rules! fill_in {
     ($options:ident : $($name:ident = $getter:expr;)*) => {
-        $($options.$name = $options.$name.or_else(|| $getter.ok());)*
+        $($options.$name = $options.$name.or_else(|| $getter);)*
     };
 }
 
@@ -37,26 +47,18 @@ impl BuilderArgs {
 
         // Read from env where not given
         fill_in!(options:
-            name = var("PKG_FLAKE_NAME");
-            description = var("PKG_FLAKE_DESCRIPTION");
-            version = var("PKG_FLAKE_VERSION");
-            url = var("PKG_FLAKE_URL");
-            maintainer_name = var("PKG_FLAKE_MAINTAINER_NAME");
-            maintainer_email = var("PKG_FLAKE_MAINTAINER_EMAIL");
-            license = var("PKG_FLAKE_LICENSE");
+            name = var("PKG_FLAKE_NAME").ok();
+            description = var("PKG_FLAKE_DESCRIPTION").ok();
+            version = var("PKG_FLAKE_VERSION").ok();
+            url = var("PKG_FLAKE_URL").ok();
+            maintainer_name = var("PKG_FLAKE_MAINTAINER_NAME").ok();
+            maintainer_email = var("PKG_FLAKE_MAINTAINER_EMAIL").ok();
+            license = var("PKG_FLAKE_LICENSE").ok();
         );
-        
+
         // Read from stdin where still not given
         if !self.ci {
-            fill_in!(options:
-                name = user_input("Name");
-                description = user_input("Description");
-                version = user_input("Version");
-                url = user_input("URL");
-                maintainer_name = user_input("Maintainer Name");
-                maintainer_email = user_input("Maintainer Email");
-                license = user_input("License");
-            );
+            options = options.fill_from_terminal();
         }
 
         options.build().context("Missing packaging option")
@@ -74,23 +76,30 @@ pub struct PackageOptions {
     pub license: String,
 }
 
-#[derive(Debug, Default, Args, Clone, Deserialize)]
+#[derive(Debug, Default, Args, Clone, Serialize, Deserialize)]
 pub struct PackageOptionsBuilder {
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// The name of the package (excluding version, arch, etc.)
     pub name: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// A url pointing to the packages source
     pub url: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub maintainer_name: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub maintainer_email: Option<String>,
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub license: Option<String>,
 }
 
@@ -117,5 +126,18 @@ impl PackageOptionsBuilder {
             maintainer_email: self.maintainer_email.ok_or_else(|| anyhow!("Missing package maintainer email"))?,
             license: self.license.ok_or_else(|| anyhow!("Missing package license"))?,
         })
+    }
+
+    pub fn fill_from_terminal(mut self) -> Self {
+        fill_in!(self:
+            name = user_input("Name");
+            description = user_input("Description");
+            version = user_input("Version");
+            url = user_input("URL");
+            maintainer_name = user_input("Maintainer Name");
+            maintainer_email = user_input("Maintainer Email");
+            license = user_input("License");
+        );
+        self
     }
 }
