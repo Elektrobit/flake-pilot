@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{Context, Ok, Result};
 use clap::Args;
-use flake_ctl_build::{copy_configs, export_flake, FlakeBuilder, PackageOptions};
+use flake_ctl_build::{copy_configs, export_flake, FlakeBuilder, PackageOptions, BuilderArgs};
 use flakes::{config::itf::FlakeConfig, paths::RootedPath};
 
 fn main() -> Result<()> {
@@ -35,9 +35,10 @@ impl FlakeBuilder for DPKGBuilder {
     }
 
     fn create_bundle(
-        &self, flake_name: &RootedPath, options: &PackageOptions, config: &FlakeConfig, location: &Path,
+        &self, flake_name: &RootedPath, args: &BuilderArgs, options: &PackageOptions, config: &FlakeConfig, location: &Path,
     ) -> Result<()> {
-        self.control_file(options, location, config.engine().pilot()).context("Failed to create control file")?;
+        let edit = !self.no_edit && !args.ci;
+        self.control_file(options, location, config.engine().pilot(), edit).context("Failed to create control file")?;
         self.rules_file(location).context("Failed to create rules file")?;
         self.install_script(flake_name, location, config).context("Failed to create install script")?;
         self.uninstall_script(location, config).context("Failed to create uninstall script")?;
@@ -75,7 +76,7 @@ impl DPKGBuilder {
         Ok(())
     }
 
-    fn control_file(&self, options: &PackageOptions, location: &Path, pilot: &str) -> Result<()> {
+    fn control_file(&self, options: &PackageOptions, location: &Path, pilot: &str, edit: bool) -> Result<()> {
         let depends = fs::read_to_string(self.template.join(pilot))?;
 
         let mut cfile = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("control"))?;
@@ -98,7 +99,7 @@ impl DPKGBuilder {
         .try_for_each(|(name, value)| cfile.write_all(format!("{name}: {value}\n").as_bytes()))?;
 
         // TODO: Select default text editor
-        if !self.no_edit {
+        if edit {
             Command::new("vi").arg(location.join("DEBIAN").join("control")).status().context("Failed to open text editor")?;
         }
         Ok(())

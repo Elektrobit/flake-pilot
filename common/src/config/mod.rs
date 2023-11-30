@@ -2,7 +2,12 @@ use crate::paths::flake_dir_from;
 
 use self::{cfgparse::FlakeCfgParser, itf::FlakeConfig};
 use lazy_static::lazy_static;
-use std::{env, fs, io::Error, path::{PathBuf, Path}, sync::Mutex};
+use std::{
+    env, fs,
+    io::Error,
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 
 pub mod cfg_v1;
 pub mod cfg_v2;
@@ -33,7 +38,7 @@ lazy_static! {
     pub static ref LOCAL_PACKAGING_CONFIG: PathBuf = PathBuf::from(".flakes/package/options.yaml");
 
     /// Global Config directory for flake packaging
-    pub static ref GLOBAL_PACKAGING_CONFIG: PathBuf = PathBuf::from("~").join(&*LOCAL_PACKAGING_CONFIG);
+    pub static ref GLOBAL_PACKAGING_CONFIG: PathBuf = home::home_dir().unwrap().join(&*LOCAL_PACKAGING_CONFIG);
 }
 
 /// Get CID store, depending on the call
@@ -100,15 +105,15 @@ pub fn app_path() -> Result<PathBuf, Error> {
 
 pub fn get() -> FlakeConfig {
     CFG.to_owned()
-
 }
-pub fn load_from_target(root: Option<&Path>, app_p: &Path) -> Result<FlakeConfig, Error> {
 
-    let app_ps = app_p.file_name().unwrap().to_str().unwrap().to_string();
-
+pub fn load_from_path(path: &Path) -> Result<FlakeConfig, Error> {
     // Get app configuration
-    let cfg_d_paths: Vec<PathBuf> = std::fs::read_dir(flake_dir_from(root).join(app_ps.to_owned() + ".d"))
-        .unwrap()
+
+    let cfg_d_paths: Vec<PathBuf> = std::fs::read_dir(path.with_extension("d"))
+        .ok()
+        .into_iter()
+        .flatten()
         .filter_map(|entry| -> Option<PathBuf> {
             if let Ok(entry) = entry {
                 if entry.path().is_file() {
@@ -121,10 +126,15 @@ pub fn load_from_target(root: Option<&Path>, app_p: &Path) -> Result<FlakeConfig
         })
         .collect();
 
-    match FlakeCfgParser::new(flake_dir_from(root).join(app_ps + ".yaml"), cfg_d_paths)?.parse() {
+    match FlakeCfgParser::new(path.with_extension("yaml"), cfg_d_paths)?.parse() {
         Some(cfg) => Ok(cfg),
         None => Err(Error::new(std::io::ErrorKind::NotFound, "Unable to read configuration")),
     }
+}
+
+pub fn load_from_target(root: Option<&Path>, app_p: &Path) -> Result<FlakeConfig, Error> {
+    let app_ps = app_p.file_name().unwrap().to_str().unwrap().to_string();
+    load_from_path(&flake_dir_from(root).join(app_ps))
 }
 
 /// Load config for the host app path
