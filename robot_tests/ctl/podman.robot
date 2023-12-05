@@ -42,7 +42,7 @@ Register a Container with Base
 Export a Container
     Pull Podman Container    ubuntu
     Register Podman Container    ubuntu    ubu-flake 
-    ${result} =  Run Process  flake-ctl  podman  export  ubu-flake  ${TEMPDIR}
+    ${result} =  Run Process  flake-ctl  podman  export  ubu-flake  ${TEMPDIR}/ubu-flake
     Log  ${result.stderr}
     Should Be Equal As Integers    ${result.rc}    0
     File Should Exist    ${TEMPDIR}/ubu-flake
