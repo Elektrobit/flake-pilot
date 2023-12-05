@@ -43,6 +43,15 @@ pub(crate) fn build() -> Result<()> {
     stdout().flush()?;
     Command::new("flake-ctl").arg("build").arg("compile").arg(".staging").arg("--target").arg("out").output()?;
     println!("{}\r{}", clear::CurrentLine, "Compiled".green().bold());
+    
+    if !keep {
+        print!("{}", " Cleaning up... ".yellow().bold());
+        stdout().flush()?;
+        Command::new("podman").arg("rmi").arg(image_name).output()?;
+        println!("{}\r{}", clear::CurrentLine, "Clean".green().bold());
+    } else {
+        println!("{}", "Skipping Cleanup".bright_black().bold());
+    }
 
     println!("{}", "Build finished".green().bold());
     Ok(())
