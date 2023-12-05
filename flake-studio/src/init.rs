@@ -3,13 +3,13 @@ use std::{
     fs::{self, copy, create_dir, create_dir_all, set_permissions, OpenOptions, Permissions},
     io::{stdout, Write},
     os::unix::fs::PermissionsExt,
-    process::Command,
 };
+
 
 use clap::Args;
 use colored::Colorize;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use flake_ctl_build::{config::get_global, PackageOptionsBuilder};
 use flakes::{
     config::load_from_path,
@@ -19,7 +19,7 @@ use flakes::{
 use fs_extra::{copy_items, dir::CopyOptions, file::read_to_string};
 use termion::clear;
 
-use crate::util::{check_build_sh, project_name};
+use crate::{util::{check_build_sh, project_name}, common::{setup_flake, image_name}};
 
 const BUILD_SH: &str = "src/build.sh";
 
@@ -57,7 +57,7 @@ fn _init(name: &str, init: InitArgs) -> Result<()> {
     options_file(options).context("Failed to create options.yaml")?;
     print!(".");
     stdout().flush()?;
-    flake(name).context("Failed to init flake")?;
+    setup_flake(name, &image_name(name)).context("Failed to init flake")?;
     print!(".");
     stdout().flush()?;
     yaml(name).context("Failed to create config files")?;
@@ -75,20 +75,6 @@ fn structure() -> Result<()> {
     create_dir_all("src")?;
     create_dir_all(".staging")?;
     create_dir_all("out")?;
-    Ok(())
-}
-
-pub fn flake(app: &str) -> Result<()> {
-    let out = Command::new("flake-ctl-build")
-        .args(["image", "podman"])
-        .arg(format!("{app}.flake"))
-        .arg(format!("/usr/bin/{app}"))
-        .args(["--location", ".staging", "--ci", "--keep", "--dry-run"])
-        .output()?;
-    if !out.status.success() {
-        let x = String::from_utf8_lossy(&out.stderr);
-        bail!("{}", x)
-    }
     Ok(())
 }
 
