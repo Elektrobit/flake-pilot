@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::options::{PackageOptions, PackageOptionsBuilder};
-use anyhow::{anyhow, Context, Ok, Result};
+use anyhow::{anyhow, bail, Context, Ok, Result};
 use clap::{Args, FromArgMatches, Parser, Subcommand};
 use flakes::{
     config::{self, itf::FlakeConfig, FLAKE_DIR},
@@ -257,7 +257,10 @@ pub fn export_flake(path: &RootedPath, pilot: &str, bundling_dir: &Path) -> Resu
         cmd.arg("--root").arg(root);
     }
 
-    cmd.arg(path.file_name().unwrap()).arg(bundling_dir.join_ignore_abs(path.file_name().unwrap())).status()?;
+    let out = cmd.arg(path.file_name().unwrap()).arg(bundling_dir).output()?;
+    if !out.status.success() {
+        bail!("{}", String::from_utf8_lossy(&out.stderr))
+    }
     Ok(())
 }
 
@@ -284,7 +287,9 @@ pub fn run<T: FromArgMatches + Args + FlakeBuilder>() -> Result<()> {
     let command = FullArgs::<T>::parse();
     match command.subcmd {
         Subcmd::Mode(mode) => command.builder.run(*mode),
-        Subcmd::Compile(comp) => command.builder.build(&comp.args.determine_options()?, comp.args.target.as_deref(), &comp.location),
+        Subcmd::Compile(comp) => {
+            command.builder.build(&comp.args.determine_options()?, comp.args.target.as_deref(), &comp.location)
+        }
         Subcmd::About => {
             println!("{};PACKAGER", command.builder.description());
             Ok(())
