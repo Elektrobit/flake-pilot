@@ -6,59 +6,65 @@ SBINDIR ?= ${PREFIX}/sbin
 SHAREDIR ?= ${PREFIX}/share/podman-pilot
 FLAKEDIR ?= ${PREFIX}/share/flakes
 TEMPLATEDIR ?= /etc/flakes
-
+PKG_NAME ?= flake-pilot
 ARCH = $(shell uname -m)
 
 .PHONY: package
 package: clean vendor sourcetar
 	rm -rf package/build
 	mkdir -p package/build
-	gzip package/flake-pilot.tar
-	mv package/flake-pilot.tar.gz package/build
-	cp package/flake-pilot.spec package/build
+	gzip package/${PKG_NAME}.tar
+	mv package/${PKG_NAME}.tar.gz package/build
+	cp package/${PKG_NAME}.spec package/build
 	cp package/cargo_config package/build
 	cp package/gcc_fix_static.sh package/build
-	cp package/flake-pilot-rpmlintrc package/build
+	cp package/${PKG_NAME}-rpmlintrc package/build
 	# update changelog using reference file
-	helper/update_changelog.py --since package/flake-pilot.changes.ref > \
-		package/build/flake-pilot.changes
-	helper/update_changelog.py --file package/flake-pilot.changes.ref >> \
-		package/build/flake-pilot.changes
+	helper/update_changelog.py --since package/${PKG_NAME}.changes.ref > \
+		package/build/${PKG_NAME}.changes
+	helper/update_changelog.py --file package/${PKG_NAME}.changes.ref >> \
+		package/build/${PKG_NAME}.changes
 	@echo "Find package data at package/build"
 
 vendor:
 	cargo vendor
 
 sourcetar:
-	rm -rf package/flake-pilot
-	mkdir package/flake-pilot
-	cp Makefile package/flake-pilot
-	cp -a podman-pilot package/flake-pilot/
-	cp -a flake-ctl package/flake-pilot/
-	cp -a firecracker-pilot package/flake-pilot/
-	cp -a doc package/flake-pilot/
-	cp -a utils package/flake-pilot/
-	cp -a vendor package/flake-pilot
-	cp -a common package/flake-pilot/
-	cp Cargo.toml package/flake-pilot
+	rm -rf package/${PKG_NAME}
+	mkdir package/${PKG_NAME}
+	cp Makefile package/${PKG_NAME}
+	cp -a pilots package/${PKG_NAME}
+	cp -a flake-ctl package/${PKG_NAME}
+
+	# podman-pilot is obsolete and needs to be removed entirely
+	# Currently added for packaging reasons
+	cp -a podman-pilot package/${PKG_NAME}
+
+	cp -a flake-studio package/${PKG_NAME}/
+	cp -a firecracker-pilot package/${PKG_NAME}
+	cp -a doc package/${PKG_NAME}
+	cp -a utils package/${PKG_NAME}
+	cp -a vendor package/${PKG_NAME}
+	cp -a common package/${PKG_NAME}
+	cp Cargo.toml package/${PKG_NAME}
 
 	# Delete any target directories that may be present
-	find package/flake-pilot -type d -wholename "*/target" -prune -exec rm -rf {} \;
+	find package/${PKG_NAME} -type d -wholename "*/target" -prune -exec rm -rf {} \;
 
 	# Delete large chunk windows and wasm dependencies
 	# Use filtered vendoring in the future
 	# https://github.com/rust-lang/cargo/issues/7058
-	find package/flake-pilot -type d -wholename "*/vendor/winapi*" -prune -exec \
+	find package/${PKG_NAME} -type d -wholename "*/vendor/winapi*" -prune -exec \
 		rm -rf {}/src \; -exec mkdir -p {}/src \; -exec touch {}/src/lib.rs \; -exec rm -rf {}/lib \;
-	find package/flake-pilot -type d -wholename "*/vendor/windows*" -prune -exec \
+	find package/${PKG_NAME} -type d -wholename "*/vendor/windows*" -prune -exec \
 		rm -rf {}/src \; -exec mkdir -p {}/src \;  -exec touch {}/src/lib.rs \; -exec rm -rf {}/lib \;
 
-	rm -rf package/flake-pilot/vendor/web-sys/src/*
-	rm -rf package/flake-pilot/vendor/web-sys/webidls
-	touch package/flake-pilot/vendor/web-sys/src/lib.rs
+	rm -rf package/${PKG_NAME}/vendor/web-sys/src/*
+	rm -rf package/${PKG_NAME}/vendor/web-sys/webidls
+	touch package/${PKG_NAME}/vendor/web-sys/src/lib.rs
 
-	tar -C package -cf package/flake-pilot.tar flake-pilot
-	rm -rf package/flake-pilot
+	tar -C package -cf package/${PKG_NAME}.tar ${PKG_NAME}
+	rm -rf package/${PKG_NAME}
 
 .PHONY:build
 build: man
@@ -66,12 +72,12 @@ build: man
 	cd firecracker-pilot/guestvm-tools/sci && RUSTFLAGS='-C target-feature=+crt-static' cargo build -v --release --target $(ARCH)-unknown-linux-gnu
 
 clean:
-	cd podman-pilot && cargo -v clean
+	cd pilots && cargo -v clean
 	cd firecracker-pilot && cargo -v clean
 	cd flake-ctl && cargo -v clean
 	cd firecracker-pilot/firecracker-service/service && cargo -v clean
 	cd firecracker-pilot/guestvm-tools/sci && cargo -v clean
-	rm -rf podman-pilot/vendor
+	rm -rf pilots/vendor
 	rm -rf flake-ctl/vendor
 	rm -rf firecracker-pilot/firecracker-service/service/vendor
 	rm -rf firecracker-pilot/firecracker-service/service-communication/vendor
@@ -90,7 +96,7 @@ install:
 	install -d -m 755 $(DESTDIR)$(TEMPLATEDIR)
 	install -d -m 755 $(DESTDIR)$(FLAKEDIR)
 	install -d -m 755 ${DESTDIR}/usr/share/man/man8
-	install -m 755 target/release/podman-pilot \
+	install -m 755 target/release/oci-pilot \
 		$(DESTDIR)$(BINDIR)/podman-pilot
 	install -m 755 target/release/firecracker-pilot \
 		$(DESTDIR)$(BINDIR)/firecracker-pilot
