@@ -200,7 +200,7 @@ pub fn export(root: &Path, flake: &str, target: &Path) -> Result<()> {
     println!("Root {}  flake {}  target {}", root.to_string_lossy(), flake, target.to_string_lossy());
 
     let tmp = tempdir().context("Failed to create tmp dir")?;
-    let tmp_target = tmp.path().join_ignore_abs(flake);
+    let tmp_target = tmp.path().join_ignore_abs(image);
     println!("{}", tmp_target.to_string_lossy());
     let status = Command::new("podman")
         .arg("save")
@@ -214,7 +214,7 @@ pub fn export(root: &Path, flake: &str, target: &Path) -> Result<()> {
     if !status.success() {
         bail!("Failed to export oci-archive");
     }
-    let status = Command::new("mv").arg(tmp.path().join(flake)).arg(target).status()?;
+    let status = Command::new("mv").arg(tmp.path().join(image)).arg(target).status()?;
     if !status.success() {
         bail!("Failed to move oci-archive to target location");
     }

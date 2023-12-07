@@ -16,4 +16,5 @@ colored = "2.0.4"
 termion = "2.0.3"
 flakes = { version = "0.1.0", path = "../common" }
 home = "0.5.5"
+base64 = "0.21.5"
 

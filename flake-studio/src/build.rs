@@ -8,31 +8,33 @@ use std::{
 use anyhow::{bail, Context, Ok, Result};
 use colored::Colorize;
 
+use flakes::config;
 use fs_extra::{copy_items, dir::CopyOptions};
 use termion::clear;
 
 use crate::{
-    init::flake,
+    common::setup_flake,
     util::{check_build_sh, discover_project_root, project_name},
 };
 
-pub(crate) fn build() -> Result<()> {
+pub(crate) fn build(keep: bool) -> Result<()> {
     discover_project_root()?;
 
     let name = project_name()?;
 
-    let image_name = format!("{}.flake", name);
+    let conf = config::load_from_path(Path::new("src/flake")).context("Could not open flake configuration")?;
+    let image_name = conf.runtime().image_name();
 
     print!("{}", " Building Image... ".yellow().bold());
     stdout().flush()?;
     check_build_sh()?;
     let out =
-        Command::new("src/build.sh").arg(&image_name).stderr(Stdio::inherit()).output().context("Failed to run src/build.sh")?;
+        Command::new("src/build.sh").arg(image_name).stderr(Stdio::inherit()).output().context("Failed to run src/build.sh")?;
     if !out.status.success() {
         bail!("Failed to build image with build.sh")
     }
-    flake(&name)?;
-    println!("{}\r{} ({})", clear::CurrentLine, "Built Image".green().bold(), &image_name);
+    setup_flake(&name, image_name)?;
+    println!("{}\r{} ({})", clear::CurrentLine, "Built Image".green().bold(), image_name);
 
     print!("{}", " Setup".yellow().bold());
     stdout().flush()?;
@@ -41,8 +43,17 @@ pub(crate) fn build() -> Result<()> {
 
     print!("{}", " Compiling... ".yellow().bold());
     stdout().flush()?;
-    Command::new("flake-ctl").arg("build").arg("compile").arg(".staging").arg("--target").arg("out").output()?;
+    Command::new("flake-ctl").args(["build", "compile", ".staging", "--target", "out"]).output()?;
     println!("{}\r{}", clear::CurrentLine, "Compiled".green().bold());
+    
+    if !keep {
+        print!("{}", " Cleaning up... ".yellow().bold());
+        stdout().flush()?;
+        Command::new("podman").arg("rmi").arg(image_name).output()?;
+        println!("{}\r{}", clear::CurrentLine, "Clean".green().bold());
+    } else {
+        println!("{}", "Skipping Cleanup".bright_black().bold());
+    }
 
     println!("{}", "Build finished".green().bold());
     Ok(())

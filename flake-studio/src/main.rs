@@ -1,6 +1,7 @@
 mod build;
 pub mod init;
 pub mod util;
+pub mod common;
 
 use std::fs::remove_dir_all;
 
@@ -24,7 +25,10 @@ enum Cli {
         #[clap(flatten)]
         boba: InitArgs,
     },
-    Build {},
+    Build {
+        #[clap(long)]
+        keep: bool
+    },
     Clean {},
 }
 
@@ -33,7 +37,7 @@ impl Cli {
         match self {
             Self::New { project_name: name, init } => init::new(name, init),
             Self::Init { boba, .. } => init::init(boba),
-            Self::Build {} => build::build(),
+            Self::Build { keep } => build::build(keep),
             Self::Clean {} => {
                 discover_project_root()?;
                 remove_dir_all("out").context("No output directory to remove")
