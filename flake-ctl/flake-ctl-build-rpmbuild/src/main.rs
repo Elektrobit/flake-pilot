@@ -68,7 +68,9 @@ impl FlakeBuilder for RPMBuilder {
 
         self.copy_includes(config, &bundling_dir).context("Failed to copy includes to bundling dir")?;
         copy_configs(flake_path, &bundling_dir).context("Failed to copy configs to bundling dir")?;
-        export_flake(flake_path, config.engine().pilot(), &bundling_dir).context("Failed to export flake image(s)")?;
+        if !args.skip_export {
+            export_flake(flake_path, config.engine().pilot(), &bundling_dir).context("Failed to export flake image(s)")?;
+        }
         self.compress_bundle(temp_dir.path(), name, version).context("Failed to compress bundle")?;
         copy(bundling_dir.with_extension("tar.gz"), location.join("SOURCES").join(name).with_extension("tar.gz"))
             .context("Failed to move bundle to build dir")?;
