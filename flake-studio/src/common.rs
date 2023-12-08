@@ -3,13 +3,16 @@ use std::{process::Command, time::UNIX_EPOCH};
 use anyhow::{bail, Result};
 use base64::{engine::general_purpose, Engine as _};
 
-pub fn setup_flake(app: &str, image: &str) -> Result<()> {
-    let out = Command::new("flake-ctl-build")
-        .args(["image", "podman"])
+pub fn setup_flake(app: &str, image: &str, exclude_image: bool) -> Result<()> {
+    let mut cmd = Command::new("flake-ctl-build");
+    cmd.args(["image", "podman"])
         .arg(image)
         .arg(format!("/usr/bin/{app}"))
-        .args(["--location", ".staging", "--ci", "--keep", "--dry-run"])
-        .output()?;
+        .args(["--location", ".staging", "--ci", "--keep", "--dry-run"]);
+    if exclude_image {
+        cmd.arg("--skip-export");
+    }
+    let out = cmd.output()?;
     if !out.status.success() {
         bail!("{}", String::from_utf8_lossy(&out.stderr))
     }
