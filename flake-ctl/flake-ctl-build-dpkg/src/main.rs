@@ -45,7 +45,9 @@ impl FlakeBuilder for DPKGBuilder {
         let export_path = &location.join(flakes::config::FLAKE_DIR.strip_prefix("/").unwrap());
         create_dir_all(export_path)?;
         create_dir_all(location.join("tmp"))?;
-        export_flake(flake_name, config.engine().pilot(), &location.join("tmp")).context("Failed to export flake")?;
+        if !args.skip_export {
+            export_flake(flake_name, config.engine().pilot(), &location.join("tmp")).context("Failed to export flake")?;
+        }
         copy_configs(flake_name, location)?;
         Ok(())
     }

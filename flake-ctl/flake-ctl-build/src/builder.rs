@@ -248,6 +248,11 @@ pub struct BuilderArgs {
     /// Ignored for `flake`
     // `flake-ctl modify`
     pub trailing: Vec<String>,
+
+    #[arg(long)]
+    /// Do not export the image
+    // TODO: This needs a better solution in the future as adherence to this is not enforced right now
+    pub skip_export: bool,
 }
 
 pub fn export_flake(path: &RootedPath, pilot: &str, bundling_dir: &Path) -> Result<()> {
