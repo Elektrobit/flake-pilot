@@ -57,7 +57,7 @@ fn _init(name: &str, init: InitArgs) -> Result<()> {
     options_file(options).context("Failed to create options.yaml")?;
     print!(".");
     stdout().flush()?;
-    setup_flake(name, &image_name(name)).context("Failed to init flake")?;
+    setup_flake(name, &image_name(name), true).context("Failed to init flake")?;
     print!(".");
     stdout().flush()?;
     yaml(name).context("Failed to create config files")?;

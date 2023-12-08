@@ -33,7 +33,7 @@ pub(crate) fn build(keep: bool) -> Result<()> {
     if !out.status.success() {
         bail!("Failed to build image with build.sh")
     }
-    setup_flake(&name, image_name)?;
+    setup_flake(&name, image_name, false)?;
     println!("{}\r{} ({})", clear::CurrentLine, "Built Image".green().bold(), image_name);
 
     print!("{}", " Setup".yellow().bold());
