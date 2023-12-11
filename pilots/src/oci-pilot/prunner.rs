@@ -168,11 +168,8 @@ impl PodmanRunner {
         if *self.get_cfg().runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume {
             // @schaefi promised to be dead by that time :)
             args.extend(vec!["sleep".to_string(), "4294967295d".to_string()]);
-        } else {
-            if self.get_target_app()? != "/" {
-                args.push(self.get_target_app()?);
-
-            }
+        } else if self.get_target_app()? != "/" {
+            args.push(self.get_target_app()?);
         }
 
         // Pass the rest of the stuff to the app
