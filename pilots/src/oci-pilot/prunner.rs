@@ -169,7 +169,10 @@ impl PodmanRunner {
             // @schaefi promised to be dead by that time :)
             args.extend(vec!["sleep".to_string(), "4294967295d".to_string()]);
         } else {
-            args.push(self.get_target_app()?);
+            if self.get_target_app()? != "/" {
+                args.push(self.get_target_app()?);
+
+            }
         }
 
         // Pass the rest of the stuff to the app
