@@ -923,6 +923,7 @@ name = "flake-studio"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
  "clap 4.3.24",
  "colored",
  "flake-ctl-build",

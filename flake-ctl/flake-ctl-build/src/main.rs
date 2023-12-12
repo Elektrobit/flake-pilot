@@ -21,7 +21,7 @@ fn main() -> Result<ExitCode> {
 
     match cli.subcmd {
         Subcmds::About => {
-            println!("Package flakes and images with the native package manager;TOOL");
+            println!("Package flakes and images with your systems native package manager;PACKAGER");
             Ok(ExitCode::SUCCESS)
         }
         Subcmds::Which => {

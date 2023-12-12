@@ -40,12 +40,14 @@ impl FlakeBuilder for DPKGBuilder {
         let edit = !self.no_edit && !args.ci;
         self.control_file(options, location, config.engine().pilot(), edit).context("Failed to create control file")?;
         self.rules_file(location).context("Failed to create rules file")?;
-        self.install_script(flake_name, location, config).context("Failed to create install script")?;
+        self.install_script(location, config).context("Failed to create install script")?;
         self.uninstall_script(location, config).context("Failed to create uninstall script")?;
         let export_path = &location.join(flakes::config::FLAKE_DIR.strip_prefix("/").unwrap());
         create_dir_all(export_path)?;
         create_dir_all(location.join("tmp"))?;
-        export_flake(flake_name, config.engine().pilot(), &location.join("tmp")).context("Failed to export flake")?;
+        if !args.skip_export {
+            export_flake(flake_name, config.engine().pilot(), &location.join("tmp")).context("Failed to export flake")?;
+        }
         copy_configs(flake_name, location)?;
         Ok(())
     }
@@ -110,13 +112,14 @@ impl DPKGBuilder {
         Ok(())
     }
 
-    fn install_script(&self, flake_name: &RootedPath, location: &Path, conf: &FlakeConfig) -> Result<()> {
+    fn install_script(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let pilot = conf.engine().pilot();
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("DEBIAN").join("postinst"))?;
-        
-        let name = flake_name.file_name().unwrap_or_default().to_string_lossy();
+
+        let archive = Path::new("/tmp").join(conf.runtime().image_name());
+        let archive = archive.to_string_lossy();
         // TODO: Needs to be read from template for other pilots
-        script.write_all(format!("podman load < /tmp/{name}\n").as_bytes())?;
+        script.write_all(format!("podman load < {archive} && rm {archive}\n").as_bytes())?;
 
         if let Some((first, mut rest)) = conf.runtime().get_symlinks() {
             let first = first.to_string_lossy();
