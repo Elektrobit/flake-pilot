@@ -1,6 +1,6 @@
 use crate::prunner::PodmanRunner;
 use flakes::config::itf::InstanceMode;
-use std::{io::Error, path::PathBuf};
+use std::{io::{Error, stdout, Write}, path::PathBuf};
 
 /// Podman runtime
 ///
@@ -47,7 +47,8 @@ impl PodmanPilot {
 
         // Print out the results
         if !self.stdout.is_empty() {
-            println!("{}", self.stdout);
+            print!("{}", self.stdout);
+            stdout().flush()?;
         }
 
         if !self.stderr.is_empty() {
