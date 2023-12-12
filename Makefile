@@ -107,7 +107,7 @@ install:
 		$(DESTDIR)$(BINDIR)/oci-deb
 	install -m 644 flake-ctl/flake-ctl-podman/debbuild/container.spec.in \
 		$(DESTDIR)$(SHAREDIR)/container.spec.in
-	install -m 644 firecracker-pilot/template/firecracker.json \
+	install -m 644 ${PILOTS_SRC}/firecracker-pilot/template/firecracker.json \
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker.json
 	install -m 644 doc/*.8 ${DESTDIR}/usr/share/man/man8
 	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
