@@ -28,14 +28,14 @@ jobs:
           cd flake-ctl
           cargo license
 
-      # podman-pilot
-      - name: Run SPDX Creation for podman-pilot
+      # Pilots
+      - name: Run SPDX for pilots
         run: |
-          cd podman-pilot
+          cd pilots
           cargo bom
-      - name: Get Dependency Licenses of podman-pilot
+      - name: Get Dependency Licenses of Pilots
         run: |
-          cd podman-pilot
+          cd pilots
           cargo license
 
       # firecracker-pilot
