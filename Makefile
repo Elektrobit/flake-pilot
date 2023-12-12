@@ -35,11 +35,6 @@ sourcetar:
 	cp Makefile package/${PKG_NAME}
 	cp -a pilots package/${PKG_NAME}
 	cp -a flake-ctl package/${PKG_NAME}
-
-	# podman-pilot is obsolete and needs to be removed entirely
-	# Currently added for packaging reasons
-	cp -a podman-pilot package/${PKG_NAME}
-
 	cp -a flake-studio package/${PKG_NAME}/
 	cp -a firecracker-pilot package/${PKG_NAME}
 	cp -a doc package/${PKG_NAME}
