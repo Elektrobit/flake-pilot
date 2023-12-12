@@ -7,6 +7,7 @@ SHAREDIR ?= ${PREFIX}/share/podman-pilot
 FLAKEDIR ?= ${PREFIX}/share/flakes
 TEMPLATEDIR ?= /etc/flakes
 PKG_NAME ?= flake-pilot
+PILOTS_SRC ?= pilots/src
 ARCH = $(shell uname -m)
 
 .PHONY: package
@@ -36,7 +37,6 @@ sourcetar:
 	cp -a pilots package/${PKG_NAME}
 	cp -a flake-ctl package/${PKG_NAME}
 	cp -a flake-studio package/${PKG_NAME}/
-	cp -a firecracker-pilot package/${PKG_NAME}
 	cp -a doc package/${PKG_NAME}
 	cp -a utils package/${PKG_NAME}
 	cp -a vendor package/${PKG_NAME}
@@ -64,19 +64,15 @@ sourcetar:
 .PHONY:build
 build: man
 	cargo build -v --release
-	cd firecracker-pilot/guestvm-tools/sci && RUSTFLAGS='-C target-feature=+crt-static' cargo build -v --release --target $(ARCH)-unknown-linux-gnu
+	cd ${PILOTS_SRC}/firecracker-pilot/guestvm-tools/sci && RUSTFLAGS='-C target-feature=+crt-static' cargo build -v --release --target $(ARCH)-unknown-linux-gnu
 
 clean:
 	cd pilots && cargo -v clean
-	cd firecracker-pilot && cargo -v clean
 	cd flake-ctl && cargo -v clean
-	cd firecracker-pilot/firecracker-service/service && cargo -v clean
-	cd firecracker-pilot/guestvm-tools/sci && cargo -v clean
+	cd ${PILOTS_SRC}/firecracker-pilot/firecracker-service/service && cargo -v clean
+	cd ${PILOTS_SRC}/firecracker-pilot/guestvm-tools/sci && cargo -v clean
 	rm -rf pilots/vendor
 	rm -rf flake-ctl/vendor
-	rm -rf firecracker-pilot/firecracker-service/service/vendor
-	rm -rf firecracker-pilot/firecracker-service/service-communication/vendor
-	rm -rf firecracker-pilot/guestvm-tools/sci/vendor
 	${MAKE} -C doc clean
 	$(shell find . -name Cargo.lock | xargs rm -f)
 	$(shell find . -type d -name vendor | xargs rm -rf)
@@ -111,7 +107,7 @@ install:
 		$(DESTDIR)$(BINDIR)/oci-deb
 	install -m 644 flake-ctl/flake-ctl-podman/debbuild/container.spec.in \
 		$(DESTDIR)$(SHAREDIR)/container.spec.in
-	install -m 644 firecracker-pilot/template/firecracker.json \
+	install -m 644 ${PILOTS_SRC}/firecracker-pilot/template/firecracker.json \
 		$(DESTDIR)$(TEMPLATEDIR)/firecracker.json
 	install -m 644 doc/*.8 ${DESTDIR}/usr/share/man/man8
 	install -m 755 utils/* $(DESTDIR)$(SBINDIR)
