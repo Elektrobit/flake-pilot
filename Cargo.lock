@@ -1756,24 +1756,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 
 [[package]]
-name = "podman-pilot"
-version = "2.2.19"
-dependencies = [
- "env_logger 0.9.3",
- "flakes",
- "lazy_static",
- "log",
- "nix 0.27.1",
- "serde",
- "serde_yaml 0.9.27",
- "spinoff",
- "tempfile",
- "thiserror",
- "which",
- "yaml-rust",
-]
-
-[[package]]
 name = "polling"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
