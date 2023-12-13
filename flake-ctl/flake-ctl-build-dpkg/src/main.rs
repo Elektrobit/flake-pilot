@@ -178,8 +178,7 @@ impl DPKGBuilder {
         // TODO: Maybe offer feature extract from other package
         let content = "* This is an automatically packaged flake, see chengelog of original for details";
         
-        // TODO: calc this
-        let time = "Wed, 06 Dec 2023 13:56:16 +0100";
+        let time = chrono::Local::now().format("%a, %d %b %Y %H:%M:%S %z");
 
         let content = format!("{name} ({version}) {status}; urgency={urgency}\n\n{content}\n\n-- {maintainer_name} <{maintainer_email}>  {time}");
         write_all(location.join("debian/changelog"), &content)?;
