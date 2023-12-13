@@ -1,8 +1,8 @@
 use std::{
-    fs::{self, create_dir_all, remove_dir_all, OpenOptions},
+    fs::{self, create_dir_all, remove_dir_all, OpenOptions, Permissions, set_permissions},
     io::Write,
     path::{Path, PathBuf},
-    process::Command, env::{set_current_dir, current_dir},
+    process::Command, env::{set_current_dir, current_dir}, os::unix::fs::PermissionsExt as _,
 };
 
 use anyhow::{Context, Ok, Result};
@@ -46,6 +46,7 @@ impl FlakeBuilder for DPKGBuilder {
         self.postinst(location, config).context("Failed to create install script")?;
         self.prerm(location, config).context("Failed to create uninstall script")?;
         self.compat(location)?;
+        self.source_format(location)?;
         self.install(location, &flake_name.file_name().unwrap().to_string_lossy(), config)?;
         self.changelog(location, options)?;
 
@@ -87,7 +88,7 @@ impl DPKGBuilder {
         F: FnMut(PathBuf) -> Result<(), std::io::Error>,
         P: AsRef<Path>,
     {
-        ["tmp", "usr", "debian"].into_iter().map(|x| location.as_ref().join(x)).try_for_each(f)?;
+        ["tmp", "usr", "debian/source"].into_iter().map(|x| location.as_ref().join(x)).try_for_each(f)?;
         Ok(())
     }
 
@@ -104,7 +105,9 @@ impl DPKGBuilder {
             ("Priority", "optional"),
             ("Maintainer", &format!("\"{}\" <{}>", options.maintainer_name, options.maintainer_email)),
             ("Homepage", &options.url),
-            ("Standard-Version", &options.version),
+            // TODO: This is just the newest version for now
+            ("Standards-Version", "4.6.2.0"),
+            ("Rules-Requires-Root", "binary-targets"),
         ]
         .into_iter()
         .try_for_each(|(name, value)| cfile.write_all(format!("{name}: {value}\n").as_bytes()))?;
@@ -119,7 +122,6 @@ impl DPKGBuilder {
             ("Multi-Arch", "foreign"),
             ("Description", &options.description),
             ("Package-Type", "deb"),
-            ("Rules-Requires-Root", "binary-targets"),
         ]
         .into_iter()
         .try_for_each(|(name, value)| cfile.write_all(format!("{name}: {value}\n").as_bytes()))?;
@@ -133,7 +135,8 @@ impl DPKGBuilder {
     }
 
     fn rules(&self, location: &Path) -> Result<()> {
-        OpenOptions::new().create(true).write(true).open(location.join("debian/rules"))?.write_all("%:\n\tdh $@".as_bytes())?;
+        OpenOptions::new().create(true).write(true).open(location.join("debian/rules"))?.write_all("#!/usr/bin/make -f\n%:\n\tdh $@".as_bytes())?;
+        set_permissions(location.join("debian/rules"), Permissions::from_mode(0o777))?;
         Ok(())
     }
 
@@ -180,7 +183,7 @@ impl DPKGBuilder {
         
         let time = chrono::Local::now().format("%a, %d %b %Y %H:%M:%S %z");
 
-        let content = format!("{name} ({version}) {status}; urgency={urgency}\n\n{content}\n\n-- {maintainer_name} <{maintainer_email}>  {time}");
+        let content = format!("{name} ({version}) {status}; urgency={urgency}\n\n  {content}\n\n -- {maintainer_name} <{maintainer_email}>  {time}\n");
         write_all(location.join("debian/changelog"), &content)?;
         Ok(())
     }
@@ -193,6 +196,11 @@ impl DPKGBuilder {
         let image = Path::new("tmp").join(config.runtime().image_name());
         let image = image.to_string_lossy();
         write_all(location.join("debian/install"), &format!("{yaml} /usr/share/flakes\n{d} /usr/share/flakes\n{image} /tmp\n"))?;
+        Ok(())
+    }
+
+    fn source_format(&self, location: &Path) -> Result<()> {
+        write_all(location.join("debian/source/format"), "1.0\n")?;
         Ok(())
     }
 }
