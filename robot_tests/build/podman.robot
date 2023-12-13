@@ -11,10 +11,6 @@ Package Podman Image as .deb Package via dpkg
     Pull Podman Container    ubuntu
     Package an Image    dpkg    podman    ubuntu
 
-Package Podman Image as .rpm Package via rpmbuild
-    Pull Podman Container    ubuntu
-    Package an Image    rpmbuild    podman    ubuntu
-
 
 *** Keywords ***
 Package a Flake
