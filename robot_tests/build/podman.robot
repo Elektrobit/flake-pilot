@@ -37,11 +37,11 @@ Package an Image
     Log    ${result.stderr}
     Log    ${result.stdout}
 
-    File Should Exist    ${TEMPDIR}/test_package/TestPackage.deb
+    File Should Exist    ${TEMPDIR}/test_package/testpackage_1.0.0_all.deb
 
 Setup Env
     Create Directory    ${TEMPDIR}/test_package
-    Set Environment Variable    PKG_FLAKE_NAME    TestPackage
+    Set Environment Variable    PKG_FLAKE_NAME    testpackage
     Set Environment Variable    PKG_FLAKE_DESCRIPTION    A Test Package
     Set Environment Variable    PKG_FLAKE_VERSION    1.0.0
     Set Environment Variable    PKG_FLAKE_URL    example.com
