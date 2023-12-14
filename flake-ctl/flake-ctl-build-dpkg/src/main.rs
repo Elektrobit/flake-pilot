@@ -118,6 +118,7 @@ impl DPKGBuilder {
             // Do not remove as_str() or the type inference will break
             ("Package", options.name.as_str()),
             ("Architecture", "all"),
+            ("Version", &options.version),
             ("Depends", &depends),
             ("Multi-Arch", "foreign"),
             ("Description", &options.description),
