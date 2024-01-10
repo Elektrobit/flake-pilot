@@ -18,7 +18,8 @@ jobs:
           sudo apt -y install python3-docutils
           sudo apt -y install python3
           pip install robotframework
-          sudo apt install podman
+          sudo apt -y install podman
+          sudo apt -y install dh-make
       - name: Build Flake-Pilot
         run:  make build
       - name: Install Flake-Pilot

@@ -12,3 +12,6 @@ echo "Please setup src/build.sh before building your package" 1>&2; exit 1
 # docker build -f src/Dockerfile -t $1 .
 # Build a container from a Dockerfile using buildah
 # buildah build -f src/Dockerfile -t $1 .
+
+# Re-tag a podman image you already have (replace "ubuntu" with your image name)
+# podman tag ubuntu $1
