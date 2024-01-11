@@ -122,10 +122,10 @@ install:
 	install -m 644 flake-ctl/flake-ctl-build-dpkg/templates/* $(DESTDIR)$(FLAKEDIR)/package/dpkg
 	install -m 755 target/release/flake-ctl-build-dpkg $(DESTDIR)$(BINDIR)/flake-ctl-build-dpkg
 
-	# rpmbuild
-	install -d -m 755 $(DESTDIR)$(FLAKEDIR)/package/rpmbuild
-	install -m 644 flake-ctl/flake-ctl-build-rpmbuild/templates/* $(DESTDIR)$(FLAKEDIR)/package/rpmbuild
-	install -m 755 target/release/flake-ctl-build-rpmbuild $(DESTDIR)$(BINDIR)/flake-ctl-build-rpmbuild
+	# # rpmbuild
+	# install -d -m 755 $(DESTDIR)$(FLAKEDIR)/package/rpmbuild
+	# install -m 644 flake-ctl/flake-ctl-build-rpmbuild/templates/* $(DESTDIR)$(FLAKEDIR)/package/rpmbuild
+	# install -m 755 target/release/flake-ctl-build-rpmbuild $(DESTDIR)$(BINDIR)/flake-ctl-build-rpmbuild
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl
@@ -133,7 +133,7 @@ uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-firecracker
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build
 	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build-dpkg
-	rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build-rpmbuild
+	# rm -f $(DESTDIR)$(BINDIR)/flake-ctl-build-rpmbuild
 	rm -f $(DESTDIR)$(BINDIR)/flake-studio
 	rm -f $(DESTDIR)$(BINDIR)/podman-pilot
 	rm -f $(DESTDIR)$(BINDIR)/firecracker-pilot
