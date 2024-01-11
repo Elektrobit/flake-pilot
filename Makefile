@@ -116,8 +116,9 @@ install:
 	install -m 644 flake-ctl/flake-ctl-podman/templates/podman.yaml \
 	    $(DESTDIR)$(TEMPLATEDIR)
 
-	# dpkg
+	install -m 755 target/release/flake-ctl-build $(DESTDIR)$(BINDIR)/flake-ctl-build
 
+	# dpkg
 	install -d -m 755 $(DESTDIR)$(FLAKEDIR)/package/dpkg
 	install -m 644 flake-ctl/flake-ctl-build-dpkg/templates/* $(DESTDIR)$(FLAKEDIR)/package/dpkg
 	install -m 755 target/release/flake-ctl-build-dpkg $(DESTDIR)$(BINDIR)/flake-ctl-build-dpkg
