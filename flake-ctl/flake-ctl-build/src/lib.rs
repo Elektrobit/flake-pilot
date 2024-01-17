@@ -1,63 +1,76 @@
 use std::{
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, exit}, env,
 };
 
-mod config;
+pub mod config;
 pub mod options;
 
 use anyhow::{anyhow, bail, Context, Result};
-use clap::{arg, Args};
+use clap::{arg, ArgAction, ArgMatches, Args};
 use flakes::{
-    config::{itf::FlakeConfig, load_from_path, load_from_target, FLAKE_DIR},
-    paths::{PathExt, RootedPath},
+    config::{itf::FlakeConfig, load_from_target, FLAKE_DIR},
+    paths::PathExt,
 };
 use fs_extra::{
     copy_items, dir,
     file::{self, copy},
 };
-use options::{PackageOptions, PackageOptionsBuilder};
+use options::{determine_options, PackageOptions, PackageOptionsBuilder};
 use tempfile::tempdir;
 
-pub fn run<B: Builder>() -> Result<()> {
-    let matches = cli().get_matches();
+pub fn run<B: Builder + Args>() -> Result<()> {
+    let matches = B::augment_args(cli()).get_matches();
+    let builder = B::from_arg_matches(&matches).context("Failed to extract builder specific args")?;
 
     let fake_root_temp = tempdir()?;
 
     let fake_root = fake_root_temp.path();
 
-    let flake_name = matches.get_one::<String>("target_app").ok_or(anyhow!("No target app provided"))?;
+    let target_app = matches.get_one::<String>("target-app").ok_or(anyhow!("No target app provided"))?;
+    let target_app = Path::new(target_app);
+    let flake_name = target_app.file_name().unwrap().to_string_lossy();
+    let flake_name = flake_name.as_ref();
 
     let temp_location = tempdir()?;
-    let cli_location = matches.get_one("location").cloned();
-    let location = cli_location.unwrap_or(temp_location.path());
+    let cli_location = matches.get_one::<String>("location");
+    let cli_location = cli_location.cloned().map(PathBuf::from);
+    let location = cli_location.as_deref().unwrap_or(temp_location.path());
 
-    let options = PackageOptionsBuilder::default().fill_from_terminal().build()?;
+    let options = determine_options(&matches)?;
 
     if !matches.get_flag("compile") {
-        if let Some(image_name) = matches.get_one::<String>("from-oci") {
+        if let Some(image_name) = find_image_name(&matches) {
             std::process::Command::new("flake-ctl")
                 .arg("podman")
                 .arg("register")
                 .arg("--root")
                 .arg(fake_root)
                 .arg("--app")
-                .arg(flake_name)
+                .arg(target_app)
                 .arg("--container")
                 .arg(image_name)
                 .args(matches.get_many::<String>("trailing").unwrap_or_default())
                 .status()
                 .context("Failed to register temporary flake")?;
+        } else {
+            bail!("Could not determine container name, maybe try passing --container")
         }
 
-        let info = SetupInfo { config: load_from_target(Some(fake_root), Path::new(flake_name))?, options: options.clone() };
+        let info = SetupInfo {
+            config: load_from_target(Some(fake_root), Path::new(flake_name))?,
+            flake_name: flake_name.to_owned(),
+            options: options.clone(),
+        };
 
-        let BuilderInfo { image_location, config_location } = B::setup(location, info)?;
+        let BuilderInfo { image_location, config_location } = builder.setup(location, info)?;
 
-        if let Some(archive) = matches.get_one::<String>("from-tar") {
-            copy(archive, image_location, &file::CopyOptions::new()).context("Failed to copy archive")?;
-        } else {
-            export_flake(flake_name, fake_root, &image_location).context("Failed to export flake")?;
+        if !matches.get_flag("no-image") {
+            if let Some(archive) = matches.get_one::<String>("from-tar") {
+                copy(archive, image_location.join(&options.name), &file::CopyOptions::new()).context("Failed to copy archive")?;
+            } else {
+                export_flake(flake_name, fake_root, &image_location).context("Failed to export flake")?;
+            }
         }
         let cfg_location = fake_root.join_ignore_abs(FLAKE_DIR.as_path()).join(flake_name);
         copy_configs(&cfg_location, &config_location).context("Failed to copy configs")?;
@@ -65,11 +78,11 @@ pub fn run<B: Builder>() -> Result<()> {
 
     if !matches.get_flag("dry-run") {
         let info = CompileInfo {
-            config: load_from_target(Some(fake_root), Path::new(flake_name))?,
+            config: load_from_target(Some(location), Path::new(flake_name))?,
             options,
-            flake_name: flake_name.clone(),
+            flake_name: flake_name.to_owned(),
         };
-        B::compile(location, info, matches.get_one("output").cloned().unwrap_or(Path::new(".")))
+        builder.compile(location, info, Path::new(&matches.get_one::<String>("output").cloned().unwrap_or(String::from("."))))
             .context("Failed to compile flake")?;
     }
 
@@ -78,15 +91,17 @@ pub fn run<B: Builder>() -> Result<()> {
 
 fn cli() -> clap::Command {
     let cmd = clap::Command::new("flake-ctl-build")
-        .about("")
-        .arg(arg!(-a --target-app <APP> "Name of the app on the host"))
-        .arg(arg!(-c --from-oci <OCI> "Build from the given oci container"))
-        .arg(arg!(-t --from-tar <TAR> "Build from the given .tar.gz archive"))
+        .arg(arg!(-a <APP> "Name of the app on the host").id("target-app").long("target-app"))
+        .arg(arg!(-c <OCI> "Build from the given oci container").id("from-oci").long("from-oci"))
+        .arg(arg!(-t <TAR> "Build from tarball. NOTE: file should have extension \".tar.gz\"").id("from-tar").long("from-tar"))
         .arg(arg!(-o --output <OUTPUT> "Output directory or filename (default: working dir, name depends on package manager)"))
         .arg(arg!(-l --location <LOCATION> "Where to build the package (default: tempdir)"))
-        .arg(arg!(--dry-run "Only assemble bundle, do not compile"))
-        .arg(arg!(--compile "Compile a pre-existing bundle"))
-        .arg(arg!(trailing: ... "Trailing args will be forwarded to the flake config").trailing_var_arg(true));
+        .arg(arg!("Only assemble bundle, do not compile").id("dry-run").long("dry-run").action(ArgAction::SetTrue))
+        .arg(arg!(--compile "Compile a pre-existing bundle given by 'location'"))
+        .arg(arg!("Do not include an image in this flake").id("no-image").long("no-image").action(ArgAction::SetTrue))
+        .arg(arg!(--ci "Skip all potential user input"))
+        .arg(arg!(--imgage <IMAGE> "Override the image used in the flake (otherwise inferred)"))
+        .arg(arg!(trailing: ... "Trailing args will be forwarded to the flake config").trailing_var_arg(true).hide(true));
     PackageOptionsBuilder::augment_args(cmd)
 }
 
@@ -111,13 +126,14 @@ pub fn export_flake(name: &str, root: &Path, target: &Path) -> Result<()> {
 pub fn copy_configs(path: &Path, bundling_dir: &Path) -> Result<()> {
     let configs = [path.with_extension("yaml"), path.with_extension("d")];
 
-    copy_items(&configs, bundling_dir, &dir::CopyOptions::new())?;
+    copy_items(&configs, bundling_dir, &dir::CopyOptions::new().overwrite(true))?;
     Ok(())
 }
 
 pub struct SetupInfo {
     pub config: FlakeConfig,
     pub options: PackageOptions,
+    pub flake_name: String,
 }
 
 pub struct CompileInfo {
@@ -132,6 +148,25 @@ pub struct BuilderInfo {
 }
 
 pub trait Builder {
-    fn setup(location: &Path, info: SetupInfo) -> Result<BuilderInfo>;
-    fn compile(location: &Path, info: CompileInfo, target: &Path) -> Result<()>;
+    fn setup(&self, location: &Path, info: SetupInfo) -> Result<BuilderInfo>;
+    fn compile(&self, location: &Path, info: CompileInfo, target: &Path) -> Result<()>;
+}
+
+fn find_image_name(matches: &ArgMatches) -> Option<String> {
+    if let Some(container) = matches.get_one::<String>("image") {
+        Some(container).cloned()
+    } else if let Some(container) = matches.get_one::<String>("from-oci") {
+        Some(container).cloned()
+    } else if let Some(tar) = matches.get_one::<String>("from-tar") {
+        Path::new(tar).file_name()?.to_string_lossy().strip_suffix(".tar.gz").map(str::to_owned)
+    } else {
+        None
+    }
+}
+
+pub fn about(about: &str) {
+    if env::args().nth(1).as_deref() == Some("about") {
+        println!("{about};Packager");
+        exit(0);
+    }
 }
