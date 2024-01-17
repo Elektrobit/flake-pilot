@@ -30,40 +30,48 @@ macro_rules! fill_in {
     };
 }
 
-// impl BuilderArgs {
-//     pub fn determine_options(&self) -> Result<PackageOptions> {
-//         let mut options = PackageOptionsBuilder::default();
+pub fn determine_options(matches: &clap::ArgMatches) -> Result<PackageOptions> {
+    let mut options = PackageOptionsBuilder::default();
 
-//         // Get options from global/local settings
-//         if let Ok(global) = get_global() {
-//             options = options.update(global);
-//         }
-//         if let Ok(local) = get_local() {
-//             options = options.update(local);
-//         }
+    // Get options from global/local settings
+    if let Ok(global) = get_global() {
+        options = options.update(global);
+    }
+    if let Ok(local) = get_local() {
+        options = options.update(local);
+    }
 
-//         // Options on CLI override global/local settings
-//         options = options.update(self.options.clone());
+    // Options on CLI override global/local settings
+    // options = options.update(self.options.clone());
 
-//         // Read from env where not given
-//         fill_in!(options:
-//             name = var("PKG_FLAKE_NAME").ok();
-//             description = var("PKG_FLAKE_DESCRIPTION").ok();
-//             version = var("PKG_FLAKE_VERSION").ok();
-//             url = var("PKG_FLAKE_URL").ok();
-//             maintainer_name = var("PKG_FLAKE_MAINTAINER_NAME").ok();
-//             maintainer_email = var("PKG_FLAKE_MAINTAINER_EMAIL").ok();
-//             license = var("PKG_FLAKE_LICENSE").ok();
-//         );
+    fill_in!(options:
+        name = matches.get_one("name").cloned();
+        description = matches.get_one("description").cloned();
+        version = matches.get_one("version").cloned();
+        url = matches.get_one("url").cloned();
+        maintainer_name = matches.get_one("maintainer_name").cloned();
+        maintainer_email = matches.get_one("maintainer_email").cloned();
+        license = matches.get_one("license").cloned();
+    );
 
-//         // Read from stdin where still not given
-//         if !self.ci {
-//             options = options.fill_from_terminal();
-//         }
+    // Read from env where not given
+    fill_in!(options:
+        name = var("PKG_FLAKE_NAME").ok();
+        description = var("PKG_FLAKE_DESCRIPTION").ok();
+        version = var("PKG_FLAKE_VERSION").ok();
+        url = var("PKG_FLAKE_URL").ok();
+        maintainer_name = var("PKG_FLAKE_MAINTAINER_NAME").ok();
+        maintainer_email = var("PKG_FLAKE_MAINTAINER_EMAIL").ok();
+        license = var("PKG_FLAKE_LICENSE").ok();
+    );
 
-//         options.build().context("Missing packaging option")
-//     }
-// }
+    // Read from stdin where still not given
+    if !matches.get_flag("ci") {
+        options = options.fill_from_terminal();
+    }
+
+    options.build().context("Missing packaging option")
+}
 
 #[derive(Debug, Clone)]
 pub struct PackageOptions {
