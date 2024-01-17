@@ -6,34 +6,42 @@ use std::{
 };
 
 use anyhow::{Context, Ok, Result};
+
 use clap::Args;
-use flake_ctl_build::{copy_configs, export_flake, Builder, SetupInfo, BuilderInfo, CompileInfo};
-use flakes::{config::{itf::FlakeConfig, FLAKE_DIR}, paths::{RootedPath, PathExt}};
+use flake_ctl_build::{Builder, SetupInfo, BuilderInfo, CompileInfo, options::PackageOptions, about};
+use flakes::{config::{itf::FlakeConfig, FLAKE_DIR}, paths::PathExt};
 use fs_extra::{file::write_all, copy_items, dir::{CopyOptions, self}};
 use tempfile::tempdir;
 
 fn main() -> Result<()> {
+    about("Package flakes with dpkg-deb");
     flake_ctl_build::run::<DPKGBuilder>()
 }
 
-struct DPKGBuilder;
+#[derive(Args)]
+struct DPKGBuilder {
+    /// Location of .spec template and pilot specific data
+    #[arg(long, default_value = FLAKE_DIR.join("package/dpkg").into_os_string())]
+    template: PathBuf,
+
+    /// skip spec editing
+    #[arg(long)]
+    no_edit: bool,
+}
 
 impl Builder for DPKGBuilder {
-    // fn description(-> &str {
-    //     "Package flakes with dpkg-deb"
-    // }
 
-    fn setup(location: &Path, info: SetupInfo) -> Result<BuilderInfo> {
-        infrastructure(location, create_dir_all)?;
+    fn setup(&self, location: &Path, info: SetupInfo) -> Result<BuilderInfo> {
+        self.infrastructure(location, create_dir_all)?;
 
-        control(&info.options, location, info.config.engine().pilot(), false).context("Failed to create control file")?;
-        rules(location).context("Failed to create rules file")?;
-        postinst(location, &info.config).context("Failed to create install script")?;
-        prerm(location, &info.config).context("Failed to create uninstall script")?;
-        compat(location)?;
-        source_format(location)?;
-        install(location, &info.flake_name, &info.config)?;
-        changelog(location, &info.options)?;
+        self.control(&info.options, location, info.config.engine().pilot(), false).context("Failed to create control file")?;
+        self.rules(location).context("Failed to create rules file")?;
+        self.postinst(location, &info.config).context("Failed to create install script")?;
+        self.prerm(location, &info.config).context("Failed to create uninstall script")?;
+        self.compat(location)?;
+        self.source_format(location)?;
+        self.install(location, &info.flake_name, &info.config)?;
+        self.changelog(location, &info.options)?;
 
         let export_path = &location.join(flakes::config::FLAKE_DIR.strip_prefix("/").unwrap());
         create_dir_all(export_path)?;
@@ -45,7 +53,7 @@ impl Builder for DPKGBuilder {
         })
     }
 
-    fn compile(location: &Path, info: CompileInfo, target: &Path) -> Result<()> {
+    fn compile(&self, location: &Path, _info: CompileInfo, target: &Path) -> Result<()> {
         // Move all content of staging directory to a temporary folder, cd there, build, and then copy the result to the output folder
         // This is needed because of a quirk in dpkg-buildpackage where the package is always build in `..`
         let tmp = tempdir()?;
@@ -58,12 +66,14 @@ impl Builder for DPKGBuilder {
 
         set_current_dir(cwd)?;
         remove_dir_all(tmp_build)?;
-        dir::copy(tmp.path(), target.unwrap_or(Path::new(".")), &CopyOptions::new().content_only(true).overwrite(true))?;
+        dir::copy(tmp.path(), target, &CopyOptions::new().content_only(true).overwrite(true))?;
         Ok(())
     }
 }
 
-    fn infrastructure<F, P>(location: P, f: F) -> Result<()>
+impl DPKGBuilder {
+
+    fn infrastructure<F, P>(&self, location: P, f: F) -> Result<()>
     where
         F: FnMut(PathBuf) -> Result<(), std::io::Error>,
         P: AsRef<Path>,
@@ -72,8 +82,8 @@ impl Builder for DPKGBuilder {
         Ok(())
     }
 
-    fn control(options: &PackageOptions, location: &Path, pilot: &str, edit: bool) -> Result<()> {
-        let depends = fs::read_to_string(template.join(pilot))?;
+    fn control(&self, options: &PackageOptions, location: &Path, pilot: &str, edit: bool) -> Result<()> {
+        let depends = fs::read_to_string(self.template.join(pilot))?;
 
         let mut cfile = OpenOptions::new().truncate(true).create(true).write(true).open(location.join("debian").join("control"))?;
 
@@ -115,13 +125,13 @@ impl Builder for DPKGBuilder {
         Ok(())
     }
 
-    fn rules(location: &Path) -> Result<()> {
+    fn rules(&self, location: &Path) -> Result<()> {
         OpenOptions::new().create(true).write(true).open(location.join("debian/rules"))?.write_all("#!/usr/bin/make -f\n%:\n\tdh $@".as_bytes())?;
         set_permissions(location.join("debian/rules"), Permissions::from_mode(0o777))?;
         Ok(())
     }
 
-    fn postinst(location: &Path, conf: &FlakeConfig) -> Result<()> {
+    fn postinst(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let pilot = conf.engine().pilot();
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("debian").join("postinst"))?;
 
@@ -138,7 +148,7 @@ impl Builder for DPKGBuilder {
         Ok(())
     }
 
-    fn prerm(location: &Path, conf: &FlakeConfig) -> Result<()> {
+    fn prerm(&self, location: &Path, conf: &FlakeConfig) -> Result<()> {
         let mut script = OpenOptions::new().create(true).write(true).open(location.join("debian").join("prerm"))?;
         script.write_all(format!("podman rmi {}\n", conf.runtime().image_name()).as_bytes())?;
         conf.runtime()
@@ -149,12 +159,12 @@ impl Builder for DPKGBuilder {
         Ok(())
     }
 
-    fn compat(location: &Path) -> Result<()> {
+    fn compat(&self, location: &Path) -> Result<()> {
         write_all(location.join("debian/compat"), "10\n")?;
         Ok(())
     }
     
-    fn changelog(location: &Path, options: &PackageOptions) -> Result<()> {
+    fn changelog(&self, location: &Path, options: &PackageOptions) -> Result<()> {
         let PackageOptions { name, version, maintainer_name, maintainer_email, .. } = options;
         // TODO: make settable in options
         let status = "UNRELEASED";
@@ -169,7 +179,7 @@ impl Builder for DPKGBuilder {
         Ok(())
     }
 
-    fn install(location: &Path, flake_name: &str, config: &FlakeConfig) -> Result<()> {
+    fn install(&self, location: &Path, flake_name: &str, config: &FlakeConfig) -> Result<()> {
         let yaml = Path::new("usr/share/flakes").join(flake_name).with_extension("yaml");
         let yaml = yaml.to_string_lossy();
         let d = Path::new("usr/share/flakes").join(flake_name).with_extension("d");
@@ -180,7 +190,8 @@ impl Builder for DPKGBuilder {
         Ok(())
     }
 
-    fn source_format(location: &Path) -> Result<()> {
+    fn source_format(&self, location: &Path) -> Result<()> {
         write_all(location.join("debian/source/format"), "1.0\n")?;
         Ok(())
     }
+}
