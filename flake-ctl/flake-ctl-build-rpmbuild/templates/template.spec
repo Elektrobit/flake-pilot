@@ -24,6 +24,7 @@ A demo RPM build
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/usr/share/flakes
 mkdir -p $RPM_BUILD_ROOT/tmp
+pwd
 cp ./%{_flake_dir}/%{_flake_name}.yaml $RPM_BUILD_ROOT/%{_flake_dir}
 cp ./%{_flake_dir}/%{_flake_name}.d $RPM_BUILD_ROOT/%{_flake_dir} -r
 cp %{_flake_name} $RPM_BUILD_ROOT/tmp
