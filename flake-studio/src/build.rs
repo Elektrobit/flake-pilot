@@ -33,6 +33,11 @@ pub(crate) fn build(keep: bool) -> Result<()> {
     if !out.status.success() {
         bail!("Failed to build image with build.sh")
     }
+
+    copy("src/options.yaml", ".flakes/package/options.yaml").context("No flake.yaml")?;
+    print!(".");
+    stdout().flush()?;
+
     setup_flake(&name, image_name, false)?;
     println!("{}\r{} ({})", clear::CurrentLine, "Built Image".green().bold(), image_name);
 
@@ -41,10 +46,15 @@ pub(crate) fn build(keep: bool) -> Result<()> {
     setup(&name).context("Setup failed")?;
     println!("{}\r{}", clear::CurrentLine, "Setup".green().bold());
 
-    print!("{}", " Compiling... ".yellow().bold());
+    print!("{}", " Building package... ".yellow().bold());
     stdout().flush()?;
-    Command::new("flake-ctl").args(["build", "compile", ".staging", "--target", "out"]).output()?;
-    println!("{}\r{}", clear::CurrentLine, "Compiled".green().bold());
+    let mut cmd = Command::new("flake-ctl");
+    let app = project_name()?;
+    cmd.args(["build", "--compile", "--location", ".staging", "-o", "out"])
+    .arg("--target-app")
+    .arg(format!("/usr/bin/{app}"));
+    cmd.output()?;
+    println!("{}\r{}", clear::CurrentLine, "Built".green().bold());
     
     if !keep {
         print!("{}", " Cleaning up... ".yellow().bold());
@@ -64,9 +74,6 @@ fn setup(name: &str) -> Result<()> {
 
     let staging = Path::new(".staging/usr/share/flakes");
     copy("src/flake.yaml", staging.join(name).with_extension("yaml")).context("No flake.yaml")?;
-    print!(".");
-    stdout().flush()?;
-    copy("src/options.yaml", ".flakes/package/options.yaml").context("No flake.yaml")?;
     print!(".");
     stdout().flush()?;
     copy_items(&["src/flake.d"], staging.join(name).with_extension("d"), &CopyOptions::default()).ok();

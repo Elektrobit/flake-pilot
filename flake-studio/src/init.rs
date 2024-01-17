@@ -10,7 +10,7 @@ use clap::Args;
 use colored::Colorize;
 
 use anyhow::{Context, Result};
-use flake_ctl_build::{config::get_global, PackageOptionsBuilder};
+use flake_ctl_build::{config::get_global, options::PackageOptionsBuilder};
 use flakes::{
     config::load_from_path,
     paths::flake_dir_from,

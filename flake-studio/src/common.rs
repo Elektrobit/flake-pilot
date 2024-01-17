@@ -5,13 +5,15 @@ use base64::{engine::general_purpose, Engine as _};
 
 pub fn setup_flake(app: &str, image: &str, exclude_image: bool) -> Result<()> {
     let mut cmd = Command::new("flake-ctl-build");
-    cmd.args(["image", "podman"])
+    cmd.arg("--from-oci")
         .arg(image)
+        .arg("--target-app")
         .arg(format!("/usr/bin/{app}"))
-        .args(["--location", ".staging", "--ci", "--keep", "--dry-run"]);
+        .args(["--location", ".staging", "--ci", "--dry-run"]);
     if exclude_image {
-        cmd.arg("--skip-export");
+        cmd.arg("--no-image");
     }
+
     let out = cmd.output()?;
     if !out.status.success() {
         bail!("{}", String::from_utf8_lossy(&out.stderr))
