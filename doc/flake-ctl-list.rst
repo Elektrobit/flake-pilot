@@ -35,13 +35,3 @@ EXAMPLE
 .. code:: bash
 
    $ flake-ctl list
-
-AUTHOR
-------
-
-Marcus Schäfer
-
-COPYRIGHT
----------
-
-(c) 2022, Elektrobit Automotive GmbH

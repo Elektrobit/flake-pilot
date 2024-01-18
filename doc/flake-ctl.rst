@@ -4,7 +4,7 @@ FLAKE-CTL(8)
 NAME
 ----
 
-**flake-ctl** - Load and Register flake applications
+**flake-ctl** - Register and manage flake applications
 
 SYNOPSIS
 --------
@@ -12,7 +12,7 @@ SYNOPSIS
 .. code:: bash
 
    USAGE:
-       flake-ctl <SUBCOMMAND>
+       flake-ctl <COMMAND>
 
    OPTIONS:
        -h, --help       Print help information
@@ -21,8 +21,8 @@ SYNOPSIS
    SUBCOMMANDS:
        help         Print this message or the help of the given subcommand(s)
        list         List registered container applications
-       podman       Load and register OCI applications
-       firecracker  Load and register VM applications
+
+    For further subcommands use flake-ctl help 
 
 DESCRIPTION
 -----------
@@ -42,13 +42,3 @@ SEE ALSO
 --------
 
 podman-pilot(8), flake-ctl-podman-build-deb(8), flake-ctl-list(8), flake-ctl-podman-load(8), flake-ctl-podman-register(8), flake-ctl-podman-remove(8), firecracker-pilot(8), flake-ctl-firecracker-load(8), flake-ctl-firecracker-register(8), flake-ctl-firecracker-remove(8)
-
-AUTHOR
-------
-
-Marcus Schäfer
-
-COPYRIGHT
----------
-
-(c) 2022, Elektrobit Automotive GmbH
