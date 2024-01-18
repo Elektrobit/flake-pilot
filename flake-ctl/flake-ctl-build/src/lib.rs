@@ -27,7 +27,7 @@ pub fn run<B: Builder + Args>() -> Result<()> {
 
     let fake_root = fake_root_temp.path();
 
-    let target_app = matches.get_one::<String>("target-app").ok_or(anyhow!("No target app provided"))?;
+    let target_app = matches.get_one::<String>("app").ok_or(anyhow!("No target app provided"))?;
     let target_app = Path::new(target_app);
     let flake_name = target_app.file_name().unwrap().to_string_lossy();
     let flake_name = flake_name.as_ref();
@@ -91,7 +91,7 @@ pub fn run<B: Builder + Args>() -> Result<()> {
 
 fn cli() -> clap::Command {
     let cmd = clap::Command::new("flake-ctl-build")
-        .arg(arg!(-a <APP> "Name of the app on the host").id("target-app").long("target-app"))
+        .arg(arg!(-a --app <APP> "Name of the app on the host"))
         .arg(arg!(-c <OCI> "Build from the given oci container").id("from-oci").long("from-oci"))
         .arg(arg!(-t <TAR> "Build from tarball. NOTE: file should have extension \".tar.gz\"").id("from-tar").long("from-tar"))
         .arg(arg!(-o --output <OUTPUT> "Output directory or filename (default: working dir, name depends on package manager)"))
@@ -100,7 +100,7 @@ fn cli() -> clap::Command {
         .arg(arg!(--compile "Compile a pre-existing bundle given by 'location'"))
         .arg(arg!("Do not include an image in this flake").id("no-image").long("no-image").action(ArgAction::SetTrue))
         .arg(arg!(--ci "Skip all potential user input"))
-        .arg(arg!(--imgage <IMAGE> "Override the image used in the flake (otherwise inferred)"))
+        .arg(arg!(--image <IMAGE> "Override the image used in the flake (otherwise inferred)"))
         .arg(arg!(trailing: ... "Trailing args will be forwarded to the flake config").trailing_var_arg(true).hide(true));
     PackageOptionsBuilder::augment_args(cmd)
 }

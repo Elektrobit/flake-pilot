@@ -51,7 +51,7 @@ pub(crate) fn build(keep: bool) -> Result<()> {
     let mut cmd = Command::new("flake-ctl");
     let app = project_name()?;
     cmd.args(["build", "--compile", "--location", ".staging", "-o", "out"])
-    .arg("--target-app")
+    .arg("--app")
     .arg(format!("/usr/bin/{app}"));
     cmd.output()?;
     println!("{}\r{}", clear::CurrentLine, "Built".green().bold());

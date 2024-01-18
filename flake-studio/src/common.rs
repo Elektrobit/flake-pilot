@@ -7,7 +7,7 @@ pub fn setup_flake(app: &str, image: &str, exclude_image: bool) -> Result<()> {
     let mut cmd = Command::new("flake-ctl-build");
     cmd.arg("--from-oci")
         .arg(image)
-        .arg("--target-app")
+        .arg("--app")
         .arg(format!("/usr/bin/{app}"))
         .args(["--location", ".staging", "--ci", "--dry-run"]);
     if exclude_image {
