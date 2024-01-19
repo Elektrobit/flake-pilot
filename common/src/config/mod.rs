@@ -55,7 +55,7 @@ pub fn get_cid_store() -> Result<PathBuf, Error> {
         .join("cid");
 
     if !cid_dir.exists() {
-        match fs::create_dir(&cid_dir) {
+        match fs::create_dir_all(&cid_dir) {
             Ok(_) => {}
             Err(err) => {
                 return Err(Error::new(std::io::ErrorKind::NotFound, format!("Unable create CID directory: {}", err)));
