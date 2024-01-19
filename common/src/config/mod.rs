@@ -23,10 +23,10 @@ lazy_static! {
     pub static ref DEFAULT_CONTAINER_DIR: PathBuf = PathBuf::from("/var/lib/containers");
 
     /// CID directory where all OCI containers should store their runtime ID
-    static ref _CID_DIR: String = "/usr/share/flakes/cid".to_string();
+    static ref _CID_DIR: PathBuf = PathBuf::from("/usr/share/flakes/cid");
 
     /// CID directory where all OCI containers should store their runtime ID, but in the user's home
-    static ref _CID_HDIR: String = ".flakes".to_string();
+    static ref _CID_HDIR: PathBuf = PathBuf::from(".flakes");
 
     // Global internal variable to keep singleton content for the CID directory, taken by `get_cid_store` function.
     static ref CID_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
@@ -49,15 +49,10 @@ pub fn get_cid_store() -> Result<PathBuf, Error> {
         return Ok(cid_dir);
     }
 
-    let mut cid_dir: PathBuf = PathBuf::from("");
-    if let Some(hd) = env::var_os("HOME") {
-        let homedir = hd.as_os_str().to_str().unwrap_or("").to_string();
-        if !homedir.is_empty() {
-            cid_dir = PathBuf::from(homedir).join(_CID_HDIR.to_string());
-        }
-    } else {
-        cid_dir = PathBuf::from(_CID_DIR.to_string());
-    }
+    let cid_dir = home::home_dir()
+        .map(|hd| hd.join(_CID_HDIR.as_path()))
+        .unwrap_or(_CID_DIR.to_path_buf())
+        .join("cid");
 
     if !cid_dir.exists() {
         match fs::create_dir(&cid_dir) {
@@ -76,6 +71,7 @@ pub fn get_cid_store() -> Result<PathBuf, Error> {
     }
 
     *cid_dir_val = Some(cid_dir.clone());
+
 
     log::debug!("Return new CID store instance at {:?}", cid_dir);
     Ok(cid_dir)
