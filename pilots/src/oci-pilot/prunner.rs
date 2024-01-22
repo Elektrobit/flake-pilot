@@ -1,6 +1,7 @@
 use crate::{fgc::CidGarbageCollector, pdsys::PdSysCall};
 use flakes::config::itf::{FlakeConfig, InstanceMode};
 use std::path::PathBuf;
+use std::process::Command;
 use std::{fs, thread};
 use std::{io::Error, thread::JoinHandle};
 
@@ -10,7 +11,6 @@ pub(crate) struct PodmanRunner {
     gc: CidGarbageCollector,
     cid: Option<String>,
     cidfile: Option<PathBuf>,
-    pds: PdSysCall,
     debug: bool,
 }
 
@@ -18,7 +18,6 @@ impl PodmanRunner {
     pub(crate) fn new(app: String, cfg: FlakeConfig, debug: bool) -> Self {
         PodmanRunner {
             gc: CidGarbageCollector::new(debug),
-            pds: PdSysCall::new(debug),
             cid: None,
             cidfile: None,
             app,
@@ -35,7 +34,10 @@ impl PodmanRunner {
             log::debug!("Checking running container for the CID: {}", cid);
         }
 
-        for rcid in self.pds.call(true, &["ps", "--format", "{{.ID}}"])?.lines() {
+        let out = self.command().args(["ps", "--format", "{{.ID}}"]).output()?.stdout;
+        let out = String::from_utf8_lossy(&out);
+
+        for rcid in out.lines() {
             if cid.starts_with(rcid.trim()) {
                 if self.debug {
                     log::debug!("Container with CID {} is already running", cid);
@@ -183,7 +185,8 @@ impl PodmanRunner {
             }
         }
 
-        self.set_cid(self.pds.call(true, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?);
+        let out = self.command().args(args).output()?;
+        self.set_cid(String::from_utf8_lossy(&out.stdout).to_string());
 
         if self.debug {
             log::debug!("Processing with CID: {}", self.get_cid());
@@ -192,41 +195,47 @@ impl PodmanRunner {
         Ok(false)
     }
 
-    /// Run the container with the constructed calls.
-    /// Internal method
-    fn _run(&mut self, output: bool, args: Vec<String>) -> Result<(String, String), Error> {
-        let stdout = self.pds.call(output, &args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())?;
-        self.cleanup()?;
-        Ok((stdout, "".to_string()))
-    }
-
     /// Launch a container
-    pub(crate) fn start(&mut self) -> Result<(String, String), Error> {
+    pub(crate) fn start(&mut self) -> Result<(), Error> {
         if self.debug {
             log::debug!("Starting container {}", self.get_cid()[..0xc].to_string());
         }
 
-        self._run(true, vec!["start".to_string(), "--attach".to_string(), self.get_cid()])
+        self.command().arg("start").arg("--attach").arg(self.get_cid()).status()?;
+        self.cleanup()?;
+        Ok(())
     }
 
     /// Attach to a container
-    pub(crate) fn attach(&mut self) -> Result<(String, String), Error> {
+    pub(crate) fn attach(&mut self) -> Result<(), Error> {
         if self.debug {
             log::debug!("Attaching to the container {}", self.get_cid()[..0xc].to_string());
         }
 
-        self._run(true, vec!["attach".to_string(), self.get_cid(), self.get_target_app()?])
+        self.command().arg("attach").arg(self.get_cid()).arg(self.get_target_app()?).status()?;
+        self.cleanup()?;
+        Ok(())
     }
 
     /// Exec a container
-    pub(crate) fn exec(&mut self) -> Result<(String, String), Error> {
+    pub(crate) fn exec(&mut self) -> Result<(), Error> {
         if self.debug {
             log::debug!("Resuming container interactively {}", self.get_cid()[..0xc].to_string());
         }
 
-        self._run(
-            false,
-            vec!["exec".to_string(), "--interactive".to_string(), "--tty".to_string(), self.get_cid(), self.get_target_app()?],
-        )
+        self.command().args(["exec", "--interactive", "--tty"]).arg(self.get_cid()).arg(self.get_target_app()?).status()?;
+        self.cleanup()?;
+        Ok(())
+    }
+
+    fn command(&self) -> Command {
+        if let Some(user) = self.cfg.runtime().run_as() {
+            let mut cmd = Command::new("sudo");
+            cmd.arg("--user").arg(user.name);
+            cmd.arg("podman");
+            cmd
+        } else {
+            Command::new("podman")
+        }
     }
 }
