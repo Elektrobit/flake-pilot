@@ -7,9 +7,7 @@ use std::{io::{Error, stdout, Write}, path::PathBuf};
 pub(crate) struct PodmanPilot {
     appdir: PathBuf,
     runner: PodmanRunner,
-    debug: bool,
-    stdout: String,
-    stderr: String,
+    debug: bool
 }
 
 impl PodmanPilot {
@@ -19,8 +17,6 @@ impl PodmanPilot {
         Ok(PodmanPilot {
             appdir: appdir.to_owned(),
             runner: PodmanRunner::new(appdir.file_name().unwrap().to_str().unwrap().to_string(), flakes::config::get(), debug),
-            stdout: "".to_string(),
-            stderr: "".to_string(),
             debug,
         })
     }
@@ -31,28 +27,18 @@ impl PodmanPilot {
 
         if self.runner.setup_container()? && self.runner.is_running()? {
             if *self.runner.get_cfg().runtime().instance_mode() & InstanceMode::Attach == InstanceMode::Attach {
-                (self.stdout, self.stderr) = self.runner.attach()?;
+                self.runner.attach()?;
             } else {
-                (self.stdout, self.stderr) = self.runner.exec()?;
+                self.runner.exec()?;
             }
         } else {
             if self.debug {
                 log::debug!("Starting a flake on {:?}", self.appdir);
             }
-            (self.stdout, self.stderr) = self.runner.start()?;
+            self.runner.start()?;
             if *self.runner.get_cfg().runtime().instance_mode() & InstanceMode::Resume == InstanceMode::Resume {
-                (self.stdout, self.stderr) = self.runner.exec()?;
+                self.runner.exec()?;
             }
-        }
-
-        // Print out the results
-        if !self.stdout.is_empty() {
-            print!("{}", self.stdout);
-            stdout().flush()?;
-        }
-
-        if !self.stderr.is_empty() {
-            log::error!("{}", self.stderr);
         }
 
         if let Err(err) = jh.join() {
