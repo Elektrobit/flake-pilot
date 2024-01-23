@@ -1,4 +1,4 @@
-use crate::{fgc::CidGarbageCollector, pdsys::PdSysCall};
+use crate::fgc::CidGarbageCollector;
 use flakes::config::itf::{FlakeConfig, InstanceMode};
 use std::path::PathBuf;
 use std::process::Command;
@@ -61,8 +61,8 @@ impl PodmanRunner {
 
         let mut suff = String::from("");
         for arg in std::env::args().collect::<Vec<String>>() {
-            if arg.starts_with('@') {
-                suff = format!("-{}", &arg.to_owned()[1..]);
+            if let Some(arg) = arg.strip_prefix('@') {
+                suff = format!("-{}", &arg);
                 break;
             }
         }
@@ -73,7 +73,7 @@ impl PodmanRunner {
 
     /// Purge bogus CID files
     pub(crate) fn cid_collect(&mut self) -> JoinHandle<Result<(), Error>> {
-        let cidf = self.get_cidfile().unwrap().to_owned();
+        let cidf = self.get_cidfile().unwrap();
         let gc = self.gc.to_owned();
         thread::spawn(move || gc.on_all(cidf))
     }

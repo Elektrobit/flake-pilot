@@ -1,6 +1,6 @@
 use crate::prunner::PodmanRunner;
 use flakes::config::itf::InstanceMode;
-use std::{io::{Error, stdout, Write}, path::PathBuf};
+use std::{io::Error, path::PathBuf};
 
 /// Podman runtime
 ///
